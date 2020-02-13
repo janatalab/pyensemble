@@ -1,0 +1,28 @@
+{% extends "pyensemble/base.html" %}
+{% load staticfiles %}
+{% load i18n %}
+
+
+{% block head %}
+    <link rel="stylesheet" href="{% static 'pyensemble/css/signin.css' %}" type="text/css" />
+{% endblock %}
+
+{% block main %}
+    <main role="main" class='w-100 container'>
+        <div class="container-fluid my-2">
+
+            <h3>{% trans "PyEnsemble" %}
+                <p><small class="text-muted">{% trans "Janata Lab Online Experiment Manager" %}</small></p>
+            </h3>
+
+            <form class="form-signin w-md-50" method="post" autocapitalize="none" action="">
+                {% csrf_token %}
+
+                {{form}}
+                <input type="submit" value="{% trans 'Submit' %}" class="btn btn-primary"/>
+                <input type="hidden" name="next" value="{{ next }}" />
+            </form>
+        </div>
+    </main>
+
+{% endblock %}

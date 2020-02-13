@@ -1,0 +1,27 @@
+/*app-styles.css*/
+
+body { padding-top: 70px; }
+
+.form-check-input {
+    position: relative;
+    margin-top: 0.4rem;
+    margin-left: 0;
+}
+
+.custom-control {
+    padding-left: 0;
+}
+
+.custom-control-inline {
+    margin-right: 0;
+    display: block;
+}
+
+.custom-radio {
+    margin-bottom: 20px;
+}
+
+.question-text {
+    font-size: 1.1rem;
+    font-weight: bold;
+}

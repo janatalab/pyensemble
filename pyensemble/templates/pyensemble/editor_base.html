@@ -1,0 +1,55 @@
+{% extends "pyensemble/base.html" %}
+{% load staticfiles %}
+
+{% block header %}
+<nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light">
+    <a class="navbar-brand" href="/editor/">PyEnsemble</a>
+    <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#editor-navbar" aria-expanded="false" aria-controls="editor-navbar">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="editor-navbar">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item content-link"><a class="nav-link" href="#">Experiments</a></li>
+            <li><a class="nav-link content-link" href="#">Forms</a></li>
+            <li><a class="nav-link content-link" href="#">Questions</a></li>
+        </ul>
+    </div>
+  </div>
+</nav>
+{% endblock %}
+
+{% block main %}
+<main role="main" class='container-fluid h-90'>
+    <div class="container-fluid my-2">
+        <div class="row align-items-start justify-content-center">
+            <!-- left nav -->
+            <div class="col-md-3 border-right" id="content-left">
+                <div id="contentList" class="bd-sidebar">
+                    <div id="contentListHeader" class="nav">
+                    </div>
+
+                    <div id="contentListContent" class="text-left">
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-9" id="content-right">
+                <div id="detailHeader">
+                    {% block detailHeader %}
+                    {% endblock %}                    
+                </div>
+                <div id="detailContent">
+                    {% block detailContent %}
+                    {% endblock %}
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+ {% block appscript %}
+    <script type="text/javascript" src="{% static 'thirdparty/jq/jquery.cookie.js' %}"></script>
+     <script type="text/javascript" src="{% static 'pyensemble/js/editor.js' %}"></script>
+ {% endblock %}

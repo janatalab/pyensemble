@@ -1,0 +1,29 @@
+{% block detailHeader %}
+<div>
+<h2>{{form.form_name}} Questions</h2>
+</div>
+{% endblock %}
+
+{% block detailContent %}
+<div class="formlist">
+    <table class="table table-striped table-responsive table-compact table-bordered">
+        <thead>
+            <tr>
+                <th scope="col">Order</th>
+                <th scope="col">ID</th>
+                <th scope="col">Question Text</th>
+            </tr>
+        </thead>
+        
+        <tbody>
+            {% for q in questions.all %}
+                <tr>
+                <th scope="row">{{q.form_question_num}}</th>
+                <td>{{q.question.pk}}</td>
+                <td class='text-left'>{{q.question.question_text}}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

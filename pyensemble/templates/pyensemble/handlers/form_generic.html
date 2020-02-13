@@ -1,0 +1,15 @@
+{% extends "pyensemble/presentation_base.html" %}
+{% load staticfiles %}
+
+{% load crispy_forms_tags %}
+
+{% block questions %}
+<form method="post">
+    {{ form.management_form | crispy }}
+    {% for f in form %}
+        {% crispy f %}
+    {% endfor %}
+
+    <input type="submit" name="submit" value="Next" class="btn btn-primary"/>
+</form>
+{% endblock %}

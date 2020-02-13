@@ -1,0 +1,49 @@
+
+{% block detailHeader %}
+<div>
+<h2>{{experiment.experiment_title}} Forms</h2>
+</div>
+<ul class="nav nav-pills nav-fill">
+    <li class="nav-item">
+        <a class="nav-link" href="#">Edit</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="/run/{{experiment.pk}}/">Run</a>
+    </li>
+</ul>
+{% endblock %}
+
+{% block detailContent %}
+<div class="formlist">
+    <table class="table table-striped table-responsive table-compact table-bordered">
+        <thead>
+            <tr>
+                <th scope="col">Order</th>
+                <th scope="col">Name</th>
+                <th scope="col">ID</th>
+                <th scope="col">Goto</th>
+                <th scope="col">Repeat</th>
+                <th scope="col">Break Loop</th>
+                <th scope="col">Handler</th>
+                <th scope="col">Condition</th>
+                <th scope="col">Script</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for f in forms.all %}
+                <tr>
+                <th scope="row">{{f.form_order}}</th>
+                <td>{{f.form.form_name}}</td>
+                <td>{{f.form.form_id}}</td>
+                <td>{{f.goto}}</td>
+                <td>{{f.repeat}}</td>
+                <td>{{f.break_loop_button}}</td>
+                <td>{{f.form_handler}}</td>
+                <td>{{f.condition}}</td>
+                <td>{{f.condition_matlab}}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

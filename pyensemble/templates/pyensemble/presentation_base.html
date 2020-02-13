@@ -1,0 +1,15 @@
+{% extends "pyensemble/base.html" %}
+
+{% block main %}
+<div id="presentation" class="container">
+    <div id="trialrunner" class="col-12 d-none">
+        {% block trialrunner %}
+        {% endblock %}
+    </div>
+
+    <div id="questions" class="container col-12">
+        {% block questions %}
+        {% endblock %}
+    </div>
+</div>
+{% endblock %}

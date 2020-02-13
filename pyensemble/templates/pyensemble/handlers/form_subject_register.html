@@ -1,0 +1,41 @@
+{% extends "pyensemble/presentation_base.html" %}
+{% load staticfiles %}
+
+{% load crispy_forms_tags %}
+
+{% block head %}
+    <link rel="stylesheet" href="{% static 'pyensemble/css/signin.css' %}" type="text/css" />
+{% endblock %}
+
+{% block main %}
+    <form class="form-signin w-md-75" method="post" autocapitalize="words" action="">
+        {% csrf_token %}
+        <div class="row">
+            <div class="col-6">
+                {{form.name_first | as_crispy_field}}
+            </div>
+            <div class="col-6">
+                {{ form.name_last | as_crispy_field }}
+            </div>
+        </div>
+        <div class="col-12">
+            {{ form.dob | as_crispy_field }}
+        </div>
+        <div id="demographics" class="container border my-2">
+            <div class="row">
+                <div class="col-12">
+                    {{ form.sex | as_crispy_field }}
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-6">
+                    {{form.race| as_crispy_field}}
+                </div>
+                <div class="col-6">
+                    {{ form.ethnicity | as_crispy_field }}
+                </div>
+            </div>
+        </div>
+        <input type="submit" value="Register" class="btn btn-primary"/>
+    </form>
+{% endblock %}
