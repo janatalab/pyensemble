@@ -148,7 +148,7 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-STIMULUS_ROOT = ''
+MEDIA_ROOT = '/var/www/html/ensemble/stimuli/'
 
 # Login and logout stuff
 LOGIN_URL = '/accounts/login/'

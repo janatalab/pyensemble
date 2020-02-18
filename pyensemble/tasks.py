@@ -2,44 +2,77 @@
 
 from pyensemble.models import Experiment, ExperimentXForm
 
+from django.urls import reverse
+from django.shortcuts import render
+
 import pdb
 
-def run_experiment(experiment_id=None):
-    # Get the experiment by its id
-    if experiment_id:
-        experiment = Experiment.objects.get(experiment_id=experiment_id)
+def get_expsess_key(experiment_id):
+    return f'experiment_{experiment_id}'
+
+def reset_session(request, experiment_id):
+    expsess_key = get_expsess_key(experiment_id)
+    expsessinfo = request.session.get(expsess_key)
+
+    if not expsessinfo:
+        msg = f'Experiment {experiment_id} session not initialized'
     else:
-        return
+        msg = f'Experiment {experiment_id} session reset'
+        request.session[expsess_key] = {}
 
-    # Check for existence of the response table
+    return render(request,'pyensemble/message.html',{'msg':msg})
 
-    # User the experiment_x_form entries to run the experiment
-    exf = ExperimentXForm.objects.filter(experiment_id=experiment_id).order_by('form_order')
-    num_forms = len(exf)
+def determine_next_form(request, experiment_id):
+    next_formidx = None
 
-    #
-    # Iterate over the forms, but in a way that deals with looping
-    #
+    expsess_key = get_expsess_key(experiment_id)
+    expsessinfo = request.session.get(expsess_key)
 
-    # initialize a dictionary to keep track of iteratons by   form_order_idx
-    num_iter = [0]*num_forms
+    # Get our form stack
+    exf = ExperimentXForm.objects.filter(experiment=experiment_id).order_by('form_order')
 
-    currform_idx = 1 # initialize the form order index to the start
-    while currform_idx <= num_forms:
-        entry = exf.get(form_order=currform_idx)
+    # Get our current form
+    form_idx = expsessinfo['curr_form_idx']
+    currform = exf[form_idx]
 
-        num_iter[currform_idx-1] += 1
+    check_conditional = True
 
-        print('%d, %d, %s, %s'%(currform_idx, num_iter[currform_idx-1], entry.form.form_name, entry.form_handler))
+    # See whether a break loop flag was set
+    # pdb.set_trace()
+    # break_loop = formset.cleaned_data['break_loop']
+    break_loop = False
 
-        # Generate our view of this form
-        present_form()
+    # Fetch our variables that control looping
+    num_repeats = exf[form_idx].repeat
+    goto_form_idx = exf[form_idx].goto
 
+    if break_loop:
+        # If the user chose to exit the loop
+        expsessinfo['curr_form_idx'] = form_idx+1
 
-        # Determine what the next form is
-        if entry.goto and num_iter[currform_idx-1]<entry.repeat:
-            currform_idx = entry.goto
-        else:
-            currform_idx += 1
+    elif num_repeats and num_visits == num_repeats:
+        # If the repeat value is set and we have visited it this number of times, then move on
+        expsessinfo['curr_form_idx'] = form_idx+1
 
+    elif goto_form_idx:
+        # If a goto form was specified
+        expsessinfo['curr_form_idx'] = goto_form_idx
+        check_conditional = False
 
+    elif form_idx == exf.count():
+        expsessinfo['finished'] = True
+
+        request.session[expsess_key] = expsessinfo
+        return HttpResponseRedirect(reverse('terminate_experiment'),args=(experiment_id))
+    else:
+        expsessinfo['curr_form_idx'] = form_idx+1
+
+    next_formidx = expsessinfo['curr_form_idx']
+
+    # Update our session storage
+    request.session[expsess_key] = expsessinfo    
+
+    # Update the next variable for this session
+    request.session['next'] = reverse('serve_form', args=(experiment_id, next_formidx,))
+
+    return next_formidx

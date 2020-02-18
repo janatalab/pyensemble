@@ -15,18 +15,17 @@ class QuestionModelForm(forms.ModelForm):
         super(QuestionModelForm, self).__init__(*args, **kwargs)
 
         use_crispy = True
-
-        # Access to crispy forms
-        self.helper = FormHelper()
-        self.helper.field_class='row justify-content-center'
-        self.form_tag = False
+        field_params = {'required': False}
 
         # Set up the input field as a function of the HTML type
         html_field_type = self.instance.questionxdataformat_set.get().html_field_type
-        if html_field_type in ['radiogroup', 'checkbox']:
-            enum_value_str = self.instance.values.all().values_list('enum_values',flat=True)[0]
+        
 
-            choices = [(val,lbl) for val,lbl in enumerate(enum_value_str.replace('"','').replace('\\','').split(','))]
+        if html_field_type in ['radiogroup', 'checkbox','menu']:
+            # Deal with getting our choices
+            enum_value_str = self.instance.values.all().values_list('enum_values',flat=True)[0]
+            field_params['choices'] = [(val,lbl) for val,lbl in enumerate(enum_value_str.replace('"','').replace('\\','').split(','))]
+
             # pdb.set_trace()
             if html_field_type == 'radiogroup':
                 widget = forms.RadioSelect
@@ -34,21 +33,31 @@ class QuestionModelForm(forms.ModelForm):
             elif html_field_type == 'checkbox':
                 widget = forms.CheckboxSelectMultiple
 
-            self.fields['option'] = forms.ChoiceField(
-                widget= widget, 
-                choices= choices,
-                required= False,
-            )
+            elif html_field_type == 'menu':
+                widget = forms.Select
 
-            if use_crispy:
-                if html_field_type == 'radiogroup':
-                    self.helper.layout = Layout(
-                        InlineRadios('option',template="pyensemble/crispy_overrides/radioselect_inline.html"),
-                        )
-                elif html_field_type == 'checkbox':
-                    self.helper.layout = Layout(
-                        InlineCheckboxes('option',template="pyensemble/crispy_overrides/checkboxselectmultiple_inline.html"),
-                        )                    
+            field_params['widget'] = widget
+
+
+        self.fields['option'] = forms.ChoiceField(**field_params)
+
+        if use_crispy:
+            # Access to crispy forms
+            self.helper = FormHelper()
+            self.helper.field_class='row justify-content-center'
+            self.form_tag = False
+
+            if html_field_type == 'radiogroup':
+                self.helper.layout = Layout(
+                    InlineRadios('option',template="pyensemble/crispy_overrides/radioselect_inline.html"),
+                    )
+            elif html_field_type == 'checkbox':
+                self.helper.layout = Layout(
+                    InlineCheckboxes('option',template="pyensemble/crispy_overrides/checkboxselectmultiple_inline.html"),
+                    )
+
+            # pdb.set_trace()
+            self.helper.render_required_fields = True                
 
         # Set the label of the input element to the question_text
         self.fields['option'].label = self.instance.question_text
@@ -60,9 +69,9 @@ class QuestionModelForm(forms.ModelForm):
         model = Question
         fields = ['option']
 
-class QuestionModelFormHelper(FormHelper):
+class QuestionModelFormSetHelper(FormHelper):
     def __init__(self, *args, **kwargs):
-        super(QuestionModelFormHelper, self).__init__(*args, **kwargs)
+        super(QuestionModelFormSetHelper, self).__init__(*args, **kwargs)
 
         self.form_method='post'  
 
@@ -82,4 +91,7 @@ class RegisterSubjectForm(forms.ModelForm):
             "sex": "Biological sex",
             "ethnicity": "Ethnicity",
             "race": "Race",
+        }
+        widgets = {
+            'dob': forms.DateInput(attrs={'placeholder':'MM/DD/YYYY'}),
         }

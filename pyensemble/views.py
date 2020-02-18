@@ -16,7 +16,11 @@ from django.urls import reverse
 from django.conf import settings
 
 from .models import Experiment, Form, Question, ExperimentXForm
-from .forms import QuestionModelForm, RegisterSubjectForm
+from .forms import QuestionModelForm, RegisterSubjectForm, QuestionModelFormSetHelper
+
+from .tasks import get_expsess_key, determine_next_form
+
+from crispy_forms.layout import Submit
 
 import pdb
 
@@ -69,9 +73,6 @@ class QuestionDetailView(DetailView):
 
         return context
 
-def get_expsess_key(experiment_id):
-    return f'experiment_{experiment_id}'
-
 # Start experiment
 @require_http_methods(['GET'])
 def run_experiment(request, experiment_id=None, ticket=None):
@@ -118,7 +119,7 @@ def serve_form(request, experiment_id=None, form_idx=None):
 
     currform = exf[form_idx]
 
-    # Check to see whether we are dealing with a special form that requires different handline. This is largely to try to maintain backward compatibility with the legacy PHP version of Ensemble
+    # Check to see whether we are dealing with a special form that requires different handling. This is largely to try to maintain backward compatibility with the legacy PHP version of Ensemble
     form_handler = currform.form_handler
     handler_name = os.path.splitext(form_handler)[0]
 
@@ -132,16 +133,24 @@ def serve_form(request, experiment_id=None, form_idx=None):
         return HttpResponseRedirect(reverse('serve_form', args=(experiment_id, expsessinfo['curr_form_idx'],)))
 
     # Define our formset
-    QuestionModelFormSet = forms.modelformset_factory(Question, form=QuestionModelForm, extra=0)
+    QuestionModelFormSet = forms.modelformset_factory(Question, form=QuestionModelForm, extra=0, max_num=1)
+
+    # Get our formset helper
+    helper = QuestionModelFormSetHelper()
+    helper.add_input(Submit("submit", "Submit"))
+    helper.template = 'pyensemble/crispy_overrides/table_inline_formset.html'
+
 
     if request.method == 'POST':
         if handler_name == 'form_subject_register':
-            form = RegisterSubjectForm(request.POST)
+            formset = RegisterSubjectForm(request.POST)
         else:
-            form_instance = Form.objects.get(form_id=currform.form_id)
-            form = QuestionModelFormSet(request.POST)
+            form = Form.objects.get(form_id=currform.form_id)
+            formset = QuestionModelFormSet(request.POST)
 
-        if form.is_valid():
+        # pdb.set_trace()
+
+        if formset.is_valid():
             #
             # Write data to the database. With only a couple of exceptions, based on form_handler, this will be to the response table registered with the experiment
             #
@@ -155,65 +164,48 @@ def serve_form(request, experiment_id=None, form_idx=None):
             #
             # Determine where we are going next
             #
-            check_conditional = True
-
-            # See whether a break loop flag was set
-            break_loop = form.cleaned_data.get('break_loop',False)
-
-            # Fetch our variables that control looping
-            num_repeats = exf[form_idx].repeat
-            goto_form_idx = exf[form_idx].goto
-
-            if break_loop:
-                # If the user chose to exit the loop
-                expsessinfo['curr_form_idx'] = form_idx+1
-
-            elif num_repeats and num_visits == num_repeats:
-                # If the repeat value is set and we have visited it this number of times, then move on
-                expsessinfo['curr_form_idx'] = form_idx+1
-
-            elif goto_form_idx:
-                # If a goto form was specified
-                expsessinfo['curr_form_idx'] = goto_form_idx
-                check_conditional = False
-
-            elif form_idx == exf.count():
-                expsessinfo['finished'] = True
-
-                request.session[expsess_key] = expsessinfo
-                return HttpResponseRedirect(reverse('terminate_experiment'),args=(experiment_id))
-            else:
-                expsessinfo['curr_form_idx'] = form_idx+1
-
-            # Update our session storage
-            request.session[expsess_key] = expsessinfo
+            next_formidx = determine_next_form(request, experiment_id)
 
             # Move to the next form by calling ourselves
-            return HttpResponseRedirect(reverse('serve_form', args=(experiment_id, expsessinfo['curr_form_idx'],)))
+            return HttpResponseRedirect(reverse('serve_form', args=(experiment_id, next_formidx,)))
             
         # If the form was not valid and we have to present it again, skip the trial running portion of it, so that we only present the questions
+        # pdb.set_trace()
         skip_trial = True
 
     else:
+        skip_trial = False
         # Check the conditonal specification on the form we intend to go to, in order to make sure we can go there
         if currform.condition:
             # Parse the condition specification and evaluate it
             # This remains to be implemented 
-            return HttpResponseRedirect(reverse('feature_not_enabled'),args=('form conditionals',))
+            determine_next_form(request, experiment_id)
+            return HttpResponseRedirect(reverse('feature_not_enabled',args=('form conditionals',)))
 
         # Get our blank form
         if handler_name == 'form_subject_register':
             form = RegisterSubjectForm()
+            formset = None
         else:
-            form_instance = Form.objects.get(form_id=currform.form_id)
-            form = QuestionModelFormSet(queryset=form_instance.questions.all())
+            form = Form.objects.get(form_id=currform.form_id)
 
-        skip_trial = False
+            # Return error if we are dealing with a multi-question question. Need to add handling for these at a later date
+            if form.questions.filter(heading_format='multi-question'):
+                determine_next_form(request, experiment_id)
+                return HttpResponseRedirect(reverse('feature_not_enabled',args=('multi-question',)))
+
+            formset = QuestionModelFormSet(queryset=form.questions.all())
+
+        # Execute a stimulus selection script if one has been specified
+
+        # Check whether handler_name ends in _s. If it does not, set the current stimulus value to None
 
     # Create our context
     context = {
         'form': form,
+        'formset': formset,
         'exf': currform,
+        'helper': helper,
        }
 
     #

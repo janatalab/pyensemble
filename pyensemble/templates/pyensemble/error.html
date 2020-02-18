@@ -1,0 +1,14 @@
+{% extends "pyensemble/base.html" %}
+
+{% block main %}
+    <main role="main" class='w-100 container'>
+        <div class="row justify-content-center">
+            <div class="alert alert-primary" role="alert">
+                {{msg}}
+            </div>
+        </div>
+        <div>
+            <a href="{{next}}">Ok</a>
+        </div>
+    </main>
+{% endblock %}

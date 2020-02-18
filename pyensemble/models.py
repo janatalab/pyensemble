@@ -10,7 +10,7 @@ from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailFiel
 # Base class tables
 #
 class Attribute(models.Model):
-    attribute_id = models.IntegerField(primary_key=True)
+    attribute_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=50)
     class_field = models.CharField(db_column='class', max_length=15)  # Field renamed because it was a Python reserved word.
 
@@ -80,24 +80,27 @@ class Session(models.Model):
 
 
 class Stimulus(models.Model):
-    stimulus_id = models.IntegerField(primary_key=True)
+    stimulus_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=200)
     description = models.CharField(max_length=30)
     playlist = models.CharField(max_length=50, blank=True)
     artist = models.CharField(max_length=200, blank=True)
     album = models.TextField(blank=True)
     genre = models.TextField(blank=True)
-    file_format = models.CharField(max_length=3, blank=True)
+    file_format = models.CharField(max_length=6, blank=True)
     size = models.IntegerField(blank=True, null=True)
     duration = models.TimeField(blank=True, null=True)
-    year = models.TextField(blank=True)  # This field type is a guess.
+    year = models.IntegerField(blank=True, null=True)  
     compression_bit_rate = models.IntegerField(blank=True, null=True)
     sample_rate = models.IntegerField(blank=True, null=True)
     sample_size = models.IntegerField(blank=True, null=True)
     channels = models.IntegerField(blank=True, null=True)
-    width = models.IntegerField()
-    height = models.IntegerField()
-    location = models.TextField()
+    width = models.IntegerField(blank=True, null=True)
+    height = models.IntegerField(blank=True, null=True)
+    location = models.FileField()
+
+    class Meta:
+        unique_together = (("name", "location"),)
 
 class Subject(models.Model):
     SEX_OPTIONS = [
