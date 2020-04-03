@@ -256,3 +256,7 @@ class ExperimentXForm(models.Model):
 
     class Meta:
         unique_together = (("experiment", "form", "form_order"),)
+
+class ExperimentXAttribute(models.Model):
+    experiment = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)
+    attribute = models.ForeignKey('Attribute', db_column='attribute_id',db_constraint=True, on_delete=models.CASCADE)
