@@ -6,6 +6,9 @@
 from django.db import models
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField, EncryptedDateField
 
+from django.utils import timezone
+from pyensemble.utils.parsers import parse_function_spec
+
 #
 # Base class tables
 #
@@ -46,8 +49,8 @@ class Form(models.Model):
     footer_audio_path = models.CharField(max_length=50, blank=True)
     version = models.FloatField(blank=True, null=True)
     locked = models.CharField(max_length=1)
-    condition = models.TextField(blank=True)
-    condition_matlab = models.CharField(max_length=40, blank=True)
+    # condition = models.TextField(blank=True)
+    # condition_matlab = models.CharField(max_length=40, blank=True)
     visit_once = models.CharField(max_length=1)
 
     questions = models.ManyToManyField('Question', through='FormXQuestion')
@@ -71,13 +74,34 @@ class Experiment(models.Model):
 
 class Session(models.Model):
     session_id = models.IntegerField(primary_key=True)
-    date_time = models.DateTimeField(blank=True, null=True)
+    date_time = models.DateTimeField(blank=True, auto_now_add=True)
     end_datetime = models.DateTimeField(blank=True, null=True)
     experiment = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)
     ticket = models.ForeignKey('Ticket', db_column='ticket_id', db_constraint=True, on_delete=models.CASCADE, related_name='+')
     subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE)
     php_session_id = models.CharField(max_length=70, blank=True)
 
+class Response(models.Model):
+    experiment = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)
+    subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE)
+    session = models.ForeignKey('Session', db_column='session_id', db_constraint=True, on_delete=models.CASCADE)
+    form = models.ForeignKey('Form', db_column='form_id', db_constraint=True, on_delete=models.CASCADE)
+    form_order = models.PositiveSmallIntegerField(null=False,default=0)
+
+    stimulus = models.ForeignKey('Stimulus', db_column='stimulus_id', db_constraint=True, on_delete=models.CASCADE)
+
+    # Question X DataFormat
+    qdf = models.ForeignKey('QuestionXDataFormat', db_constraint=True, on_delete=models.CASCADE)
+    form_question_num = models.PositiveSmallIntegerField(null=False,default=0)
+    question_iteration = models.PositiveSmallIntegerField(null=False,default=0)
+
+    date_time = models.DateTimeField(auto_now_add=True)
+    response_order = models.PositiveSmallIntegerField(null=False,default=0)
+    response_text = models.TextField(blank=True)
+    response_enum = models.PositiveIntegerField(blank=True, null=True)
+    decline = models.BooleanField(default=False)
+    misc_info = models.TextField(blank=True)
+    
 
 class Stimulus(models.Model):
     stimulus_id = models.AutoField(primary_key=True)
@@ -180,6 +204,14 @@ class Ticket(models.Model):
     session = models.ForeignKey('Session',db_column='session_id',on_delete=models.CASCADE,related_name='+')
     assigned = models.BooleanField(default=False)
 
+    @property
+    def expired(self):
+        if self.used && self.type == 'user' or self.expiration_datetime < timezone.now():
+            self._expired=True
+
+        return self._expired
+    
+
 
 #
 # Linking tables
@@ -256,6 +288,202 @@ class ExperimentXForm(models.Model):
 
     class Meta:
         unique_together = (("experiment", "form", "form_order"),)
+
+    #
+    # Helper functions for taking form actions
+    #
+
+    def parse_condition_string(self, expsessinfo):
+        # Returns a list of condition dictionaries
+        item_order = ['form_occurrence','form_id','trial_form','question_id','form_question_num','question_iteration','subquestion','trial_order','stim','type','test_response']
+
+        # Initialize the array of conditions
+        conditions=[]
+
+        # Split it up into a list of conditions
+        condition_str_array = self.condition.split('\n')
+
+        # Iterate over the array of condition strings and parse each one
+        for cond_str in condition_str_array:
+            cond_items = cond_str.split(',')
+
+            curr_condition = dict()
+            iresp=0
+            for idx, val in enumerate(cond_items):
+                if idx < 10:
+                    # Get the name of our field
+                    item = item_order[idx]
+
+                    # Deal with any special handling
+                    if item == 'trial_order':
+                        if curr_condition['trial_form'] and expsessinfo:
+                            val = expsessinfo['trial_order'] - val
+                        else:
+                            val = 0
+
+                    # Update our dictionary
+                    curr_condition.update({item:val})
+
+                else:
+                    # Handle the test responses
+                    if 'test_response' not in curr_condition.keys():
+                        curr_condition['test_response'] = []
+
+                    curr_condition['test_response'].append(val)
+
+            # Update our list
+            conditions.append(curr_condition)
+
+        return conditions
+
+    @property
+    def conditions_met(self, expsessinfo):
+        met_conditions = False
+
+        #
+        # First check for conditions specified within the database
+        #
+        conditions = self.parse_condition_string(expsessinfo)
+
+        # Iterate over all the conditions, breaking on the first failed condition
+        for condition in conditions:
+            #check the condref for the form that this condition depends on
+            #if condref is false, the parent form was not visited the last time around
+            reference = 'condref_%d'%(condition['form_id'])
+            if not expsessinfo.get(reference, False):
+                met_conditions = False
+                break
+
+            # See whether we will have a stimulus filtering constraint
+            stimulus_id = expsessinfo.get('stimulus_id', None)
+            check_same_stim =  condition['stim'] == 'same_stim' and stimulus_id:
+                
+            # Find the requisite responses in the Response table
+            responses = Response.objects.filter(
+                session=expsessinfo['session_id'], 
+                form=condition['form_id'],
+                form_question_num=condition['form_question_num'],
+                qdf__question=condition['question_id'],
+                qdf__subquestion=condition['subquestion'],
+                question_iteration=condition['question_iteration']
+                )
+
+            # Handle the same stimulus constraint if necessary
+            if stimulus_id:
+                responses = responses.filter(stimulus=stimulus_id)
+
+            # Index into the set of responses
+            if condition['form_occurrence'] < 0:
+                response_idx = responses[responses.count()+condition['form_occurrence']]
+            else:
+                response_idx = condition['form_occurrence']
+
+            # Pull out the response we'll be examining
+            response = responses[response_idx]
+
+            # Check whether the response matches any of the conditions
+            if condition['type'] == 'response_enum':
+                # Handle single response (radiogroup)
+                if response.qdf.html_field_type == 'radiogroup':
+                    if response.response_enum not in condition['test_response']:
+                        met_conditions = False
+                        break
+                else:
+                    # Handle checkbox
+                    if not response.response_enum & sum([pow(2,tr-1) for tr in condition['test_response']]):
+                        met_conditions = False
+                        break
+            elif condition['type'] == 'response_text':
+                if response.response_text not in condition['test_response']:
+                    met_conditions = False
+                    break
+            else:
+                raise ValueError('Unknown response type: %s'%(condition['type']))
+
+            met_conditions=True
+
+        #
+        # Now check whether there is any condition-checking script that we need to run
+        #
+        if met_conditions and self.condition_matlab:
+            # Parse the function call specification
+            specdict = parse_function_spec(self.condition_matlab)
+
+            # Call the requested function. Assume it is in the selectors package
+
+
+        return met_conditions
+
+    def determine_next_form(self, request):
+        next_formidx = None
+        experiment_id = self.experiment.experiment_id
+
+        expsess_key = get_expsess_key(experiment_id)
+        expsessinfo = request.session.get(expsess_key)
+
+        # Get our form stack - should be a better way to do this relative to self
+        exf = ExperimentXForm.objects.filter(experiment=experiment_id).order_by('form_order')
+
+        # Get our current form
+        form_idx = expsessinfo['curr_form_idx']
+        currform = exf[form_idx]
+
+        check_conditional = True
+
+        # See whether a break loop flag was set
+        # pdb.set_trace()
+        # break_loop = formset.cleaned_data['break_loop']
+        break_loop = False
+
+        # Fetch our variables that control looping
+        num_repeats = self.repeat
+        goto_form_idx = self.goto
+
+        if break_loop:
+            # If the user chose to exit the loop
+            expsessinfo['curr_form_idx'] = form_idx+1
+
+        elif num_repeats and num_visits == num_repeats:
+            # If the repeat value is set and we have visited it this number of times, then move on
+            expsessinfo['curr_form_idx'] = form_idx+1
+
+        elif goto_form_idx:
+            # If a goto form was specified
+            expsessinfo['curr_form_idx'] = goto_form_idx
+            check_conditional = False
+
+        elif form_idx == exf.count():
+            expsessinfo['finished'] = True
+
+            request.session[expsess_key] = expsessinfo
+            return HttpResponseRedirect(reverse('terminate_experiment'),args=(experiment_id))
+        else:
+            expsessinfo['curr_form_idx'] = form_idx+1
+
+        next_formidx = expsessinfo['curr_form_idx']
+
+        # Check whether the next form has conditions associated with it and make sure that conditions are met
+        nextform = exf[next_formidx]
+
+        if nextform.condition:
+            # Parse the condition string to get a list of the conditions that need to be met
+            conditions = parse_condition_string(nextform.condition, expsessinfo=expsessinfo)
+
+            # Evaluate the conditions
+            met_conditions = evaluate_conditions(conditions)
+
+
+        if nextform.condition_matlab:
+            pass
+
+        # Update our session storage
+        request.session[expsess_key] = expsessinfo    
+
+        # Update the next variable for this session
+        request.session['next'] = reverse('serve_form', args=(experiment_id, next_formidx,))
+
+        return next_formidx
+
 
 class ExperimentXAttribute(models.Model):
     experiment = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)

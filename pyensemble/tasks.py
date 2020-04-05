@@ -1,6 +1,6 @@
 # tasks.py
 
-from pyensemble.models import Experiment, ExperimentXForm
+from pyensemble.models import Experiment, ExperimentXForm, Subject
 
 from django.urls import reverse
 from django.shortcuts import render
@@ -22,57 +22,40 @@ def reset_session(request, experiment_id):
 
     return render(request,'pyensemble/message.html',{'msg':msg})
 
-def determine_next_form(request, experiment_id):
-    next_formidx = None
+def fetch_subject_id(subject, scheme='nhdl'):
+    subject_id=None
+    exists = False
+    last = subject['name_last'].lower()
+    first = subject['name_first'].lower()
+    dob = subject['dob']
 
-    expsess_key = get_expsess_key(experiment_id)
-    expsessinfo = request.session.get(expsess_key)
+    # Check existence based on first and last name
+    subjects = Subject.objects.filter(name_last__iexact=last, name_first__iexact=first, dob=dob)
 
-    # Get our form stack
-    exf = ExperimentXForm.objects.filter(experiment=experiment_id).order_by('form_order')
-
-    # Get our current form
-    form_idx = expsessinfo['curr_form_idx']
-    currform = exf[form_idx]
-
-    check_conditional = True
-
-    # See whether a break loop flag was set
-    # pdb.set_trace()
-    # break_loop = formset.cleaned_data['break_loop']
-    break_loop = False
-
-    # Fetch our variables that control looping
-    num_repeats = exf[form_idx].repeat
-    goto_form_idx = exf[form_idx].goto
-
-    if break_loop:
-        # If the user chose to exit the loop
-        expsessinfo['curr_form_idx'] = form_idx+1
-
-    elif num_repeats and num_visits == num_repeats:
-        # If the repeat value is set and we have visited it this number of times, then move on
-        expsessinfo['curr_form_idx'] = form_idx+1
-
-    elif goto_form_idx:
-        # If a goto form was specified
-        expsessinfo['curr_form_idx'] = goto_form_idx
-        check_conditional = False
-
-    elif form_idx == exf.count():
-        expsessinfo['finished'] = True
-
-        request.session[expsess_key] = expsessinfo
-        return HttpResponseRedirect(reverse('terminate_experiment'),args=(experiment_id))
+    if subjects.count():
+        if subjects.count() == 1:
+            subject_id = subjects[0].subject_id
+            exists = True
+        else:
+            raise ValueError('%d subjects with identical name and birthday'%(subjects.count()))
     else:
-        expsessinfo['curr_form_idx'] = form_idx+1
+        if scheme=='nhdl':
+            subject_id_root = str(dob.month)+last[0]+last[-1:]+first[0]+str(dob.year)[-2:]+str(dob.day)
 
-    next_formidx = expsessinfo['curr_form_idx']
+            have_novel_id = False
+            idnum = 0
+            while not have_novel_id:
+                idnum+=1
+                subject_id = subject_id_root+str(idnum)
 
-    # Update our session storage
-    request.session[expsess_key] = expsessinfo    
+                subjects = Subject.objects.filter(subject_id=subject_id)
 
-    # Update the next variable for this session
-    request.session['next'] = reverse('serve_form', args=(experiment_id, next_formidx,))
+                if not subjects.count():
+                    have_novel_id = True
 
-    return next_formidx
+        else:
+            raise ValueError('unknown subject ID generator')
+
+    return subject_id, exists
+
+

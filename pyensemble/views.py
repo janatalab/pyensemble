@@ -15,10 +15,10 @@ from django.urls import reverse
 
 from django.conf import settings
 
-from .models import Experiment, Form, Question, ExperimentXForm
+from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm
 from .forms import QuestionModelForm, RegisterSubjectForm, QuestionModelFormSetHelper
 
-from .tasks import get_expsess_key, determine_next_form
+from .tasks import get_expsess_key, determine_next_form, generate_subject_id
 
 from crispy_forms.layout import Submit
 
@@ -85,18 +85,36 @@ def run_experiment(request, experiment_id=None, ticket=None):
 
     # pdb.set_trace()
 
-    # Check whether this session has already started
-    if 'running' in expsessinfo.keys() and expsessinfo['running']:
-        # Log the fact that we are resuming a session
-        # Serve up the current form using a reverse lookup
-        return HttpResponseRedirect(reverse('serve_form', 
-            args=(experiment_id,expsessinfo['curr_form_idx'],)))
+    # Check whether we have a running session, and initialize a new one if not.
+    if not expsessinfo.get('running',False): 
+        # Process the ticket
+        if not ticket:
+            return HttpResponseBadRequest('A ticket is required to start the experiment')
 
-    # Initialize a session
-    expsessinfo.update({
-        'curr_form_idx': 0,
-        'visit_count': {},
-        'running': True})
+        # Get our ticket entry
+        ticket = Ticket.objects.get(ticket_code=ticket)
+
+        # Check to see that the experiment associated with this ticket code matches
+        if ticket.experiment.experiment_id != experiment_id:
+            return HttpResponseBadRequest('This ticket is not valid for this experiment')
+
+        # Make sure ticket hasn't been used or expired
+        if ticket.expired:
+            return HttpResponseBadRequest('The ticket has expired')
+
+        # Initialize a session in the PyEnsemble session table
+        session = Session.objects.create(experiment=experiment_id, ticket=ticket)
+
+        # Update our ticket entry
+        ticket.used = True
+        ticket.save()
+
+        # Update our Django session information
+        expsessinfo.update({
+            'session_id': session.session_id,
+            'curr_form_idx': 0,
+            'visit_count': {},
+            'running': True})
 
     # Set the experiment session info
     request.session[expsess_key] = expsessinfo
@@ -152,8 +170,43 @@ def serve_form(request, experiment_id=None, form_idx=None):
 
         if formset.is_valid():
             #
-            # Write data to the database. With only a couple of exceptions, based on form_handler, this will be to the response table registered with the experiment
+            # Write data to the database. With only a couple of exceptions, based on form_handler, this will be to the Response table
             #
+            if handler_name == 'form_subject_register':
+                # Generate our subject ID
+                subject_id, exists = generate_subject_id(formset.cleaned_data, scheme='nhdl')
+
+                pdb.set_trace()
+
+                # Get or create our subject entry (might already exist from previous session)
+                if exists:
+                    subject = Subject.objects.get(subject_id=subject_id)
+                else:
+                    subject,created = Subject.objects.create(
+                        subject_id = subject_id,
+                        name_first = formset.cleaned_data['name_first'],
+                        name_last = formset.cleaned_data['name_last'],
+                        dob = formset.cleaned_data['dob'],
+                    )
+
+                # Update this info if not set
+                if not subject.sex:
+                    subject.sex = formset.cleaned_data['sex']
+
+                if not subject.race:
+                    subject.race = formset.cleaned_data['race']
+
+                if not subject.ethnicity:
+                    subject.ethnicity = formset.cleaned_data['ethnicity']
+
+                # Save the subject
+                subject.save()
+
+                expsessinfo['subject_id'] = subject_id
+
+            else:
+                pass
+
 
 
             # Update our visit count
@@ -161,10 +214,13 @@ def serve_form(request, experiment_id=None, form_idx=None):
             num_visits +=1
             expsessinfo['visit_count'][form_idx] = num_visits
 
+            # Update our session storage
+            request.session[expsess_key] = expsessinfo
+
             #
             # Determine where we are going next
             #
-            next_formidx = determine_next_form(request, experiment_id)
+            next_formidx = currform.determine_next_form(request)
 
             # Move to the next form by calling ourselves
             return HttpResponseRedirect(reverse('serve_form', args=(experiment_id, next_formidx,)))
@@ -179,7 +235,7 @@ def serve_form(request, experiment_id=None, form_idx=None):
         if currform.condition:
             # Parse the condition specification and evaluate it
             # This remains to be implemented 
-            determine_next_form(request, experiment_id)
+            currform.determine_next_form(request)
             return HttpResponseRedirect(reverse('feature_not_enabled',args=('form conditionals',)))
 
         # Get our blank form
@@ -197,8 +253,22 @@ def serve_form(request, experiment_id=None, form_idx=None):
             formset = QuestionModelFormSet(queryset=form.questions.all())
 
         # Execute a stimulus selection script if one has been specified
+        if currform.stimulus_matlab:
+            # Use regexp to get the function name that we're calling
+            funcname = '^{}('
+            params = '({})'
+
+            # Get the function handle from pyensemble.selectors
+            select_func = pyensemble.selectors.attr(funcname)
+
+            # Call the select function with the parameters
+            stimulus_id = select_func(params)
+        else:
+            stimulus_id = None
 
         # Check whether handler_name ends in _s. If it does not, set the current stimulus value to None
+
+        expsessinfo['stimulus_id'] = stimulus_id
 
     # Create our context
     context = {
@@ -206,6 +276,7 @@ def serve_form(request, experiment_id=None, form_idx=None):
         'formset': formset,
         'exf': currform,
         'helper': helper,
+        'stimulus': Stimulus.objects.get(pk=stimulus_id),
        }
 
     #
@@ -213,7 +284,7 @@ def serve_form(request, experiment_id=None, form_idx=None):
     #
 
     # Determine what media, if any, we are presenting
-    media = {}
+    # media = {}
 
     # Determine any other trial control parameters that are part of the JavaScript injection
     context['trial'] = {
