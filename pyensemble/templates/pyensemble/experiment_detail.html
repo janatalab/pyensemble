@@ -8,7 +8,7 @@
         <a class="nav-link" href="#">Edit</a>
     </li>
     <li class="nav-item">
-        <a class="nav-link" href="#">Create Tickets</a>
+        <a class="nav-link" data-toggle="modal" role="button" data-target="#ticketModal" href="#">Generate Tickets</a>
     </li>
     <li class="nav-item">
         <a class="nav-link" href="/run/{{experiment.pk}}/">Run</a>
@@ -17,7 +17,7 @@
 {% endblock %}
 
 {% block detailContent %}
-<div class="formlist">
+<div class="formlist mb-4">
     <table class="table table-striped table-responsive table-compact table-bordered">
         <thead>
             <tr>
@@ -51,10 +51,10 @@
 </div>
 
 <div id="experimentTickets" class="">
-    {% for ticket_type, items in tickets %}
-        <h5>{{ticket_type}} tickets</h5>
+    {% for ticket_type, item in tickets.items %}
+        <h5>{{ticket_type|title}} tickets</h5>
 
-        <table class="table table-striped">
+        <table class="table table-striped mb-4">
           <thead>
             <tr>
               <th scope="col">Code</th>
@@ -75,6 +75,6 @@
     {% endfor %}
 </div>
 
-{% include "pyensemble/modals/tickets.html" with title=experiment.title tickets=tickets %}
+{% include "pyensemble/modals/tickets.html" with title=experiment.experiment_title tickets=tickets %}
 
 {% endblock %}

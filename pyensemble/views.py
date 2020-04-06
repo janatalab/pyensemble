@@ -1,5 +1,6 @@
 # views.py
 import os
+from django.utils import timezone
 
 from django.contrib.auth.decorators import login_required
 
@@ -44,8 +45,8 @@ class ExperimentDetailView(DetailView):
         context['forms'] = context['experiment'].experimentxform_set.all().order_by('form_order')
 
         # Get our master and user tickets
-        context['tickets'] = {'master': context['experiment'].ticket_set.filter(Q(ticket_type='master', expiration_datetime=None) | Q(ticket_type='master',expiration_datetime__gte=datetime.now())),
-            'user': context['experiment'].ticket_set.filter(Q(ticket_type='user', expiration_datetime=None) | Q(ticket_type='user',expiration_datetime__gte=datetime.now()))}
+        context['tickets'] = {'master': context['experiment'].ticket_set.filter(Q(type='master', expiration_datetime=None) | Q(type='master',expiration_datetime__gte=timezone.now())),
+            'user': context['experiment'].ticket_set.filter(Q(type='user', expiration_datetime=None) | Q(type='user',expiration_datetime__gte=timezone.now()))}
 
         return context
 
@@ -88,7 +89,7 @@ def run_experiment(request, experiment_id=None):
     expsess_key = get_expsess_key(experiment_id)
     expsessinfo = request.session.get(expsess_key,{})
 
-    pdb.set_trace()
+    # pdb.set_trace()
 
     # Check whether we have a running session, and initialize a new one if not.
     if not expsessinfo.get('running',False): 
