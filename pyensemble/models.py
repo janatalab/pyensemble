@@ -191,7 +191,7 @@ class Ticket(models.Model):
         ('user','User'),
     ]
 
-    ticket_id = models.IntegerField(primary_key=True)
+    ticket_id = models.AutoField(primary_key=True)
     ticket_code = models.CharField(max_length=32)
     experiment = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)
     type = models.CharField(
@@ -206,7 +206,7 @@ class Ticket(models.Model):
 
     @property
     def expired(self):
-        if self.used && self.type == 'user' or self.expiration_datetime < timezone.now():
+        if (self.used and self.type == 'user') or self.expiration_datetime < timezone.now():
             self._expired=True
 
         return self._expired
@@ -356,7 +356,7 @@ class ExperimentXForm(models.Model):
 
             # See whether we will have a stimulus filtering constraint
             stimulus_id = expsessinfo.get('stimulus_id', None)
-            check_same_stim =  condition['stim'] == 'same_stim' and stimulus_id:
+            check_same_stim = (condition['stim'] == 'same_stim') and stimulus_id
                 
             # Find the requisite responses in the Response table
             responses = Response.objects.filter(

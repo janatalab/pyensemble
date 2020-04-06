@@ -75,6 +75,9 @@ class QuestionModelFormSetHelper(FormHelper):
 
         self.form_method='post'  
 
+class GenerateTicketForm(forms.Form):
+    pass
+
 class RegisterSubjectForm(forms.ModelForm):
     # Need to make dob a date field, because right now it is encrypted and not showing as such
     # dob = forms.DateField()

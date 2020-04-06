@@ -1,6 +1,7 @@
 # tasks.py
+import datetime, hashlib
 
-from pyensemble.models import Experiment, ExperimentXForm, Subject
+from pyensemble.models import Experiment, ExperimentXForm, Subject, Ticket
 
 from django.urls import reverse
 from django.shortcuts import render
@@ -58,4 +59,38 @@ def fetch_subject_id(subject, scheme='nhdl'):
 
     return subject_id, exists
 
+def create_ticket(request, experiment_id):
+    # Creates a ticket for an experiment.
+    # Type can be master (multi-use) or user (single-use)
 
+    # Handle ticket expiration datetime
+    set_expiration = request.POST.get('set_expiration', False)
+
+    if set_expiration:
+        expiration_datetime = datetime.datetime(
+            request.POST['ticket_expiration_year'],
+            request.POST['ticket_expiration_month'],
+            request.POST['ticket_expiration_day'],
+            request.POST['ticket_expiration_hour'],
+            )
+    else:
+        expiration_datetime = None
+
+    # Get our experiment
+    experiment = Experiment.objects.get(experiment_id=experiment_id)
+
+    # Add the ticket(s)
+    num_existing_tickets = Ticket.objects.all().count()
+    ticket_list = []
+    for iticket in range(request.POST['num_tickets']):
+        unencrypted_str = '%d:%d'%(num_existing_tickets+iticket,experiment_id)
+        encrypted_str = hashlib.md5(unencrypted_str)
+        ticket_list.append(Ticket(
+            ticket_code=encrypted_str, 
+            experiment=experiment, 
+            type=request.POST['ticket_type'], 
+            expiration_datetime=expiration_datetime)
+        )
+
+    # Create the tickets in the database
+    Ticket.objects.bulk_create(ticket_list)

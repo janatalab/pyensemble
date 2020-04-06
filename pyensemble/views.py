@@ -8,6 +8,7 @@ from django.views.generic.base import TemplateView
 from django.views.decorators.http import require_http_methods
 
 import django.forms as forms
+from django.db.models import Q
 
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
 from django.shortcuts import render
@@ -18,7 +19,7 @@ from django.conf import settings
 from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm
 from .forms import QuestionModelForm, RegisterSubjectForm, QuestionModelFormSetHelper
 
-from .tasks import get_expsess_key, determine_next_form, generate_subject_id
+from .tasks import get_expsess_key, fetch_subject_id
 
 from crispy_forms.layout import Submit
 
@@ -41,6 +42,10 @@ class ExperimentDetailView(DetailView):
 
         # Arrange our form data
         context['forms'] = context['experiment'].experimentxform_set.all().order_by('form_order')
+
+        # Get our master and user tickets
+        context['tickets'] = {'master': context['experiment'].ticket_set.filter(Q(ticket_type='master', expiration_datetime=None) | Q(ticket_type='master',expiration_datetime__gte=datetime.now())),
+            'user': context['experiment'].ticket_set.filter(Q(ticket_type='user', expiration_datetime=None) | Q(ticket_type='user',expiration_datetime__gte=datetime.now()))}
 
         return context
 
@@ -75,7 +80,7 @@ class QuestionDetailView(DetailView):
 
 # Start experiment
 @require_http_methods(['GET'])
-def run_experiment(request, experiment_id=None, ticket=None):
+def run_experiment(request, experiment_id=None):
     # Keep the general session alive
     request.session.set_expiry(settings.SESSION_DURATION)
 
@@ -83,16 +88,23 @@ def run_experiment(request, experiment_id=None, ticket=None):
     expsess_key = get_expsess_key(experiment_id)
     expsessinfo = request.session.get(expsess_key,{})
 
-    # pdb.set_trace()
+    pdb.set_trace()
 
     # Check whether we have a running session, and initialize a new one if not.
     if not expsessinfo.get('running',False): 
+        ticket = request.GET['ticket']
+
         # Process the ticket
         if not ticket:
             return HttpResponseBadRequest('A ticket is required to start the experiment')
 
         # Get our ticket entry
-        ticket = Ticket.objects.get(ticket_code=ticket)
+        ticket = Ticket.objects.filter(ticket_code=ticket)
+
+        if not ticket.exists():
+            return HttpResponseBadRequest('A matching ticket was not found')
+        else:
+            ticket = ticket[0]
 
         # Check to see that the experiment associated with this ticket code matches
         if ticket.experiment.experiment_id != experiment_id:
@@ -174,7 +186,7 @@ def serve_form(request, experiment_id=None, form_idx=None):
             #
             if handler_name == 'form_subject_register':
                 # Generate our subject ID
-                subject_id, exists = generate_subject_id(formset.cleaned_data, scheme='nhdl')
+                subject_id, exists = fetch_subject_id(formset.cleaned_data, scheme='nhdl')
 
                 pdb.set_trace()
 
@@ -247,7 +259,7 @@ def serve_form(request, experiment_id=None, form_idx=None):
 
             # Return error if we are dealing with a multi-question question. Need to add handling for these at a later date
             if form.questions.filter(heading_format='multi-question'):
-                determine_next_form(request, experiment_id)
+                currform.determine_next_form(request)
                 return HttpResponseRedirect(reverse('feature_not_enabled',args=('multi-question',)))
 
             formset = QuestionModelFormSet(queryset=form.questions.all())

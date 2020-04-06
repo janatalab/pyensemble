@@ -8,6 +8,9 @@
         <a class="nav-link" href="#">Edit</a>
     </li>
     <li class="nav-item">
+        <a class="nav-link" href="#">Create Tickets</a>
+    </li>
+    <li class="nav-item">
         <a class="nav-link" href="/run/{{experiment.pk}}/">Run</a>
     </li>
 </ul>
@@ -46,4 +49,32 @@
         </tbody>
     </table>
 </div>
+
+<div id="experimentTickets" class="">
+    {% for ticket_type, items in tickets %}
+        <h5>{{ticket_type}} tickets</h5>
+
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th scope="col">Code</th>
+              <th scope="col">Expiration</th>
+              <th scope="col">URL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ticket in items %}
+                <tr>
+                  <td>ticket.ticket_code</td>
+                  <td>ticket.expiration_datetime</td>
+                  <td></td>
+                </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+    {% endfor %}
+</div>
+
+{% include "pyensemble/modals/tickets.html" with title=experiment.title tickets=tickets %}
+
 {% endblock %}
