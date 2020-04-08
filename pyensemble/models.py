@@ -49,8 +49,6 @@ class Form(models.Model):
     footer_audio_path = models.CharField(max_length=50, blank=True)
     version = models.FloatField(blank=True, null=True)
     locked = models.CharField(max_length=1)
-    # condition = models.TextField(blank=True)
-    # condition_matlab = models.CharField(max_length=40, blank=True)
     visit_once = models.CharField(max_length=1)
 
     questions = models.ManyToManyField('Question', through='FormXQuestion')
@@ -71,15 +69,6 @@ class Experiment(models.Model):
     locked = models.CharField(max_length=1)
 
     forms = models.ManyToManyField('Form', through='ExperimentXForm')
-
-class Session(models.Model):
-    session_id = models.IntegerField(primary_key=True)
-    date_time = models.DateTimeField(blank=True, auto_now_add=True)
-    end_datetime = models.DateTimeField(blank=True, null=True)
-    experiment = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)
-    ticket = models.ForeignKey('Ticket', db_column='ticket_id', db_constraint=True, on_delete=models.CASCADE, related_name='+')
-    subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE)
-    php_session_id = models.CharField(max_length=70, blank=True)
 
 class Response(models.Model):
     experiment = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)
@@ -102,6 +91,15 @@ class Response(models.Model):
     decline = models.BooleanField(default=False)
     misc_info = models.TextField(blank=True)
     
+
+class Session(models.Model):
+    session_id = models.AutoField(primary_key=True)
+    date_time = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+    end_datetime = models.DateTimeField(blank=True, null=True)
+    experiment = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)
+    ticket = models.ForeignKey('Ticket', db_column='ticket_id', db_constraint=True, on_delete=models.CASCADE, related_name='+')
+    subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
+    php_session_id = models.CharField(max_length=70, blank=True)
 
 class Stimulus(models.Model):
     stimulus_id = models.AutoField(primary_key=True)
@@ -201,13 +199,15 @@ class Ticket(models.Model):
         )
     used = models.BooleanField(default=False)
     expiration_datetime = models.DateTimeField(blank=True, null=True)
-    session = models.ForeignKey('Session',db_column='session_id',on_delete=models.CASCADE,related_name='+')
+    # session = models.ForeignKey('Session',db_column='session_id',on_delete=models.CASCADE,null=True)
     assigned = models.BooleanField(default=False)
 
     @property
     def expired(self):
-        if (self.used and self.type == 'user') or self.expiration_datetime < timezone.now():
+        if (self.used and self.type == 'user') or (self.expiration_datetime and self.expiration_datetime < timezone.now()):
             self._expired=True
+        else:
+            self._expired=False
 
         return self._expired
     

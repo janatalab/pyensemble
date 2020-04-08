@@ -1,3 +1,4 @@
+{% load crispy_forms_tags %}
 
 <div class="modal fade" id="ticketModal" tabindex="-1" role="dialog" aria-labelledby="ticketModalCenterTitle" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered" role="document">
@@ -9,12 +10,23 @@
         </button>
       </div>
       <div class="modal-body">
-<!-- Need to insert the ticket creation form here -->
+        {% crispy ticket_form %}
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary">Create ticket</button>
+        <!-- <button type="button" class="btn btn-primary">Create ticket(s)</button> -->
       </div>
     </div>
   </div>
 </div>
+
+<script>
+  $(function () {
+    $("#id_master_expiration").datetimepicker({
+      format: 'd/m/Y H:00',
+    });
+    $("#id_user_expiration").datetimepicker({
+      format: 'd/m/Y H:00',
+    });
+  });
+</script>

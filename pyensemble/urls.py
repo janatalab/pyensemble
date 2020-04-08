@@ -18,7 +18,7 @@ from django.urls import path
 from django.contrib.auth import views as auth_views
 from django.views.generic import RedirectView
 from .views import EditorView, ExperimentListView, FormListView, QuestionListView, ExperimentDetailView, FormDetailView, QuestionDetailView, run_experiment, serve_form
-from pyensemble.tasks import reset_session
+from pyensemble.tasks import reset_session, create_ticket
 import pyensemble.errors as error
 
 from django.contrib.auth.decorators import login_required
@@ -37,8 +37,7 @@ urlpatterns = [
     path('run/<int:experiment_id>/',run_experiment, name='run_experiment'),
     path('run/<int:experiment_id>/<int:form_idx>/',serve_form, name='serve_form'),
     path('session/reset/<int:experiment_id>/',reset_session, name='reset_session'),
-    path('error/<slug:feature_string>/', error.feature_not_enabled, name='feature_not_enabled')
-
-    # path('pyensemble/start/<ticket>/', views.start_experiment),
+    path('error/<slug:feature_string>/', error.feature_not_enabled, name='feature_not_enabled'),
+    path('ticket/create/', create_ticket, name='create_ticket'),
     # path('pyensemble/exf/<form_order_idx>/', views.present_form),
 ]

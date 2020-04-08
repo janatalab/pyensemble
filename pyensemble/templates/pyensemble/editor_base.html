@@ -1,6 +1,10 @@
 {% extends "pyensemble/base.html" %}
 {% load staticfiles %}
 
+{% block head %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-datetimepicker/2.5.20/jquery.datetimepicker.min.css" integrity="sha256-DOS9W6NR+NFe1fUhEE0PGKY/fubbUCnOfTje2JMDw3Y=" crossorigin="anonymous" />
+{% endblock %}
+
 {% block header %}
 <nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light">
     <a class="navbar-brand" href="/editor/">PyEnsemble</a>
@@ -53,7 +57,8 @@
     <script type="text/javascript" src="{% static 'thirdparty/jq/jquery.cookie.js' %}"></script>
      <script type="text/javascript" src="{% static 'pyensemble/js/editor.js' %}"></script>
      <script type="text/javascript">
-        stimurl = 'mystim.com';
+        stimurl = '';
     </script>
 
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-datetimepicker/2.5.20/jquery.datetimepicker.full.min.js" integrity="sha256-FEqEelWI3WouFOo2VWP/uJfs1y8KJ++FLh2Lbqc8SJk=" crossorigin="anonymous"></script>
  {% endblock %}

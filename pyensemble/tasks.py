@@ -2,9 +2,12 @@
 import datetime, hashlib
 
 from pyensemble.models import Experiment, ExperimentXForm, Subject, Ticket
+from pyensemble.forms import TicketCreationForm
 
 from django.urls import reverse
 from django.shortcuts import render
+
+from django.http import HttpResponseRedirect
 
 import pdb
 
@@ -59,38 +62,51 @@ def fetch_subject_id(subject, scheme='nhdl'):
 
     return subject_id, exists
 
-def create_ticket(request, experiment_id):
+def create_ticket(request):
     # Creates a ticket for an experiment.
     # Type can be master (multi-use) or user (single-use)
+    # pdb.set_trace()
 
-    # Handle ticket expiration datetime
-    set_expiration = request.POST.get('set_expiration', False)
+    # Get our request data
+    ticket_request = TicketCreationForm(request.POST)
 
-    if set_expiration:
-        expiration_datetime = datetime.datetime(
-            request.POST['ticket_expiration_year'],
-            request.POST['ticket_expiration_month'],
-            request.POST['ticket_expiration_day'],
-            request.POST['ticket_expiration_hour'],
-            )
-    else:
-        expiration_datetime = None
+    # Validate the request data
+    if ticket_request.is_valid():
+        # Get the number of existing tickets
+        num_existing_tickets = Ticket.objects.all().count()
 
-    # Get our experiment
-    experiment = Experiment.objects.get(experiment_id=experiment_id)
+        # Initialize our new ticket list
+        ticket_list = []
 
-    # Add the ticket(s)
-    num_existing_tickets = Ticket.objects.all().count()
-    ticket_list = []
-    for iticket in range(request.POST['num_tickets']):
-        unencrypted_str = '%d:%d'%(num_existing_tickets+iticket,experiment_id)
-        encrypted_str = hashlib.md5(unencrypted_str)
-        ticket_list.append(Ticket(
-            ticket_code=encrypted_str, 
-            experiment=experiment, 
-            type=request.POST['ticket_type'], 
-            expiration_datetime=expiration_datetime)
-        )
+        # Get our experiment
+        experiment_id = ticket_request.cleaned_data['experiment_id']
+        experiment = Experiment.objects.get(experiment_id=experiment_id)
 
-    # Create the tickets in the database
-    Ticket.objects.bulk_create(ticket_list)
+        # Get our ticket types
+        ticket_types = [tt[0] for tt in Ticket.TICKET_TYPE_CHOICES]
+
+        for ticket_type in ticket_types:
+            num_tickets = ticket_request.cleaned_data[f'num_{ticket_type}']
+
+            if num_tickets:
+                expiration_datetime = ticket_request.cleaned_data[f'{ticket_type}_expiration']
+
+                # Add the ticket(s)
+                for iticket in range(num_tickets):
+                    num_new_tickets = len(ticket_list)
+                    unencrypted_str = '%d_%d'%(num_existing_tickets+num_new_tickets,experiment_id)
+                    encrypted_str = hashlib.md5(unencrypted_str.encode('utf-8')).hexdigest()
+
+                    # Add a new ticket to our list
+                    ticket_list.append(Ticket(
+                        ticket_code=encrypted_str, 
+                        experiment=experiment, 
+                        type=ticket_type, 
+                        expiration_datetime=expiration_datetime)
+                    )
+
+        # Create the tickets in the database
+        Ticket.objects.bulk_create(ticket_list)
+
+        return HttpResponseRedirect(reverse('experiment_detail', 
+        args=(experiment.pk,)))

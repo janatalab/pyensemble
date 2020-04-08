@@ -17,8 +17,8 @@ from django.urls import reverse
 
 from django.conf import settings
 
-from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm
-from .forms import QuestionModelForm, RegisterSubjectForm, QuestionModelFormSetHelper
+from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, Stimulus
+from .forms import QuestionModelForm, RegisterSubjectForm, QuestionModelFormSetHelper, TicketCreationForm
 
 from .tasks import get_expsess_key, fetch_subject_id
 
@@ -47,6 +47,9 @@ class ExperimentDetailView(DetailView):
         # Get our master and user tickets
         context['tickets'] = {'master': context['experiment'].ticket_set.filter(Q(type='master', expiration_datetime=None) | Q(type='master',expiration_datetime__gte=timezone.now())),
             'user': context['experiment'].ticket_set.filter(Q(type='user', expiration_datetime=None) | Q(type='user',expiration_datetime__gte=timezone.now()))}
+
+        # Get the form for our ticket creation modal
+        context['ticket_form'] = TicketCreationForm(initial={'experiment_id':context['experiment'].experiment_id})
 
         return context
 
@@ -93,7 +96,7 @@ def run_experiment(request, experiment_id=None):
 
     # Check whether we have a running session, and initialize a new one if not.
     if not expsessinfo.get('running',False): 
-        ticket = request.GET['ticket']
+        ticket = request.GET['tc']
 
         # Process the ticket
         if not ticket:
@@ -116,7 +119,7 @@ def run_experiment(request, experiment_id=None):
             return HttpResponseBadRequest('The ticket has expired')
 
         # Initialize a session in the PyEnsemble session table
-        session = Session.objects.create(experiment=experiment_id, ticket=ticket)
+        session = Session.objects.create(experiment=ticket.experiment, ticket=ticket)
 
         # Update our ticket entry
         ticket.used = True
@@ -280,8 +283,13 @@ def serve_form(request, experiment_id=None, form_idx=None):
             stimulus_id = None
 
         # Check whether handler_name ends in _s. If it does not, set the current stimulus value to None
-
         expsessinfo['stimulus_id'] = stimulus_id
+
+        if stimulus_id:
+            stimulus = Stimulus.objects.get(pk=stimulus_id)
+        else:
+            stimulus = None
+
 
     # Create our context
     context = {
@@ -289,7 +297,7 @@ def serve_form(request, experiment_id=None, form_idx=None):
         'formset': formset,
         'exf': currform,
         'helper': helper,
-        'stimulus': Stimulus.objects.get(pk=stimulus_id),
+        'stimulus': stimulus,
        }
 
     #

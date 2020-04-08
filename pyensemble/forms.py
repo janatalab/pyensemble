@@ -1,6 +1,8 @@
 # forms.py
 
 import django.forms as forms
+from django.utils import timezone
+
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Field, Submit
 from crispy_forms.bootstrap import InlineRadios, InlineCheckboxes
@@ -75,8 +77,20 @@ class QuestionModelFormSetHelper(FormHelper):
 
         self.form_method='post'  
 
-class GenerateTicketForm(forms.Form):
-    pass
+class TicketCreationForm(forms.Form):
+    input_format = '%d/%m/%Y %H:00'
+    num_master = forms.IntegerField(label='Number of (multiple-use) master tickets', initial=0)
+    master_expiration = forms.DateTimeField(required=False, initial=None,  input_formats=[input_format])
+
+    num_user = forms.IntegerField(label='Number of (single-use) user tickets', initial=0)
+    user_expiration = forms.DateTimeField(required=False, initial=(timezone.now() + timezone.timedelta(weeks=1)).strftime(input_format), input_formats=[input_format])
+
+    experiment_id = forms.IntegerField(widget=forms.HiddenInput())
+
+    helper = FormHelper()
+    helper.add_input(Submit('submit', 'Create Ticket(s)', css_class='btn-primary contentlist-item-link'))
+    helper.form_method = 'POST'
+    helper.form_action = 'create_ticket'
 
 class RegisterSubjectForm(forms.ModelForm):
     # Need to make dob a date field, because right now it is encrypted and not showing as such

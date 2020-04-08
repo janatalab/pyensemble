@@ -8,10 +8,7 @@
         <a class="nav-link" href="#">Edit</a>
     </li>
     <li class="nav-item">
-        <a class="nav-link" data-toggle="modal" role="button" data-target="#ticketModal" href="#">Generate Tickets</a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" href="/run/{{experiment.pk}}/">Run</a>
+        <a class="nav-link" href="#experimentTickets">Tickets</a>
     </li>
 </ul>
 {% endblock %}
@@ -51,7 +48,13 @@
 </div>
 
 <div id="experimentTickets" class="">
-    {% for ticket_type, item in tickets.items %}
+    Click on a ticket URL to run the experiment
+    <ul class="nav nav-pills nav-fill">
+        <li class="nav-item">
+            <a class="nav-link" data-toggle="modal" role="button" data-target="#ticketModal" href="#">Generate Tickets</a>
+        </li>
+    </ul>
+    {% for ticket_type, items in tickets.items %}
         <h5>{{ticket_type|title}} tickets</h5>
 
         <table class="table table-striped mb-4">
@@ -65,9 +68,9 @@
           <tbody>
             {% for ticket in items %}
                 <tr>
-                  <td>ticket.ticket_code</td>
-                  <td>ticket.expiration_datetime</td>
-                  <td></td>
+                  <td>{{ticket.ticket_code}}</td>
+                  <td>{{ticket.expiration_datetime}}</td>
+                  <td> <a href="/run/{{experiment.pk}}?tc={{ticket.ticket_code}}">Run</a></td>
                 </tr>
             {% endfor %}
           </tbody>
