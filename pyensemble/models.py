@@ -4,10 +4,14 @@
 #
 
 from django.db import models
+from django.urls import reverse
+
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField, EncryptedDateField
 
 from django.utils import timezone
 from pyensemble.utils.parsers import parse_function_spec
+
+import pdb
 
 #
 # Base class tables
@@ -301,7 +305,10 @@ class ExperimentXForm(models.Model):
         conditions=[]
 
         # Split it up into a list of conditions
-        condition_str_array = self.condition.split('\n')
+        if self.condition:
+            condition_str_array = self.condition.split('\n')
+        else:
+            return conditions
 
         # Iterate over the array of condition strings and parse each one
         for cond_str in condition_str_array:
@@ -336,9 +343,11 @@ class ExperimentXForm(models.Model):
 
         return conditions
 
-    @property
-    def conditions_met(self, expsessinfo):
-        met_conditions = False
+    def conditions_met(self, request):
+        met_conditions = True
+
+        expsess_key = 'experiment_%d'%(self.experiment.experiment_id,)
+        expsessinfo = request.session[expsess_key]
 
         #
         # First check for conditions specified within the database
@@ -400,8 +409,6 @@ class ExperimentXForm(models.Model):
             else:
                 raise ValueError('Unknown response type: %s'%(condition['type']))
 
-            met_conditions=True
-
         #
         # Now check whether there is any condition-checking script that we need to run
         #
@@ -414,12 +421,12 @@ class ExperimentXForm(models.Model):
 
         return met_conditions
 
-    def determine_next_form(self, request):
-        next_formidx = None
+    def next_form_idx(self, request):
+        next_form_idx = None
         experiment_id = self.experiment.experiment_id
 
-        expsess_key = get_expsess_key(experiment_id)
-        expsessinfo = request.session.get(expsess_key)
+        expsess_key = f'experiment_{experiment_id}'
+        expsessinfo = request.session[expsess_key]
 
         # Get our form stack - should be a better way to do this relative to self
         exf = ExperimentXForm.objects.filter(experiment=experiment_id).order_by('form_order')
@@ -430,27 +437,26 @@ class ExperimentXForm(models.Model):
 
         check_conditional = True
 
-        # See whether a break loop flag was set
-        # pdb.set_trace()
-        # break_loop = formset.cleaned_data['break_loop']
-        break_loop = False
-
         # Fetch our variables that control looping
         num_repeats = self.repeat
         goto_form_idx = self.goto
 
-        if break_loop:
+        # See whether a break loop flag was set
+        if expsessinfo['break_loop']:
             # If the user chose to exit the loop
-            expsessinfo['curr_form_idx'] = form_idx+1
+            expsessinfo['curr_form_idx'] += 1
+            expsessinfo['break_loop']=False
 
         elif num_repeats and num_visits == num_repeats:
             # If the repeat value is set and we have visited it this number of times, then move on
-            expsessinfo['curr_form_idx'] = form_idx+1
+            expsessinfo['curr_form_idx'] +=1
 
         elif goto_form_idx:
             # If a goto form was specified
             expsessinfo['curr_form_idx'] = goto_form_idx
-            check_conditional = False
+
+            # Set our looping info
+            expsessinfo['last_in_loop'][goto_form_idx] = form_idx
 
         elif form_idx == exf.count():
             expsessinfo['finished'] = True
@@ -458,31 +464,33 @@ class ExperimentXForm(models.Model):
             request.session[expsess_key] = expsessinfo
             return HttpResponseRedirect(reverse('terminate_experiment'),args=(experiment_id))
         else:
-            expsessinfo['curr_form_idx'] = form_idx+1
+            expsessinfo['curr_form_idx']+=1
 
-        next_formidx = expsessinfo['curr_form_idx']
+        return expsessinfo['curr_form_idx']
 
-        # Check whether the next form has conditions associated with it and make sure that conditions are met
-        nextform = exf[next_formidx]
+        # # Check whether the next form has conditions associated with it and make sure that conditions are met
+        # nextform = exf[next_form_idx]
 
-        if nextform.condition:
-            # Parse the condition string to get a list of the conditions that need to be met
-            conditions = parse_condition_string(nextform.condition, expsessinfo=expsessinfo)
+        # if nextform.condition:
+        #     # Parse the condition string to get a list of the conditions that need to be met
+        #     conditions = parse_condition_string(nextform.condition, expsessinfo=expsessinfo)
 
-            # Evaluate the conditions
-            met_conditions = evaluate_conditions(conditions)
+        #     # Evaluate the conditions
+        #     met_conditions = evaluate_conditions(conditions)
+
+        #     # Add logic pertaining to unmet conditions
 
 
-        if nextform.condition_matlab:
-            pass
+        # if nextform.condition_matlab:
+        #     pass
 
-        # Update our session storage
-        request.session[expsess_key] = expsessinfo    
+        # # Update our session storage
+        # request.session[expsess_key] = expsessinfo    
 
-        # Update the next variable for this session
-        request.session['next'] = reverse('serve_form', args=(experiment_id, next_formidx,))
+        # # Update the next variable for this session
+        # request.session['next'] = reverse('serve_form', args=(experiment_id,))
 
-        return next_formidx
+        # return next_form_idx
 
 
 class ExperimentXAttribute(models.Model):

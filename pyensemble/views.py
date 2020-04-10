@@ -1,5 +1,6 @@
 # views.py
-import os
+import os, re
+import json
 from django.utils import timezone
 
 from django.contrib.auth.decorators import login_required
@@ -17,10 +18,12 @@ from django.urls import reverse
 
 from django.conf import settings
 
-from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, Stimulus
+from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, Stimulus, Subject
 from .forms import QuestionModelForm, RegisterSubjectForm, QuestionModelFormSetHelper, TicketCreationForm
 
 from .tasks import get_expsess_key, fetch_subject_id
+from pyensemble.utils.parsers import parse_function_spec
+from pyensemble import selectors 
 
 from crispy_forms.layout import Submit
 
@@ -129,28 +132,34 @@ def run_experiment(request, experiment_id=None):
         expsessinfo.update({
             'session_id': session.session_id,
             'curr_form_idx': 0,
+            'break_loop': False,
+            'last_in_loop': {},
             'visit_count': {},
             'running': True})
 
     # Set the experiment session info
     request.session[expsess_key] = expsessinfo
 
-    return HttpResponseRedirect(reverse('serve_form', 
-        args=(experiment_id, expsessinfo['curr_form_idx'],)))
+    return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
-def serve_form(request, experiment_id=None, form_idx=None):
-    # Make sure we are dealing with an active session
+def serve_form(request, experiment_id=None):
+    # Get the key that we can use to retrieve experiment-specific session information for this user   
     expsess_key = get_expsess_key(experiment_id)
 
+    # Make sure the experiment session info is cached in the session info
     if expsess_key not in request.session.keys():
         return HttpResponseBadRequest()
 
     # Get our experiment session info
-    expsessinfo = request.session.get(expsess_key)
+    expsessinfo = request.session[expsess_key]
 
-    # Get our form stack
+    # Get the index of the form we're on
+    form_idx = expsessinfo['curr_form_idx']
+
+    #
+    # Get our form stack and extract our current form
+    #
     exf = ExperimentXForm.objects.filter(experiment=experiment_id).order_by('form_order')
-
     currform = exf[form_idx]
 
     # Check to see whether we are dealing with a special form that requires different handling. This is largely to try to maintain backward compatibility with the legacy PHP version of Ensemble
@@ -158,31 +167,30 @@ def serve_form(request, experiment_id=None, form_idx=None):
     handler_name = os.path.splitext(form_handler)[0]
 
     if handler_name == 'form_start_session':
-        # We've already done the initialization, so move on to the next form
-        expsessinfo['curr_form_idx'] = form_idx+1
-
-        # Update our session storage
-        request.session[expsess_key] = expsessinfo
-
-        return HttpResponseRedirect(reverse('serve_form', args=(experiment_id, expsessinfo['curr_form_idx'],)))
+        # We've already done the initialization, so set our index to the next form
+        expsessinfo['curr_form_idx'] += 1
+        return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
     # Define our formset
     QuestionModelFormSet = forms.modelformset_factory(Question, form=QuestionModelForm, extra=0, max_num=1)
 
-    # Get our formset helper
+    # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
     helper = QuestionModelFormSetHelper()
     helper.add_input(Submit("submit", "Submit"))
     helper.template = 'pyensemble/crispy_overrides/table_inline_formset.html'
 
+    # Initialize other context
+    trialspec = {}
 
     if request.method == 'POST':
+        #
+        # Process the submitted form
+        #
         if handler_name == 'form_subject_register':
             formset = RegisterSubjectForm(request.POST)
         else:
-            form = Form.objects.get(form_id=currform.form_id)
+            # form = Form.objects.get(form_id=currform.form_id)
             formset = QuestionModelFormSet(request.POST)
-
-        # pdb.set_trace()
 
         if formset.is_valid():
             #
@@ -191,8 +199,6 @@ def serve_form(request, experiment_id=None, form_idx=None):
             if handler_name == 'form_subject_register':
                 # Generate our subject ID
                 subject_id, exists = fetch_subject_id(formset.cleaned_data, scheme='nhdl')
-
-                pdb.set_trace()
 
                 # Get or create our subject entry (might already exist from previous session)
                 if exists:
@@ -205,56 +211,100 @@ def serve_form(request, experiment_id=None, form_idx=None):
                         dob = formset.cleaned_data['dob'],
                     )
 
-                # Update this info if not set
-                if not subject.sex:
-                    subject.sex = formset.cleaned_data['sex']
-
-                if not subject.race:
-                    subject.race = formset.cleaned_data['race']
-
-                if not subject.ethnicity:
-                    subject.ethnicity = formset.cleaned_data['ethnicity']
+                # Update the demographic info
+                subject.sex = formset.cleaned_data['sex']
+                subject.race = formset.cleaned_data['race']
+                subject.ethnicity = formset.cleaned_data['ethnicity']
 
                 # Save the subject
                 subject.save()
-
                 expsessinfo['subject_id'] = subject_id
 
+                # Update the session table
+                session = Session.objects.get(pk=expsessinfo['session_id'])
+                session.subject = subject
+                session.save()
+
             else:
+                #
+                # Save responses to the Response table
+                #
                 pass
-
-
 
             # Update our visit count
             num_visits = expsessinfo['visit_count'].get(form_idx,0)
             num_visits +=1
             expsessinfo['visit_count'][form_idx] = num_visits
 
-            # Update our session storage
-            request.session[expsess_key] = expsessinfo
+            # Get and set the break_loop state
+            expsessinfo['break_loop'] = formset.cleaned_data['break_loop']
 
-            #
-            # Determine where we are going next
-            #
-            next_formidx = currform.determine_next_form(request)
+            # Determine our next form index
+            expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
 
             # Move to the next form by calling ourselves
-            return HttpResponseRedirect(reverse('serve_form', args=(experiment_id, next_formidx,)))
+            return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
             
         # If the form was not valid and we have to present it again, skip the trial running portion of it, so that we only present the questions
-        # pdb.set_trace()
         skip_trial = True
 
     else:
-        skip_trial = False
-        # Check the conditonal specification on the form we intend to go to, in order to make sure we can go there
-        if currform.condition:
-            # Parse the condition specification and evaluate it
-            # This remains to be implemented 
-            currform.determine_next_form(request)
-            return HttpResponseRedirect(reverse('feature_not_enabled',args=('form conditionals',)))
+        #
+        # Process the GET request for this form
+        #
 
+        # Initialize variables
+        skip_trial = False
+        conditions_met = True # Assume all conditions have been met
+
+        # Determine whether the handler name ends in _s indicating that the form is handling stimuli
+        requires_stimulus = True if re.search('_s$',handler_name) else False  
+
+        # Determine whether any conditions on this form have been met
+        conditions_met = currform.conditions_met(request)
+
+        # Execute a stimulus selection script if one has been specified
+        if currform.stimulus_matlab:
+            # Use regexp to get the function name that we're calling
+            funcdict = parse_function_spec(currform.stimulus_matlab)
+
+            # Check whether we specified by a module and a method
+            parsed_funcname = funcdict['func_name'].split('.')
+            module = parsed_funcname[0]
+
+            if len(parsed_funcname)==1:
+                method = 'select'
+            elif len(parsed_funcname)==2:
+                method = parsed_funcname[1]
+            else:
+                raise ValueError('Method-nesting too deep')
+
+            # Get the module handle from pyensemble.selectors
+            select_module = getattr(selectors,module)
+
+            # Get the method handle
+            select_func = getattr(select_module,method)
+
+            # Call the select function with the parameters to get the trial specification
+            trialspec = select_func(request, *funcdict['args'],**funcdict['kwargs'])
+
+        #
+        # If this form requires a stimulus and there is no stimulus, this means that we have exhausted our stimuli and so we should move on to the next form
+        #
+        if requires_stimulus and not trialspec:
+            # If we are at the start of a loop, then any forms within the loop should not be presented, so skip to the form after the end of the loop
+
+            if form_idx in expsessinfo['last_in_loop'].keys():
+                expsessinfo['curr_form_idx']=expsessinfo['last_in_loop'][form_idx]+1
+            else:
+                expsessinfo['curr_form_idx']+=1
+
+            # Go to that next form
+            return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
+
+        #
         # Get our blank form
+        #
         if handler_name == 'form_subject_register':
             form = RegisterSubjectForm()
             formset = None
@@ -268,59 +318,26 @@ def serve_form(request, experiment_id=None, form_idx=None):
 
             formset = QuestionModelFormSet(queryset=form.questions.all())
 
-        # Execute a stimulus selection script if one has been specified
-        if currform.stimulus_matlab:
-            # Use regexp to get the function name that we're calling
-            funcname = '^{}('
-            params = '({})'
+    # Determine any other trial control parameters that are part of the JavaScript injection
+    trialspec.update({
+        'questions_after_media_finished': True,
+        'skip': skip_trial,
+        })
 
-            # Get the function handle from pyensemble.selectors
-            select_func = pyensemble.selectors.attr(funcname)
-
-            # Call the select function with the parameters
-            stimulus_id = select_func(params)
-        else:
-            stimulus_id = None
-
-        # Check whether handler_name ends in _s. If it does not, set the current stimulus value to None
-        expsessinfo['stimulus_id'] = stimulus_id
-
-        if stimulus_id:
-            stimulus = Stimulus.objects.get(pk=stimulus_id)
-        else:
-            stimulus = None
-
-
-    # Create our context
+    # Create our context to pass to the template
     context = {
         'form': form,
         'formset': formset,
         'exf': currform,
         'helper': helper,
-        'stimulus': stimulus,
+        'trialspec': json.dumps(trialspec),
        }
-
-    #
-    # Additional context variables (these should maybe be part of the form creation, e.g. setting of stimulus_id as a hidden value)
-    #
-
-    # Determine what media, if any, we are presenting
-    # media = {}
-
-    # Determine any other trial control parameters that are part of the JavaScript injection
-    context['trial'] = {
-        'questions_after_media_finished': True,
-        'skip': skip_trial,
-        }
 
     # Determine our form template (based on the form_handler field)
     form_template = os.path.join('pyensemble/handlers/', f'{handler_name}.html')
 
     # Update the last_visited session variable
     expsessinfo['last_visited'] = form_idx
-
-    # Update our session storage
-    request.session[expsess_key] = expsessinfo
 
     # pdb.set_trace()
     return render(request, form_template, context)

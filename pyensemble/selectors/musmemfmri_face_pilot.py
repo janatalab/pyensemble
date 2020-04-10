@@ -1,6 +1,6 @@
 # musmemfmri_face_pilot.py
 
-from pysensemble.models import Experiment, AttributeXAttribute
+from pyensemble.models import Experiment, AttributeXAttribute
 
 def select():
     # Get uptodate distribution of stimulus properties

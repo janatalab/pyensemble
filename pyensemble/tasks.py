@@ -33,34 +33,25 @@ def fetch_subject_id(subject, scheme='nhdl'):
     first = subject['name_first'].lower()
     dob = subject['dob']
 
-    # Check existence based on first and last name
-    subjects = Subject.objects.filter(name_last__iexact=last, name_first__iexact=first, dob=dob)
+    # We have to first create our subject root and then check for existing matches in the database. The reason we have to do it in this order is because of the encryption of the subject table.
+    if scheme=='nhdl':
+        subject_id_root = '%02d%s%s%02d'%(dob.month, str(last[0]+last[-1:]+first[0]), str(dob.year)[-2:], dob.day)
 
-    if subjects.count():
-        if subjects.count() == 1:
-            subject_id = subjects[0].subject_id
-            exists = True
-        else:
-            raise ValueError('%d subjects with identical name and birthday'%(subjects.count()))
+        # Get a list of all subjects with the same root
+        subjects = Subject.objects.filter(subject_id__contains=subject_id_root)
+
+        # Iterate over the existing subjects and see if we have a match
+        for currsub in subjects:
+            if currsub.name_last.lower() == last and currsub.name_first.lower() == first and currsub.dob == dob:
+                return currsub.subject_id, True
+
+        # If we found no match, create a new entry
+        subject_id = subject_id_root+str(subjects.count()+1)
+        return subject_id, False
+
     else:
-        if scheme=='nhdl':
-            subject_id_root = str(dob.month)+last[0]+last[-1:]+first[0]+str(dob.year)[-2:]+str(dob.day)
+        raise ValueError('unknown subject ID generator')
 
-            have_novel_id = False
-            idnum = 0
-            while not have_novel_id:
-                idnum+=1
-                subject_id = subject_id_root+str(idnum)
-
-                subjects = Subject.objects.filter(subject_id=subject_id)
-
-                if not subjects.count():
-                    have_novel_id = True
-
-        else:
-            raise ValueError('unknown subject ID generator')
-
-    return subject_id, exists
 
 def create_ticket(request):
     # Creates a ticket for an experiment.

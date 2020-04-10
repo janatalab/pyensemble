@@ -6,7 +6,7 @@ def parse_function_spec(function_str):
     # Works on either MATLAB or Python style function specifications
 
     # Parse into a dictionary containing the function name and the parameters
-    m = re.match('^(?P<func_name>\w*)\((?P<params>.*)\)$', function_str)
+    m = re.match('^(?P<func_name>[\w\.]*)\((?P<params>.*)\)$', function_str)
     specdict = m.groupdict()
 
     # Detect whether we are dealing with a MATLAB or Python style function 

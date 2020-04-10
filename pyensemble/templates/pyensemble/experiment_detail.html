@@ -70,7 +70,7 @@
                 <tr>
                   <td>{{ticket.ticket_code}}</td>
                   <td>{{ticket.expiration_datetime}}</td>
-                  <td> <a href="/run/{{experiment.pk}}?tc={{ticket.ticket_code}}">Run</a></td>
+                  <td> <a href="/run/{{experiment.pk}}/start/?tc={{ticket.ticket_code}}">Run</a></td>
                 </tr>
             {% endfor %}
           </tbody>
