@@ -1,4 +1,9 @@
 {% extends "pyensemble/base.html" %}
+{% load static %}
+
+{% block head %}
+    <link href="{% static 'jsPsych/css/jspsych.css' %}" rel="stylesheet" type="text/css"></link>
+{% endblock %}
 
 {% block main %}
 <div id="presentation" class="container">
@@ -12,4 +17,8 @@
         {% endblock %}
     </div>
 </div>
+{% endblock %}
+
+{% block appscript %}
+    <script src="{% static 'jsPsych/jspsych.js' %}"></script>
 {% endblock %}
