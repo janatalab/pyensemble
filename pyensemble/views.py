@@ -95,8 +95,6 @@ def run_experiment(request, experiment_id=None):
     expsess_key = get_expsess_key(experiment_id)
     expsessinfo = request.session.get(expsess_key,{})
 
-    # pdb.set_trace()
-
     # Check whether we have a running session, and initialize a new one if not.
     if not expsessinfo.get('running',False): 
         ticket = request.GET['tc']
@@ -138,7 +136,7 @@ def run_experiment(request, experiment_id=None):
             'running': True})
 
     # Set the experiment session info
-    request.session[expsess_key] = expsessinfo
+    # request.session[expsess_key] = expsessinfo
 
     return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
@@ -169,6 +167,7 @@ def serve_form(request, experiment_id=None):
     if handler_name == 'form_start_session':
         # We've already done the initialization, so set our index to the next form
         expsessinfo['curr_form_idx'] += 1
+        request.session.modified = True
         return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
     # Define our formset
@@ -204,7 +203,7 @@ def serve_form(request, experiment_id=None):
                 if exists:
                     subject = Subject.objects.get(subject_id=subject_id)
                 else:
-                    subject,created = Subject.objects.create(
+                    subject = Subject.objects.create(
                         subject_id = subject_id,
                         name_first = formset.cleaned_data['name_first'],
                         name_last = formset.cleaned_data['name_last'],
@@ -229,6 +228,7 @@ def serve_form(request, experiment_id=None):
                 #
                 # Save responses to the Response table
                 #
+                pdb.set_trace()
                 pass
 
             # Update our visit count
@@ -237,10 +237,11 @@ def serve_form(request, experiment_id=None):
             expsessinfo['visit_count'][form_idx] = num_visits
 
             # Get and set the break_loop state
-            expsessinfo['break_loop'] = formset.cleaned_data['break_loop']
+            expsessinfo['break_loop'] = formset.cleaned_data.get('break_loop',True)
 
             # Determine our next form index
             expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
+            request.session.modified=True
 
             # Move to the next form by calling ourselves
             return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
@@ -300,6 +301,7 @@ def serve_form(request, experiment_id=None):
                 expsessinfo['curr_form_idx']+=1
 
             # Go to that next form
+            request.session.modified=True
             return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
         #
@@ -310,6 +312,9 @@ def serve_form(request, experiment_id=None):
             formset = None
         else:
             form = Form.objects.get(form_id=currform.form_id)
+
+            # Clean the header, replacing backslashes
+            form.header = form.header.replace('\\','')
 
             # Return error if we are dealing with a multi-question question. Need to add handling for these at a later date
             if form.questions.filter(heading_format='multi-question'):
@@ -338,6 +343,7 @@ def serve_form(request, experiment_id=None):
 
     # Update the last_visited session variable
     expsessinfo['last_visited'] = form_idx
+    request.session.modified=True
 
     # pdb.set_trace()
     return render(request, form_template, context)
