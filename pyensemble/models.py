@@ -19,7 +19,7 @@ import pdb
 class Attribute(models.Model):
     attribute_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=50)
-    class_field = models.CharField(db_column='class', max_length=15)  # Field renamed because it was a Python reserved word.
+    attribute_class = models.CharField(db_column='class', max_length=15)  # Field renamed because it was a Python reserved word.
 
 class DataFormat(models.Model):
     data_format_id = models.IntegerField(primary_key=True)

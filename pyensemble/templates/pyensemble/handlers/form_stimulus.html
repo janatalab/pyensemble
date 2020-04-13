@@ -1,0 +1,20 @@
+{% extends "pyensemble/presentation_base.html" %}
+{% load staticfiles %}
+
+{% load crispy_forms_tags %}
+
+{% block head %}
+    <link href="{% static 'jsPsych/css/jspsych.css' %}" rel="stylesheet" type="text/css"></link>
+{% endblock %}
+
+{% block trialrunner %}
+{% endblock %}
+
+{% block appscript %}
+    <script src="{% static 'jsPsych/jspsych.js' %}"></script>
+    <script src="{% static 'pyensemble/js/trialrunner.js' %}"></script>
+
+    <script>
+        var timeline=JSON.parse({{trialspec}});
+    </script>
+{% endblock %}

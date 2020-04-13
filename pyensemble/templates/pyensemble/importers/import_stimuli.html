@@ -1,0 +1,14 @@
+{% extends 'pyensemble/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block header %}
+<div><h1>Stimulus Importer</h1></div>
+{% endblock %}
+
+{% block main %}
+<div class="row justify-content-center">
+    <div class="md-col-6 border p-3">
+        {% crispy form %}
+    </div>
+</div>
+{% endblock %}

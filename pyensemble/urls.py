@@ -17,9 +17,12 @@ from django.contrib import admin
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from django.views.generic import RedirectView
+
 from .views import EditorView, ExperimentListView, FormListView, QuestionListView, ExperimentDetailView, FormDetailView, QuestionDetailView, run_experiment, serve_form
+
 from pyensemble.tasks import reset_session, create_ticket
 import pyensemble.errors as error
+from pyensemble import importers
 
 from django.contrib.auth.decorators import login_required
 
@@ -39,5 +42,6 @@ urlpatterns = [
     path('session/reset/<int:experiment_id>/',reset_session, name='reset_session'),
     path('error/<slug:feature_string>/', error.feature_not_enabled, name='feature_not_enabled'),
     path('ticket/create/', create_ticket, name='create_ticket'),
+    path('stimuli/upload/', importers.import_stimuli.import_file),
     # path('pyensemble/exf/<form_order_idx>/', views.present_form),
 ]
