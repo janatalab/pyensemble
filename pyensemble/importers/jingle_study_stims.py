@@ -22,7 +22,7 @@ def import_stims(stimdir=stimdir):
 
     for media_type in mediadirs:
         # Get an attribute corresponding to this media type
-        attribute, _ = Attribute.objects.get_or_create(name=media_type,class_field='stimulus')
+        attribute, _ = Attribute.objects.get_or_create(name=media_type, attribute_class='stimulus')
 
         print(f'Working on {media_type}s ...')
 

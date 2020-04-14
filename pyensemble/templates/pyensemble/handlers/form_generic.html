@@ -3,18 +3,14 @@
 
 {% load crispy_forms_tags %}
 
-
 {% block questions %}
     {% crispy formset helper %}
+{% endblock %}
 
-    {% if 0 %}
-        <form method="post">
-            {{ form.management_form | crispy }}
-            {% for f in form %}
-                {% crispy f %}
-            {% endfor %}
-
-            <input type="submit" name="submit" value="Next" class="btn btn-primary"/>
-        </form>
-    {% endif %}
+{% block appscript %}
+    <script>
+        $(document).ready(function () {
+            $('#questions').removeClass('d-none');
+        });
+    </script>
 {% endblock %}

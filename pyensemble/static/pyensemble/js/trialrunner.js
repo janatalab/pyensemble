@@ -17,20 +17,20 @@ function post_trial(trialdata){
 
 }
 
-$(document).ready(function () {
-    // This function is fired when the document has finished loading
-
-    // Set options with which we're going to initialize our jsPsych instance
+function start_trial(timeline){
     var options = {};
     options.display_element = document.querySelector('#trialrunner');
     options.timeline = timeline;
-    options.show_progress_bar = False;
+    options.show_progress_bar = false;
     options.on_finish = post_trial;
 
     // Initialize jsPsych
     jsPsych.init(options);
 
     // Run the jsPsych timeline
-    jsPsych.startExperiment();
+    // jsPsych.startExperiment(); 
+}
 
-});
+// $(document).ready(function () {
+
+// });

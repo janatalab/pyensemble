@@ -1,6 +1,8 @@
 # import_stimuli.py
 
 # Imports stimuli into the Stimulus table
+import os, re
+
 from pyensemble.models import Stimulus
 import django.forms as forms
 
@@ -83,3 +85,19 @@ def process_file(csv_file):
         # We probably want to update our Stimulus table so that we have not only the destination path, but also a FileField that can automatically handle URL creation 
 
     return content
+
+def import_from_dir(dirname, recursive=True):
+    for d,s,flist in os.walk(dirname):
+        print(f'\nIn directory {d}')
+
+        for fname in flist:
+            # Skip files beginning with .
+            if re.match('^\.',fname):
+                continue
+
+            print(f'\t{fname}')
+
+            # Get our filename and the file extension (file type)
+            fstub,fext = os.path.splitext(stim.name)
+
+    # pdb.set_trace()

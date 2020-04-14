@@ -10,11 +10,23 @@
 {% block trialrunner %}
 {% endblock %}
 
+{% block questions %}
+    {% crispy formset helper %}
+{% endblock %}
+
 {% block appscript %}
     <script src="{% static 'jsPsych/jspsych.js' %}"></script>
     <script src="{% static 'pyensemble/js/trialrunner.js' %}"></script>
 
+    <!-- Insert necessary plugins -->
+    {% for trial in timeline %}
+        <script src="{% static 'jsPsych/plugins/jspsych-'|add:trial.type|add:'.js' %}"></script>
+    {% endfor %}
+
     <script>
-        var timeline=JSON.parse({{trialspec}});
+        $(document).ready(function () {
+            $('#trialrunner').removeClass('d-none');
+            start_trial(JSON.parse('{{timeline_json | safe}}'));
+        });
     </script>
 {% endblock %}

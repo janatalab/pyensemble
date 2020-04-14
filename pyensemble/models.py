@@ -125,6 +125,8 @@ class Stimulus(models.Model):
     height = models.IntegerField(blank=True, null=True)
     location = models.FileField()
 
+    attributes = models.ManyToManyField('Attribute', through='StimulusXAttribute')
+
     class Meta:
         unique_together = (("name", "location"),)
 

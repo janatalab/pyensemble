@@ -42,6 +42,7 @@ class QuestionModelForm(forms.ModelForm):
 
 
         self.fields['option'] = forms.ChoiceField(**field_params)
+        # self.fields['stimulus'] = forms.HiddenInput()
 
         if use_crispy:
             # Access to crispy forms
@@ -66,6 +67,7 @@ class QuestionModelForm(forms.ModelForm):
 
     # This is just a placeholder definition that has to be here so that the field is found. The choices are actually populated at the time that the form is rendered via the __init__ function
     option = forms.ChoiceField(widget=forms.RadioSelect, choices=())
+    # stimulus = forms.IntegerField()
 
     class Meta:
         model = Question

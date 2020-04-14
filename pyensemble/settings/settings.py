@@ -149,6 +149,7 @@ STATICFILES_DIRS = [
 STATIC_URL = '/static/'
 
 MEDIA_ROOT = '/var/www/html/ensemble/stimuli/'
+MEDIA_URL = '/media/'
 
 # Login and logout stuff
 LOGIN_URL = '/accounts/login/'

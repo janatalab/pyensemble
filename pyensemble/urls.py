@@ -17,6 +17,8 @@ from django.contrib import admin
 from django.urls import path
 from django.contrib.auth import views as auth_views
 from django.views.generic import RedirectView
+from django.conf import settings
+from django.conf.urls.static import static
 
 from .views import EditorView, ExperimentListView, FormListView, QuestionListView, ExperimentDetailView, FormDetailView, QuestionDetailView, run_experiment, serve_form
 
@@ -45,3 +47,7 @@ urlpatterns = [
     path('stimuli/upload/', importers.import_stimuli.import_file),
     # path('pyensemble/exf/<form_order_idx>/', views.present_form),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)

@@ -130,13 +130,14 @@ def run_experiment(request, experiment_id=None):
         expsessinfo.update({
             'session_id': session.session_id,
             'curr_form_idx': 0,
+            'stimulus_id': None,
             'break_loop': False,
             'last_in_loop': {},
             'visit_count': {},
             'running': True})
 
     # Set the experiment session info
-    # request.session[expsess_key] = expsessinfo
+    request.session[expsess_key] = expsessinfo
 
     return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
@@ -257,15 +258,17 @@ def serve_form(request, experiment_id=None):
         # Initialize variables
         skip_trial = False
         conditions_met = True # Assume all conditions have been met
+        presents_stimulus = False # Does this form present a stimulus
 
         # Determine whether the handler name ends in _s indicating that the form is handling stimuli
         requires_stimulus = True if re.search('_s$',handler_name) else False  
-
         # Determine whether any conditions on this form have been met
         conditions_met = currform.conditions_met(request)
 
         # Execute a stimulus selection script if one has been specified
         if currform.stimulus_matlab:
+            presents_stimulus = True
+
             # Use regexp to get the function name that we're calling
             funcdict = parse_function_spec(currform.stimulus_matlab)
 
@@ -287,22 +290,33 @@ def serve_form(request, experiment_id=None):
             select_func = getattr(select_module,method)
 
             # Call the select function with the parameters to get the trial specification
-            trialspec = select_func(request, *funcdict['args'],**funcdict['kwargs'])
+            timeline, stimulus_id  = select_func(request, *funcdict['args'],**funcdict['kwargs'])
+
+            expsessinfo['stimulus_id'] = stimulus_id
+        else:
+            timeline = {}
 
         #
         # If this form requires a stimulus and there is no stimulus, this means that we have exhausted our stimuli and so we should move on to the next form
         #
-        if requires_stimulus and not trialspec:
+        if presents_stimulus and not timeline:
             # If we are at the start of a loop, then any forms within the loop should not be presented, so skip to the form after the end of the loop
-
             if form_idx in expsessinfo['last_in_loop'].keys():
                 expsessinfo['curr_form_idx']=expsessinfo['last_in_loop'][form_idx]+1
             else:
                 expsessinfo['curr_form_idx']+=1
 
+            pdb.set_trace()
+
             # Go to that next form
             request.session.modified=True
             return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
+
+        #
+        # Reset our session stimulus_id variable if appropriate
+        #
+        if not requires_stimulus:
+            expsessinfo['stimulus_id'] = None
 
         #
         # Get our blank form
@@ -318,7 +332,8 @@ def serve_form(request, experiment_id=None):
 
             # Return error if we are dealing with a multi-question question. Need to add handling for these at a later date
             if form.questions.filter(heading_format='multi-question'):
-                currform.determine_next_form(request)
+                expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
+                request.session.modified=True                
                 return HttpResponseRedirect(reverse('feature_not_enabled',args=('multi-question',)))
 
             formset = QuestionModelFormSet(queryset=form.questions.all())
@@ -335,7 +350,9 @@ def serve_form(request, experiment_id=None):
         'formset': formset,
         'exf': currform,
         'helper': helper,
-        'trialspec': json.dumps(trialspec),
+        'timeline': timeline,
+        'timeline_json': json.dumps(timeline),
+        'trialspec': trialspec,
        }
 
     # Determine our form template (based on the form_handler field)
