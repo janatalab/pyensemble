@@ -18,7 +18,7 @@ from django.urls import reverse
 
 from django.conf import settings
 
-from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, Stimulus, Subject
+from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, Stimulus, Subject, Response
 from .forms import QuestionModelForm, RegisterSubjectForm, QuestionModelFormSetHelper, TicketCreationForm
 
 from .tasks import get_expsess_key, fetch_subject_id
@@ -130,6 +130,7 @@ def run_experiment(request, experiment_id=None):
         expsessinfo.update({
             'session_id': session.session_id,
             'curr_form_idx': 0,
+            'response_order': 0,
             'stimulus_id': None,
             'break_loop': False,
             'last_in_loop': {},
@@ -176,7 +177,7 @@ def serve_form(request, experiment_id=None):
 
     # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
     helper = QuestionModelFormSetHelper()
-    helper.add_input(Submit("submit", "Submit"))
+    helper.add_input(Submit("submit", "Next"))
     helper.template = 'pyensemble/crispy_overrides/table_inline_formset.html'
 
     # Initialize other context
@@ -193,6 +194,8 @@ def serve_form(request, experiment_id=None):
             formset = QuestionModelFormSet(request.POST)
 
         if formset.is_valid():
+            expsessinfo['response_order']+=1
+
             #
             # Write data to the database. With only a couple of exceptions, based on form_handler, this will be to the Response table
             #
@@ -229,8 +232,34 @@ def serve_form(request, experiment_id=None):
                 #
                 # Save responses to the Response table
                 #
-                pdb.set_trace()
-                pass
+                responses = []
+                for idx,form in enumerate(formset.forms):
+                    # Pre-process certain fields
+                    response_enum=form.cleaned_data.get('option',None)
+                    response_text=form.cleaned_data.get('response_text','')
+                    declined=form.cleaned_data.get('decline',False)
+                    misc_info='' # json string with jsPsych data
+
+                    responses.append(Response(
+                        experiment=currform.experiment,
+                        subject=Subject.objects.get(subject_id=expsessinfo['subject_id']),
+                        session=Session.objects.get(session_id=expsessinfo['session_id']),
+                        form=currform.form,
+                        form_order=form_idx,
+                        stimulus=Stimulus.objects.get(pk=expsessinfo['stimulus_id']),
+                        qdf=form.cleaned_data['question_id'].questionxdataformat_set.all()[0],
+                        form_question_num=idx,
+                        question_iteration=1, # this needs to be modified to reflect original Ensemble intent
+                        response_order=expsessinfo['response_order'],
+                        response_text=response_text,
+                        response_enum=response_enum,
+                        decline=declined,
+                        misc_info=misc_info,
+                        )
+                    )
+
+                if responses:
+                    Response.objects.bulk_create(responses)
 
             # Update our visit count
             num_visits = expsessinfo['visit_count'].get(form_idx,0)
@@ -238,7 +267,7 @@ def serve_form(request, experiment_id=None):
             expsessinfo['visit_count'][form_idx] = num_visits
 
             # Get and set the break_loop state
-            expsessinfo['break_loop'] = formset.cleaned_data.get('break_loop',True)
+            # expsessinfo['break_loop'] = formset.cleaned_data.get('break_loop',True)
 
             # Determine our next form index
             expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
@@ -329,6 +358,7 @@ def serve_form(request, experiment_id=None):
 
             # Clean the header, replacing backslashes
             form.header = form.header.replace('\\','')
+            form.footer = form.footer.replace('\\','')
 
             # Return error if we are dealing with a multi-question question. Need to add handling for these at a later date
             if form.questions.filter(heading_format='multi-question'):

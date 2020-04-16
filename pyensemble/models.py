@@ -260,7 +260,7 @@ class QuestionXDataFormat(models.Model):
     heading = models.TextField(blank=True)
     range = models.CharField(max_length=30, blank=True)
     default = models.CharField(max_length=30, blank=True)
-    html_field_type = models.CharField(max_length=10, blank=True)
+    html_field_type = models.CharField(max_length=10, blank=True, default='radiogroup')
     audio_path = models.CharField(max_length=50, blank=True)
     required = models.BooleanField(default=True)
 
@@ -441,7 +441,8 @@ class ExperimentXForm(models.Model):
 
         # Fetch our variables that control looping
         num_repeats = self.repeat
-        goto_form_idx = self.goto
+        goto_form_idx = self.goto 
+        num_visits = expsessinfo['visit_count'][form_idx]
 
         # See whether a break loop flag was set
         if expsessinfo['break_loop']:
@@ -455,10 +456,11 @@ class ExperimentXForm(models.Model):
 
         elif goto_form_idx:
             # If a goto form was specified
-            expsessinfo['curr_form_idx'] = goto_form_idx
+            # stored 1-indexed in database
+            expsessinfo['curr_form_idx'] = goto_form_idx-1
 
             # Set our looping info
-            expsessinfo['last_in_loop'][goto_form_idx] = form_idx
+            expsessinfo['last_in_loop'][goto_form_idx-1] = form_idx
 
         elif form_idx == exf.count():
             expsessinfo['finished'] = True
@@ -469,31 +471,6 @@ class ExperimentXForm(models.Model):
             expsessinfo['curr_form_idx']+=1
 
         return expsessinfo['curr_form_idx']
-
-        # # Check whether the next form has conditions associated with it and make sure that conditions are met
-        # nextform = exf[next_form_idx]
-
-        # if nextform.condition:
-        #     # Parse the condition string to get a list of the conditions that need to be met
-        #     conditions = parse_condition_string(nextform.condition, expsessinfo=expsessinfo)
-
-        #     # Evaluate the conditions
-        #     met_conditions = evaluate_conditions(conditions)
-
-        #     # Add logic pertaining to unmet conditions
-
-
-        # if nextform.condition_matlab:
-        #     pass
-
-        # # Update our session storage
-        # request.session[expsess_key] = expsessinfo    
-
-        # # Update the next variable for this session
-        # request.session['next'] = reverse('serve_form', args=(experiment_id,))
-
-        # return next_form_idx
-
 
 class ExperimentXAttribute(models.Model):
     experiment = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)

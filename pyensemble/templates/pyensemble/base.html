@@ -21,13 +21,20 @@
 
     </head>
     <body class="text-center container">
-        {% block header %}
-        {% endblock %}
+        <div id="header" class="row col-12 mb-5">
+            {% block header %}
+            {% endblock %}
+        </div>
 
-        {% block main %}
-        {% endblock %}
+        <div id="main" class="row col-12">
+            {% block main %}
+            {% endblock %}
+        </div>
 
-        {% block footer %}{% endblock %}
+        <div id="footer" class="row col-12 mt-5">
+            {% block footer %}
+            {% endblock %}
+        </div>
 
         <!-- Include for page-specific scripts that need to load after body content -->
         <script src="https://code.jquery.com/jquery-3.4.1.min.js" integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo=" crossorigin="anonymous"></script>
