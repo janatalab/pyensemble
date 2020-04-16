@@ -79,19 +79,19 @@ class Response(models.Model):
     subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE)
     session = models.ForeignKey('Session', db_column='session_id', db_constraint=True, on_delete=models.CASCADE)
     form = models.ForeignKey('Form', db_column='form_id', db_constraint=True, on_delete=models.CASCADE)
-    form_order = models.PositiveSmallIntegerField(null=False,default=0)
+    form_order = models.PositiveSmallIntegerField(null=False,default=None)
 
-    stimulus = models.ForeignKey('Stimulus', db_column='stimulus_id', db_constraint=True, on_delete=models.CASCADE)
+    stimulus = models.ForeignKey('Stimulus', db_column='stimulus_id', db_constraint=True, on_delete=models.CASCADE, null=True)
 
     # Question X DataFormat
     qdf = models.ForeignKey('QuestionXDataFormat', db_constraint=True, on_delete=models.CASCADE)
-    form_question_num = models.PositiveSmallIntegerField(null=False,default=0)
-    question_iteration = models.PositiveSmallIntegerField(null=False,default=0)
+    form_question_num = models.PositiveSmallIntegerField(null=False,default=None)
+    question_iteration = models.PositiveSmallIntegerField(null=False,default=1)
 
     date_time = models.DateTimeField(auto_now_add=True)
-    response_order = models.PositiveSmallIntegerField(null=False,default=0)
+    response_order = models.PositiveSmallIntegerField(null=False,default=None)
     response_text = models.TextField(blank=True)
-    response_enum = models.PositiveIntegerField(blank=True, null=True)
+    response_enum = models.IntegerField(blank=True, null=True)
     decline = models.BooleanField(default=False)
     misc_info = models.TextField(blank=True)
     

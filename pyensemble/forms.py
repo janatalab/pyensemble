@@ -1,4 +1,5 @@
 # forms.py
+import re
 
 import django.forms as forms
 from django.utils import timezone
@@ -7,9 +8,13 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Field, Submit
 from crispy_forms.bootstrap import InlineRadios, InlineCheckboxes
 
-from pyensemble.models import FormXQuestion, Question, Subject
+from pyensemble.models import FormXQuestion, Question, Subject, Form
 
 import pdb
+
+# class FormModelForm(forms.ModelForm):
+#     class Meta:
+#         model = Form
 
 # borrowed this from meamstream
 class QuestionModelForm(forms.ModelForm):
@@ -21,7 +26,6 @@ class QuestionModelForm(forms.ModelForm):
 
         # Set up the input field as a function of the HTML type
         html_field_type = self.instance.questionxdataformat_set.get().html_field_type
-        
 
         if html_field_type in ['radiogroup', 'checkbox','menu']:
             # Deal with getting our choices
@@ -38,7 +42,16 @@ class QuestionModelForm(forms.ModelForm):
             elif html_field_type == 'menu':
                 widget = forms.Select
 
-            field_params['widget'] = widget
+        elif re.match('^int',html_field_type):
+            widget = forms.NumberInput
+
+        elif html_field_type == 'text':
+            widget = forms.TextInput
+
+        elif html_field_type == 'textarea':
+            widget = forms.TextArea
+
+        field_params['widget'] = widget
 
 
         self.fields['option'] = forms.ChoiceField(**field_params)

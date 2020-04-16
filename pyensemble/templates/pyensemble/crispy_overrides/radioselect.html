@@ -4,7 +4,7 @@
 <{% if tag %}{{ tag }}{% else %}div{% endif %} class="{% if field_class %} {{ field_class }}{% endif %} field-choices row justify-content-center"{% if flat_attrs %} {{ flat_attrs|safe }}{% endif %}>
 
     {% for choice in field.field.choices %}
-      <{% if tag == "tr" %}td{% else %}div{% endif %} class="col-sm-3 {%if use_custom_control%}custom-control custom-radio{% if inline_class %} custom-control-inline{% endif %}{% else %}form-check{% if inline_class %} form-check-inline{% endif %}{% endif %}">
+      <{% if tag == "tr" %}td{% else %}div{% endif %} class="{%if use_custom_control%}custom-control custom-radio{% if inline_class %} custom-control-inline{% endif %}{% else %}form-check{% if inline_class %} form-check-inline{% endif %}{% endif %}">
         <!-- <div class="row"> -->
             <div class='col-12'>
                 <label for="id_{{ field.html_name }}_{{ forloop.counter }}" class="form-check-label">

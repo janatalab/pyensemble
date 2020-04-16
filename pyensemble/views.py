@@ -147,8 +147,9 @@ def serve_form(request, experiment_id=None):
     expsess_key = get_expsess_key(experiment_id)
 
     # Make sure the experiment session info is cached in the session info
-    if expsess_key not in request.session.keys():
-        return HttpResponseBadRequest()
+    # Otherwise restart the experiment
+    if expsess_key not in request.session.keys() or not request.session[expsess_key]:
+        return render(request,'pyensemble/error.html',{'msg':'Invalid attempt to start or resume the experiment','next':'/'})
 
     # Get our experiment session info
     expsessinfo = request.session[expsess_key]
@@ -161,6 +162,19 @@ def serve_form(request, experiment_id=None):
     #
     exf = ExperimentXForm.objects.filter(experiment=experiment_id).order_by('form_order')
     currform = exf[form_idx]
+
+    # Get the form instance
+    form = Form.objects.get(form_id=currform.form_id)
+
+    # Clean the header, replacing backslashes
+    form.header = form.header.replace('\\','')
+    form.footer = form.footer.replace('\\','')
+
+    # Return error if we are dealing with a multi-question question. Need to add handling for these at a later date
+    if form.questions.filter(heading_format='multi-question'):
+        expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
+        request.session.modified=True                
+        return HttpResponseRedirect(reverse('feature_not_enabled',args=('multi-question',)))
 
     # Check to see whether we are dealing with a special form that requires different handling. This is largely to try to maintain backward compatibility with the legacy PHP version of Ensemble
     form_handler = currform.form_handler
@@ -182,6 +196,7 @@ def serve_form(request, experiment_id=None):
 
     # Initialize other context
     trialspec = {}
+    timeline = []
 
     if request.method == 'POST':
         #
@@ -233,12 +248,21 @@ def serve_form(request, experiment_id=None):
                 # Save responses to the Response table
                 #
                 responses = []
-                for idx,form in enumerate(formset.forms):
+                for idx,question in enumerate(formset.forms):
                     # Pre-process certain fields
-                    response_enum=form.cleaned_data.get('option',None)
-                    response_text=form.cleaned_data.get('response_text','')
-                    declined=form.cleaned_data.get('decline',False)
+                    response_enum= question.cleaned_data.get('option','')
+                    if response_enum:
+                        response_enum = int(response_enum)
+                    else:
+                        response_enum = None
+
+                    response_text=question.cleaned_data.get('response_text','')
+                    declined=question.cleaned_data.get('decline',False)
                     misc_info='' # json string with jsPsych data
+                    if expsessinfo['stimulus_id']:
+                        stimulus = Stimulus.objects.get(pk=expsessinfo['stimulus_id'])
+                    else:
+                        stimulus = None
 
                     responses.append(Response(
                         experiment=currform.experiment,
@@ -246,8 +270,8 @@ def serve_form(request, experiment_id=None):
                         session=Session.objects.get(session_id=expsessinfo['session_id']),
                         form=currform.form,
                         form_order=form_idx,
-                        stimulus=Stimulus.objects.get(pk=expsessinfo['stimulus_id']),
-                        qdf=form.cleaned_data['question_id'].questionxdataformat_set.all()[0],
+                        stimulus=stimulus,
+                        qdf=question.cleaned_data['question_id'].questionxdataformat_set.all()[0],
                         form_question_num=idx,
                         question_iteration=1, # this needs to be modified to reflect original Ensemble intent
                         response_order=expsessinfo['response_order'],
@@ -354,18 +378,6 @@ def serve_form(request, experiment_id=None):
             form = RegisterSubjectForm()
             formset = None
         else:
-            form = Form.objects.get(form_id=currform.form_id)
-
-            # Clean the header, replacing backslashes
-            form.header = form.header.replace('\\','')
-            form.footer = form.footer.replace('\\','')
-
-            # Return error if we are dealing with a multi-question question. Need to add handling for these at a later date
-            if form.questions.filter(heading_format='multi-question'):
-                expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
-                request.session.modified=True                
-                return HttpResponseRedirect(reverse('feature_not_enabled',args=('multi-question',)))
-
             formset = QuestionModelFormSet(queryset=form.questions.all())
 
     # Determine any other trial control parameters that are part of the JavaScript injection
@@ -390,8 +402,17 @@ def serve_form(request, experiment_id=None):
 
     # Update the last_visited session variable
     expsessinfo['last_visited'] = form_idx
-    request.session.modified=True
 
-    # pdb.set_trace()
+    if handler_name == 'form_end_session':
+        # Close out our session
+        session = Session.objects.get(session_id=expsessinfo['session_id'])
+        session.end_datetime = timezone.now()
+        session.save()
+
+        # Remove our cached session info
+        request.session.pop(expsess_key,None)
+
+    # Make sure to save any changes to our session cache
+    request.session.modified=True
     return render(request, form_template, context)
 
