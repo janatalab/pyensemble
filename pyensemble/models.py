@@ -262,7 +262,6 @@ class QuestionXDataFormat(models.Model):
     default = models.CharField(max_length=30, blank=True)
     html_field_type = models.CharField(max_length=10, blank=True, default='radiogroup')
     audio_path = models.CharField(max_length=50, blank=True)
-    required = models.BooleanField(default=True)
 
     class Meta:
         unique_together = (("question", "subquestion", "answer_format"),)
@@ -273,6 +272,7 @@ class FormXQuestion(models.Model):
     question = models.ForeignKey('Question', db_column='question_id', db_constraint=True, on_delete=models.CASCADE)
     question_iteration = models.IntegerField()
     form_question_num = models.IntegerField()
+    required = models.BooleanField(default=True)
 
     class Meta:
         unique_together = (("form","question","form_question_num","question_iteration"),)
