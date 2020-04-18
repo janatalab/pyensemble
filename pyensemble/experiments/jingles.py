@@ -14,6 +14,8 @@ from crispy_forms.layout import Submit
 
 from pyensemble.models import Attribute, Stimulus, StimulusXAttribute, AttributeXAttribute, Experiment, Form, ExperimentXForm, Question, FormXQuestion, DataFormat
 
+from pyensemble.forms import ImportForm
+
 import pdb
 
 # Specify the stimulus directory relative to the stimulus root
@@ -341,15 +343,4 @@ def select(request,*args,**kwargs):
 
     return timeline, stimulus.stimulus_id
 
-# Define our form
-class ImportForm(forms.Form):
-    file = forms.FileField(label='Select a .csv or .json file to import')
-
-    def __init__(self, *args, **kwargs):
-        self.helper = FormHelper()
-        self.helper.form_class = 'importform'
-        self.helper.form_method = 'post'
-
-        self.helper.add_input(Submit('submit', 'Submit'))
-        super(ImportForm, self).__init__(*args, **kwargs)
 
