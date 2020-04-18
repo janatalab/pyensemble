@@ -19,7 +19,7 @@ from django.urls import reverse
 from django.conf import settings
 
 from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, Stimulus, Subject, Response
-from .forms import QuestionModelForm, RegisterSubjectForm, QuestionModelFormSetHelper, TicketCreationForm
+from .forms import CreateQuestionForm, QuestionModelForm, RegisterSubjectForm, QuestionModelFormSetHelper, TicketCreationForm
 
 from .tasks import get_expsess_key, fetch_subject_id
 from pyensemble.utils.parsers import parse_function_spec
@@ -90,6 +90,25 @@ class QuestionDetailView(DetailView):
         context = super().get_context_data(**kwargs)
 
         return context
+
+def create_question(request):
+
+    if request.method == 'POST':
+        form = CreateQuestionForm(request.POST)
+
+        if form.is_valid():
+            pass
+    else:
+        form = CreateQuestionForm()
+
+
+    context = {
+        'form': form
+    }
+
+    template_name = 'pyensemble/question_edit.html'
+    return render(request,template_name,context)
+
 
 # Start experiment
 @require_http_methods(['GET'])

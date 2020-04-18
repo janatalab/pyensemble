@@ -16,6 +16,20 @@ import pdb
 #     class Meta:
 #         model = Form
 
+class CreateQuestionForm(forms.ModelForm):
+    helper = FormHelper()
+    helper.form_method = 'POST'
+
+    class Meta:
+        model=Question
+        fields=('text','category','data_format','value_range','value_default','html_field_type','locked','audio_path')
+
+        widgets = {
+            'text': forms.TextInput(attrs={'placeholder':'Enter the question text here'}),
+        }
+
+
+
 # borrowed this from meamstream
 class QuestionModelForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
