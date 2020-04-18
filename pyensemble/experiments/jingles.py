@@ -32,7 +32,7 @@ def import_stims(stimdir=stimdir):
 
     for media_type in mediadirs:
         # Get an attribute corresponding to this media type
-        attribute, _ = Attribute.objects.get_or_create(name=media_type, attribute_class='stimulus')
+        attribute, _ = Attribute.objects.get_or_create(name='Media Type', attribute_class='stimulus')
 
         print(f'Working on {media_type}s ...')
 
@@ -54,7 +54,7 @@ def import_stims(stimdir=stimdir):
                         )
 
                     # Create a stimulusXattribute entry
-                    stimXattrib, _ = StimulusXAttribute.objects.get_or_create(stimulus_id=stimulus, attribute_id=attribute)
+                    stimXattrib, _ = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attribute, attribute_value_text=media_type)
 
 def import_experiment_structure(request):
     template = 'pyensemble/importers/import_generic.html'
@@ -225,6 +225,72 @@ def import_experiment_structure(request):
                 raise ValueError('Bad file type')
 
             return render(request,'pyensemble/message.html',{'msg':'Successfully imported the file contents'})
+
+    else:
+        form = ImportForm()
+
+    context = {'form': form}
+
+    return render(request, template, context)
+
+def import_attributes(request):
+    template = 'pyensemble/importers/import_generic.html'
+
+    if request.method == 'POST':
+        form = ImportForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            # Get our in-memory file
+            csv_file = io.TextIOWrapper(request.FILES['file'].file)
+
+            # Get a reader for our file
+            reader = csv.reader(csv_file)
+
+            # Get the column headers
+            columns = next(reader)
+
+            # Get a dictionary of column indexes
+            cid = {col:idx for idx, col in enumerate(columns)}
+
+            # Specify our column to attribute mapping
+            colattmap = {
+                'Company': 'Company',
+                'Item': 'Product',
+                'Product_Category': 'Product Category',
+                'First_Played': 'First Played',
+                'Last_Played': 'Last Played',
+                'Region_Played': 'Region',
+                'Modality': 'Modality',
+            }
+            numeric = ['First_Played','Last_Played']
+
+            for row in reader:
+                # Get a stimulus object based on the name
+                stimname = row[cid['Stimulus_ID']]
+                try:
+                    stimulus = Stimulus.objects.get(name=stimname)
+                except:
+                    print(f'Unable to locate stimulus with name {stimname}')
+                    continue
+
+                # Iterate over our attributes
+                for col in colattmap.keys():
+                    # Fetch our attribute
+                    attribute, created = Attribute.objects.get_or_create(name=colattmap[col])
+
+                    # Get the value we're going to write
+                    value = row[cid[col]]
+                    if col in numeric:
+                        value_text = ''
+                        value_float = float(value) if value and value != '?' else None
+                    else:
+                        value_text = value
+                        value_float = None
+
+                    # Create our stimulusxattribute entry
+                    sxa = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attribute, attribute_value_text=value_text, attribute_value_double=value_float)
+
+            return render(request,'pyensemble/message.html',{'msg':'Successfully imported the attribute file'})
 
     else:
         form = ImportForm()
