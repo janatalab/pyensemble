@@ -2,6 +2,7 @@
 #
 # Specifies the core Ensemble models
 #
+import hashlib
 
 from django.db import models
 from django.urls import reverse
@@ -9,6 +10,7 @@ from django.urls import reverse
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField, EncryptedDateField
 
 from django.utils import timezone
+
 from pyensemble.utils.parsers import parse_function_spec
 
 import pdb
@@ -17,96 +19,100 @@ import pdb
 # Base class tables
 #
 class Attribute(models.Model):
-    attribute_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=50)
     attribute_class = models.CharField(db_column='class', max_length=15)  # Field renamed because it was a Python reserved word.
 
 class DataFormat(models.Model):
-    data_format_id = models.IntegerField(primary_key=True)
-    type = models.CharField(max_length=15)
+    df_type = models.CharField(max_length=15)
     enum_values = models.TextField(blank=True)
 
 class Question(models.Model):
-    question_id = models.IntegerField(primary_key=True)
-    question_text = models.TextField(blank=True)
-    question_category = models.CharField(max_length=19, blank=True)
-    heading_format = models.CharField(max_length=14)
-    locked = models.CharField(max_length=1)
+    unique_hash = models.CharField(max_length=32, unique=True)
+    text = models.TextField(blank=True)
+    category = models.CharField(max_length=64, blank=True)
+
+    data_format = models.ForeignKey('DataFormat', db_constraint=True, on_delete=models.CASCADE)
+    value_range = models.CharField(max_length=30, blank=True)
+    value_default = models.CharField(max_length=30, blank=True)
+    html_field_type = models.CharField(max_length=10, blank=True, default='radiogroup')
+    audio_path = models.CharField(max_length=50, blank=True)
+
+    locked = models.BooleanField(default=False)
 
     forms = models.ManyToManyField('Form', through='FormXQuestion')
 
-    values = models.ManyToManyField('DataFormat', through='QuestionXDataFormat')
+    class Meta:
+        unique_together = (("unique_hash", "data_format"),)
 
     def __unicode__(self):
-        return self.question_text
+        return self.text
 
     def choices(self):
-        return [(val,lbl) for val,lbl in enumerate(self.values().replace('"','').split(','))]
+        items = self.data_format.enum_values.split('","')
+        return [(idx,lbl.replace('"','')) for idx,lbl in enumerate(items)]
+
+    def save(self, *args, **kwargs):
+        m = hashlib.md5()
+        m.update(self.text.encode('utf-8'))
+        self.unique_hash = m.digest()
+
+        super(Question, self).save(*args, **kwargs)
 
 class Form(models.Model):
-    form_id = models.IntegerField(primary_key=True)
-    form_name = models.CharField(unique=True, max_length=50)
-    form_category = models.CharField(max_length=19, blank=True)
+    name = models.CharField(unique=True, max_length=50)
+    category = models.CharField(max_length=19, blank=True)
     header = models.TextField(blank=True)
     footer = models.TextField(blank=True)
     header_audio_path = models.CharField(max_length=50, blank=True)
     footer_audio_path = models.CharField(max_length=50, blank=True)
     version = models.FloatField(blank=True, null=True)
-    locked = models.CharField(max_length=1)
-    visit_once = models.CharField(max_length=1)
+    locked = models.BooleanField(default=False)
+    visit_once = models.BooleanField(default=False)
 
     questions = models.ManyToManyField('Question', through='FormXQuestion')
     experiments = models.ManyToManyField('Experiment', through='ExperimentXForm')
 
 class Experiment(models.Model):
-    experiment_id = models.IntegerField(primary_key=True)
     start_date = models.DateField(blank=True, null=True)
-    experiment_title = models.CharField(unique=True, max_length=50)
-    experiment_description = models.TextField(blank=True)
-    response_table = models.CharField(max_length=50)
+    title = models.CharField(unique=True, max_length=50)
+    description = models.TextField(blank=True)
     irb_id = models.CharField(max_length=30, blank=True)
     end_date = models.DateField(blank=True, null=True)
-    language = models.CharField(max_length=30)
-    play_question_audio = models.CharField(max_length=1)
-    encrypted_response_table = models.CharField(max_length=1)
-    params = models.TextField()
-    locked = models.CharField(max_length=1)
+    language = models.CharField(max_length=30,default='en')
+    play_question_audio = models.BooleanField(default=False)
+    params = models.TextField(blank=True)
+    locked = models.BooleanField(default=False)
 
     forms = models.ManyToManyField('Form', through='ExperimentXForm')
 
 class Response(models.Model):
-    experiment = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)
+    date_time = models.DateTimeField(auto_now_add=True)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE)
-    session = models.ForeignKey('Session', db_column='session_id', db_constraint=True, on_delete=models.CASCADE)
-    form = models.ForeignKey('Form', db_column='form_id', db_constraint=True, on_delete=models.CASCADE)
+    session = models.ForeignKey('Session', db_constraint=True, on_delete=models.CASCADE)
+    form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
     form_order = models.PositiveSmallIntegerField(null=False,default=None)
 
-    stimulus = models.ForeignKey('Stimulus', db_column='stimulus_id', db_constraint=True, on_delete=models.CASCADE, null=True)
-
-    # Question X DataFormat
-    qdf = models.ForeignKey('QuestionXDataFormat', db_constraint=True, on_delete=models.CASCADE)
+    question = models.ForeignKey('Question', db_constraint=True, on_delete=models.CASCADE)
     form_question_num = models.PositiveSmallIntegerField(null=False,default=None)
     question_iteration = models.PositiveSmallIntegerField(null=False,default=1)
 
-    date_time = models.DateTimeField(auto_now_add=True)
+    stimulus = models.ForeignKey('Stimulus', db_constraint=True, on_delete=models.CASCADE, null=True)
+
     response_order = models.PositiveSmallIntegerField(null=False,default=None)
     response_text = models.TextField(blank=True)
     response_enum = models.IntegerField(blank=True, null=True)
     decline = models.BooleanField(default=False)
     misc_info = models.TextField(blank=True)
-    
 
 class Session(models.Model):
-    session_id = models.AutoField(primary_key=True)
     date_time = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     end_datetime = models.DateTimeField(blank=True, null=True)
-    experiment = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)
-    ticket = models.ForeignKey('Ticket', db_column='ticket_id', db_constraint=True, on_delete=models.CASCADE, related_name='+')
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+    ticket = models.ForeignKey('Ticket', db_constraint=True, on_delete=models.CASCADE, related_name='+')
     subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
-    php_session_id = models.CharField(max_length=70, blank=True)
 
 class Stimulus(models.Model):
-    stimulus_id = models.AutoField(primary_key=True)
     name = models.CharField(max_length=200)
     description = models.CharField(max_length=30)
     playlist = models.CharField(max_length=50, blank=True)
@@ -195,9 +201,8 @@ class Ticket(models.Model):
         ('user','User'),
     ]
 
-    ticket_id = models.AutoField(primary_key=True)
     ticket_code = models.CharField(max_length=32)
-    experiment = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     type = models.CharField(
         max_length=6,
         choices=TICKET_TYPE_CHOICES,
@@ -217,59 +222,44 @@ class Ticket(models.Model):
 
         return self._expired
     
-
-
 #
 # Linking tables
 #
 
 class AttributeXAttribute(models.Model):
-    attribute_id_child = models.IntegerField()
-    attribute_id_parent = models.IntegerField()
-    mapping_name = models.CharField(max_length=128)
+    # We can't directly link the Attribute model here due to reverse accessor issues, so just refer to the IDs
+    child = models.IntegerField(null=False)
+    parent = models.IntegerField(null=False)
+    mapping_name = models.CharField(blank=False, max_length=256)
     mapping_value_double = models.FloatField(blank=True, null=True)
+    mapping_value_text = models.CharField(blank=True, max_length=256)
 
     class Meta:
-        unique_together = (("attribute_id_child", "attribute_id_parent", "mapping_name", "mapping_value_double"),)
+        unique_together = (("child", "parent", "mapping_name"),)
 
 
 class StimulusXAttribute(models.Model):
     # id = models.IntegerField(primary_key=True) # Not present in original ensemble db
-    stimulus_id = models.ForeignKey('Stimulus', db_column='stimulus_id', db_constraint=True, on_delete=models.CASCADE)
-    attribute_id = models.ForeignKey('Attribute', db_column='attribute_id', db_constraint=True, on_delete=models.CASCADE)
+    stimulus = models.ForeignKey('Stimulus', db_constraint=True, on_delete=models.CASCADE)
+    attribute = models.ForeignKey('Attribute', db_constraint=True, on_delete=models.CASCADE)
     attribute_value_double = models.FloatField(blank=True, null=True)
     attribute_value_text = models.TextField(blank=True)
 
     class Meta:
-        unique_together = (("stimulus_id", "attribute_id"),)
+        unique_together = (("stimulus", "attribute"),)
 
 class ExperimentXStimulus(models.Model):
     # id = models.IntegerField(primary_key=True) # Not present in original ensemble db
-    experiment_id = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)
-    stimulus_id = models.ForeignKey('Stimulus', db_column='stimulus_id', db_constraint=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+    stimulus = models.ForeignKey('Stimulus', db_constraint=True, on_delete=models.CASCADE)
 
     class Meta:
-        unique_together = (("experiment_id", "stimulus_id"),)
-
-class QuestionXDataFormat(models.Model):
-    qdf_id = models.IntegerField(primary_key=True)
-    question = models.ForeignKey('Question', db_column='question_id', db_constraint=True, on_delete=models.CASCADE)
-    subquestion = models.IntegerField()
-    answer_format = models.ForeignKey('DataFormat', db_column='answer_format_id', db_constraint=True, on_delete=models.CASCADE)
-
-    heading = models.TextField(blank=True)
-    range = models.CharField(max_length=30, blank=True)
-    default = models.CharField(max_length=30, blank=True)
-    html_field_type = models.CharField(max_length=10, blank=True, default='radiogroup')
-    audio_path = models.CharField(max_length=50, blank=True)
-
-    class Meta:
-        unique_together = (("question", "subquestion", "answer_format"),)
+        unique_together = (("experiment", "stimulus"),)
 
 class FormXQuestion(models.Model):
     #id = models.IntegerField(primary_key=True) # Not present in original ensemble db
-    form = models.ForeignKey('Form', db_column='form_id', db_constraint=True, on_delete=models.CASCADE)
-    question = models.ForeignKey('Question', db_column='question_id', db_constraint=True, on_delete=models.CASCADE)
+    form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
+    question = models.ForeignKey('Question', db_constraint=True, on_delete=models.CASCADE)
     question_iteration = models.IntegerField()
     form_question_num = models.IntegerField()
     required = models.BooleanField(default=True)
@@ -277,19 +267,18 @@ class FormXQuestion(models.Model):
     class Meta:
         unique_together = (("form","question","form_question_num","question_iteration"),)
 
-
 class ExperimentXForm(models.Model):
     #id = models.IntegerField(primary_key=True) # Not present in original ensemble db
-    experiment = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)
-    form = models.ForeignKey('Form', db_column='form_id', db_constraint=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+    form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
     form_order = models.IntegerField()
     form_handler = models.CharField(max_length=50, blank=True)
     goto = models.IntegerField(blank=True, null=True)
     repeat = models.IntegerField(blank=True, null=True)
     condition = models.TextField(blank=True)
-    condition_matlab = models.TextField(blank=True)
-    stimulus_matlab = models.TextField(blank=True)
-    break_loop_button = models.CharField(max_length=1)
+    condition_script = models.TextField(blank=True)
+    stimulus_script = models.TextField(blank=True)
+    break_loop_button = models.BooleanField(default=False)
     break_loop_button_text = models.CharField(max_length=50, blank=True)
 
     class Meta:
@@ -298,7 +287,6 @@ class ExperimentXForm(models.Model):
     #
     # Helper functions for taking form actions
     #
-
     def parse_condition_string(self, expsessinfo):
         # Returns a list of condition dictionaries
         item_order = ['form_occurrence','form_id','trial_form','question_id','form_question_num','question_iteration','subquestion','trial_order','stim','type','test_response']
@@ -348,7 +336,7 @@ class ExperimentXForm(models.Model):
     def conditions_met(self, request):
         met_conditions = True
 
-        expsess_key = 'experiment_%d'%(self.experiment.experiment_id,)
+        expsess_key = 'experiment_%d'%(self.experiment.id,)
         expsessinfo = request.session[expsess_key]
 
         #
@@ -375,7 +363,6 @@ class ExperimentXForm(models.Model):
                 form=condition['form_id'],
                 form_question_num=condition['form_question_num'],
                 qdf__question=condition['question_id'],
-                qdf__subquestion=condition['subquestion'],
                 question_iteration=condition['question_iteration']
                 )
 
@@ -414,18 +401,41 @@ class ExperimentXForm(models.Model):
         #
         # Now check whether there is any condition-checking script that we need to run
         #
-        if met_conditions and self.condition_matlab:
+        if met_conditions and self.condition_script:
+            from pyensemble import experiments
+
             # Parse the function call specification
-            specdict = parse_function_spec(self.condition_matlab)
+            funcdict = parse_function_spec(self.condition_script)
 
-            # Call the requested function. Assume it is in the selectors package
+            # Call the requested function. Assume it is in the experiments package
+            parsed_funcname = funcdict['func_name'].split('.')
+            module_name = parsed_funcname[0]
 
+            if len(parsed_funcname)==1:
+                method_name = 'evaluate_condition'
+            elif len(parsed_funcname)==2:
+                method_name = parsed_funcname[1]
+            else:
+                pdb.set_trace()
+                raise ValueError('Method-nesting too deep')
+
+            # Get the module handle from pyensemble.experiments
+            module = getattr(experiments,module_name)
+
+            # Get the method handle
+            method = getattr(module,method_name)
+
+            # Pass along our experiment_id
+            funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
+
+            # Call the select function with the parameters to get the trial specification
+            met_conditions = method(request, *funcdict['args'],**funcdict['kwargs'])
 
         return met_conditions
 
     def next_form_idx(self, request):
         next_form_idx = None
-        experiment_id = self.experiment.experiment_id
+        experiment_id = self.experiment.id
 
         expsess_key = f'experiment_{experiment_id}'
         expsessinfo = request.session[expsess_key]
@@ -473,5 +483,5 @@ class ExperimentXForm(models.Model):
         return expsessinfo['curr_form_idx']
 
 class ExperimentXAttribute(models.Model):
-    experiment = models.ForeignKey('Experiment', db_column='experiment_id', db_constraint=True, on_delete=models.CASCADE)
-    attribute = models.ForeignKey('Attribute', db_column='attribute_id',db_constraint=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+    attribute = models.ForeignKey('Attribute', db_constraint=True, on_delete=models.CASCADE)

@@ -71,7 +71,7 @@ def create_ticket(request):
 
         # Get our experiment
         experiment_id = ticket_request.cleaned_data['experiment_id']
-        experiment = Experiment.objects.get(experiment_id=experiment_id)
+        experiment = Experiment.objects.get(id=experiment_id)
 
         # Get our ticket types
         ticket_types = [tt[0] for tt in Ticket.TICKET_TYPE_CHOICES]

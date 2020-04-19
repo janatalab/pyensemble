@@ -19,11 +19,11 @@ from django.urls import reverse
 from django.conf import settings
 
 from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, Stimulus, Subject, Response
-from .forms import QuestionModelForm, RegisterSubjectForm, QuestionModelFormSetHelper, TicketCreationForm
+from .forms import CreateQuestionForm, QuestionModelForm, RegisterSubjectForm, QuestionModelFormSetHelper, TicketCreationForm
 
 from .tasks import get_expsess_key, fetch_subject_id
 from pyensemble.utils.parsers import parse_function_spec
-from pyensemble import selectors 
+from pyensemble import experiments 
 
 from crispy_forms.layout import Submit
 
@@ -52,7 +52,7 @@ class ExperimentDetailView(DetailView):
             'user': context['experiment'].ticket_set.filter(Q(type='user', expiration_datetime=None) | Q(type='user',expiration_datetime__gte=timezone.now()))}
 
         # Get the form for our ticket creation modal
-        context['ticket_form'] = TicketCreationForm(initial={'experiment_id':context['experiment'].experiment_id})
+        context['ticket_form'] = TicketCreationForm(initial={'experiment_id':context['experiment'].id})
 
         return context
 
@@ -91,6 +91,25 @@ class QuestionDetailView(DetailView):
 
         return context
 
+def create_question(request):
+
+    if request.method == 'POST':
+        form = CreateQuestionForm(request.POST)
+
+        if form.is_valid():
+            pass
+    else:
+        form = CreateQuestionForm()
+
+
+    context = {
+        'form': form
+    }
+
+    template_name = 'pyensemble/question_edit.html'
+    return render(request,template_name,context)
+
+
 # Start experiment
 @require_http_methods(['GET'])
 def run_experiment(request, experiment_id=None):
@@ -118,7 +137,7 @@ def run_experiment(request, experiment_id=None):
             ticket = ticket[0]
 
         # Check to see that the experiment associated with this ticket code matches
-        if ticket.experiment.experiment_id != experiment_id:
+        if ticket.experiment.id != experiment_id:
             return HttpResponseBadRequest('This ticket is not valid for this experiment')
 
         # Make sure ticket hasn't been used or expired
@@ -134,7 +153,7 @@ def run_experiment(request, experiment_id=None):
 
         # Update our Django session information
         expsessinfo.update({
-            'session_id': session.session_id,
+            'session_id': session.id,
             'curr_form_idx': 0,
             'response_order': 0,
             'stimulus_id': None,
@@ -170,17 +189,11 @@ def serve_form(request, experiment_id=None):
     currform = exf[form_idx]
 
     # Get the form instance
-    form = Form.objects.get(form_id=currform.form_id)
+    form = Form.objects.get(id=currform.form.id)
 
-    # Clean the header, replacing backslashes
+    # Clean the header and footer, replacing backslashes
     form.header = form.header.replace('\\','')
     form.footer = form.footer.replace('\\','')
-
-    # Return error if we are dealing with a multi-question question. Need to add handling for these at a later date
-    if form.questions.filter(heading_format='multi-question'):
-        expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
-        request.session.modified=True                
-        return HttpResponseRedirect(reverse('feature_not_enabled',args=('multi-question',)))
 
     # Check to see whether we are dealing with a special form that requires different handling. This is largely to try to maintain backward compatibility with the legacy PHP version of Ensemble
     form_handler = currform.form_handler
@@ -270,14 +283,17 @@ def serve_form(request, experiment_id=None):
                     else:
                         stimulus = None
 
+                    # pdb.set_trace()
+
                     responses.append(Response(
                         experiment=currform.experiment,
                         subject=Subject.objects.get(subject_id=expsessinfo['subject_id']),
-                        session=Session.objects.get(session_id=expsessinfo['session_id']),
+                        session=Session.objects.get(id=expsessinfo['session_id']),
                         form=currform.form,
                         form_order=form_idx,
                         stimulus=stimulus,
-                        qdf=question.cleaned_data['question_id'].questionxdataformat_set.all()[0],
+                        question=question.cleaned_data['id'],
+                        # qdf=question.cleaned_data['question_id'].questionxdataformat_set.all()[0],
                         form_question_num=idx,
                         question_iteration=1, # this needs to be modified to reflect original Ensemble intent
                         response_order=expsessinfo['response_order'],
@@ -325,11 +341,11 @@ def serve_form(request, experiment_id=None):
         conditions_met = currform.conditions_met(request)
 
         # Execute a stimulus selection script if one has been specified
-        if currform.stimulus_matlab:
+        if currform.stimulus_script:
             presents_stimulus = True
 
             # Use regexp to get the function name that we're calling
-            funcdict = parse_function_spec(currform.stimulus_matlab)
+            funcdict = parse_function_spec(currform.stimulus_script)
 
             # Check whether we specified by a module and a method
             parsed_funcname = funcdict['func_name'].split('.')
@@ -342,11 +358,14 @@ def serve_form(request, experiment_id=None):
             else:
                 raise ValueError('Method-nesting too deep')
 
-            # Get the module handle from pyensemble.selectors
-            select_module = getattr(selectors,module)
+            # Get the module handle from pyensemble.experiments
+            select_module = getattr(experiments,module)
 
             # Get the method handle
             select_func = getattr(select_module,method)
+
+            # Pass along our experiment_id
+            funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
 
             # Call the select function with the parameters to get the trial specification
             timeline, stimulus_id  = select_func(request, *funcdict['args'],**funcdict['kwargs'])

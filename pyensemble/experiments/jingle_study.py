@@ -1,1 +1,0 @@
-# jingle_study.py

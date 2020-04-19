@@ -16,6 +16,29 @@ import pdb
 #     class Meta:
 #         model = Form
 
+class ImportForm(forms.Form):
+    file = forms.FileField(label='Select a .csv or .json file to import')
+
+    def __init__(self, *args, **kwargs):
+        self.helper = FormHelper()
+        self.helper.form_class = 'importform'
+        self.helper.form_method = 'post'
+
+        self.helper.add_input(Submit('submit', 'Submit'))
+        super(ImportForm, self).__init__(*args, **kwargs)
+
+class CreateQuestionForm(forms.ModelForm):
+    helper = FormHelper()
+    helper.form_method = 'POST'
+
+    class Meta:
+        model=Question
+        fields=('text','category','data_format','value_range','value_default','html_field_type','locked','audio_path')
+
+        widgets = {
+            'text': forms.TextInput(attrs={'placeholder':'Enter the question text here'}),
+        }
+
 # borrowed this from meamstream
 class QuestionModelForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
@@ -25,12 +48,19 @@ class QuestionModelForm(forms.ModelForm):
         field_params = {'required': False}
 
         # Set up the input field as a function of the HTML type
-        html_field_type = self.instance.questionxdataformat_set.get().html_field_type
+        # html_field_type = self.instance.questionxdataformat_set.get().html_field_type
+        html_field_type = self.instance.html_field_type
+
+        # If a field type hasn't been specified, choose radiogroup as a default
+        if not html_field_type:
+            html_field_type = 'radiogroup'
 
         if html_field_type in ['radiogroup', 'checkbox','menu']:
             # Deal with getting our choices
-            enum_value_str = self.instance.values.all().values_list('enum_values',flat=True)[0]
-            field_params['choices'] = [(val,lbl) for val,lbl in enumerate(enum_value_str.replace('"','').replace('\\','').split(','))]
+            # pdb.set_trace()
+            # enum_value_str = self.instance.values.all().values_list('enum_values',flat=True)[0]
+            # field_params['choices'] = [(val,lbl) for val,lbl in enumerate(enum_value_str.replace('"','').replace('\\','').split(','))]
+            field_params['choices'] = self.instance.choices()
 
             # pdb.set_trace()
             if html_field_type == 'radiogroup':
@@ -52,7 +82,6 @@ class QuestionModelForm(forms.ModelForm):
             widget = forms.TextArea
 
         field_params['widget'] = widget
-
 
         self.fields['option'] = forms.ChoiceField(**field_params)
         # self.fields['stimulus'] = forms.HiddenInput()
@@ -76,7 +105,7 @@ class QuestionModelForm(forms.ModelForm):
             self.helper.render_required_fields = True                
 
         # Set the label of the input element to the question_text
-        self.fields['option'].label = self.instance.question_text
+        self.fields['option'].label = self.instance.text
 
     # This is just a placeholder definition that has to be here so that the field is found. The choices are actually populated at the time that the form is rendered via the __init__ function
     option = forms.ChoiceField(widget=forms.RadioSelect, choices=())
