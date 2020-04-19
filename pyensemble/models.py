@@ -2,6 +2,7 @@
 #
 # Specifies the core Ensemble models
 #
+import hashlib
 
 from django.db import models
 from django.urls import reverse
@@ -9,6 +10,7 @@ from django.urls import reverse
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField, EncryptedDateField
 
 from django.utils import timezone
+
 from pyensemble.utils.parsers import parse_function_spec
 
 import pdb
@@ -25,6 +27,7 @@ class DataFormat(models.Model):
     enum_values = models.TextField(blank=True)
 
 class Question(models.Model):
+    unique_hash = models.CharField(max_length=32, unique=True)
     text = models.TextField(blank=True)
     category = models.CharField(max_length=64, blank=True)
 
@@ -38,11 +41,22 @@ class Question(models.Model):
 
     forms = models.ManyToManyField('Form', through='FormXQuestion')
 
+    class Meta:
+        unique_together = (("unique_hash", "data_format"),)
+
     def __unicode__(self):
         return self.text
 
     def choices(self):
-        return [(val,lbl) for val,lbl in enumerate(self.data_format.enum_values.replace('"','').split(','))]
+        items = self.data_format.enum_values.split('","')
+        return [(idx,lbl.replace('"','')) for idx,lbl in enumerate(items)]
+
+    def save(self, *args, **kwargs):
+        m = hashlib.md5()
+        m.update(self.text.encode('utf-8'))
+        self.unique_hash = m.digest()
+
+        super(Question, self).save(*args, **kwargs)
 
 class Form(models.Model):
     name = models.CharField(unique=True, max_length=50)
@@ -388,11 +402,34 @@ class ExperimentXForm(models.Model):
         # Now check whether there is any condition-checking script that we need to run
         #
         if met_conditions and self.condition_script:
+            from pyensemble import experiments
+
             # Parse the function call specification
-            specdict = parse_function_spec(self.condition_script)
+            funcdict = parse_function_spec(self.condition_script)
 
             # Call the requested function. Assume it is in the experiments package
+            parsed_funcname = funcdict['func_name'].split('.')
+            module_name = parsed_funcname[0]
 
+            if len(parsed_funcname)==1:
+                method_name = 'evaluate_condition'
+            elif len(parsed_funcname)==2:
+                method_name = parsed_funcname[1]
+            else:
+                pdb.set_trace()
+                raise ValueError('Method-nesting too deep')
+
+            # Get the module handle from pyensemble.experiments
+            module = getattr(experiments,module_name)
+
+            # Get the method handle
+            method = getattr(module,method_name)
+
+            # Pass along our experiment_id
+            funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
+
+            # Call the select function with the parameters to get the trial specification
+            met_conditions = method(request, *funcdict['args'],**funcdict['kwargs'])
 
         return met_conditions
 

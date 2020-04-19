@@ -1,4 +1,10 @@
 # jingle_study.py
+#
+# Run a couple of importers to establish this experiment in the database:
+# /experiments/jingles/import_experiment_structure/
+# import_stims()
+# import_attributes()
+
 
 import os, csv, io, re
 import random
@@ -14,7 +20,7 @@ from django.db.models import Q, Count, Min
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit
 
-from pyensemble.models import Attribute, Stimulus, StimulusXAttribute, AttributeXAttribute, Experiment, Form, ExperimentXForm, Question, FormXQuestion, DataFormat
+from pyensemble.models import Session, Attribute, Stimulus, StimulusXAttribute, AttributeXAttribute, Experiment, Form, ExperimentXForm, Question, FormXQuestion, DataFormat, Response
 
 from pyensemble.forms import ImportForm
 
@@ -26,7 +32,7 @@ stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
 
 study_params = {
     'jingle_project_study1': {
-        'age_ranges':[(6,16),(17,30),(31,64),(65,float('inf'))],
+        'age_ranges':[(6,16),(17,30),(31,64),(65,120)],
         'logo_duration_ms': 5000,
         'slogan_duration_ms': 5000,
     }
@@ -36,7 +42,7 @@ study_params = {
 # class JingleStudy(object):
 
 # Imports stimuli for Angela Nazarian's jingle study
-def import_stims(stimdir=stimdir):
+def import_stims(request,stimdir=stimdir):
     # Determine the number of subdirectories, corresponding to media types
     mediadirs = []
 
@@ -70,6 +76,8 @@ def import_stims(stimdir=stimdir):
 
                     # Create a stimulusXattribute entry
                     stimXattrib, _ = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attribute, attribute_value_text=media_type)
+
+    return render(request,'pyensemble/message.html',{'msg':'Successfully imported the stimuli'})
 
 def import_experiment_structure(request):
     template = 'pyensemble/importers/import_generic.html'
@@ -330,6 +338,18 @@ def delete_exf(request,title):
     ExperimentXForm.objects.filter(experiment__title=title).delete()
     return render(request,'pyensemble/message.html',{'msg':f'Deleted experimentxform for {title}'})
 
+def age_meets_criterion(request,*args,**kwargs):
+    #
+    # Need to expand this to account for various min,max,eq possibilities
+    #
+    # Also, this is a generic function that should be moved to a generic location. Perhaps conditions.py, though this then causes a problem with the assumption that modules exist in experiments.
+    #
+
+    # Get the subject from the session
+    dob = Session.objects.get(id=kwargs['session_id']).subject.dob
+
+    return (timezone.now().date()-dob).days >= int(kwargs['min'])*365
+
 def select_study1(request,*args,**kwargs):
     # Construct a jsPsych timeline
     # https://www.jspsych.org/overview/timeline/
@@ -355,10 +375,11 @@ def select_study1(request,*args,**kwargs):
 
     # Determine the media year ranges
     age_ranges = params['age_ranges']
-    media_year_ranges = [(dob+timezone.timedelta(years=r[0]),dob+timezone.timedelta(years=r[1])) for r in age_ranges]
+    media_year_ranges = [((dob+timezone.timedelta(days=r[0]*365)).year,(dob+timezone.timedelta(days=r[1]*365)).year) for r in age_ranges]
 
     # Get our list of stimuli that this subject has already encountered
-    presented_stims = Response.objects.filter(experiment=session.experiment, subject_id=subject).values('stimulus')
+    presented_stim_ids = Response.objects.filter(experiment=session.experiment, subject_id=subject, stimulus__isnull=False).values_list('stimulus',flat=True)
+    presented_stims = Stimulus.objects.filter(id__in=presented_stim_ids)
 
     # Get the last presented stimulus to this subject in this experiment
     previous_stim = presented_stims.last()
@@ -368,7 +389,7 @@ def select_study1(request,*args,**kwargs):
     #
 
     # Exclude previously presented stimuli
-    possible_stims = Stimulus.objects.exclude(stimulus__in=(presented_stims))
+    possible_stims = Stimulus.objects.exclude(id__in=(presented_stims))
 
     # Exclude stimuli that are in the same advertisement grouping as any of the presented stimui
     for stim in presented_stims:
@@ -378,11 +399,12 @@ def select_study1(request,*args,**kwargs):
         possible_stims = possible_stims.exclude(name__iregex=r'^%s'%(group_str))
 
     # Exclude stimuli that have the same company as the previously presented stimulus
-    company = StimulusXAttribute.objects.get(stimulus=previous_stim,attribute__name='Company').attribute_value_text
-    possible_stims = possible_stims.exclude(stimulusxattribute__attribute_value_text=company)
+    if previous_stim:
+        company = StimulusXAttribute.objects.get(stimulus=previous_stim,attribute__name='Company').attribute_value_text
+        possible_stims = possible_stims.exclude(stimulusxattribute__attribute_value_text=company)
 
     # Determine the number of times that each stimulus has been presented
-    experiment_responses = Count('response', filter=Q(response__experiment=experiment))
+    experiment_responses = Count('response', filter=Q(response__experiment=session.experiment))
     possible_stims = possible_stims.annotate(num_responses=experiment_responses)
 
     # Determine the existing media types
@@ -411,13 +433,18 @@ def select_study1(request,*args,**kwargs):
                 stimulusxattribute__attribute_value_double__lt=r[1])                
             )
 
-    # Randomly pick a media type and year range
+    # Randomly pick a media type
     media_idx = random.randrange(0,media_types.count())
-    age_idx = random.randrange(0,len(stims_x_agerange))
+
+    # Randomly pick an age range from those that actually have stimuli
+    num_available_in_range = [r.count() for r in stims_x_agerange]
+    available_ranges = [idx for idx,n in enumerate(num_available_in_range) if n]
+    age_idx = available_ranges[random.randrange(0,len(available_ranges))]
 
     # Select from among the least played stimuli in the target category
     select_from_stims = stims_x_agerange[age_idx].filter(stimulusxattribute__attribute_value_text=media_types[media_idx])
-    select_from_stims = select_from_stims.filter(num_responses=select_from_stims.aggregate(Min('num_responses')))
+    num_min = select_from_stims.aggregate(Min('num_responses'))['num_responses__min']
+    select_from_stims = select_from_stims.filter(num_responses=num_min)
 
     # We've arrived at our stimulus
     stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
@@ -449,9 +476,10 @@ def select_study1(request,*args,**kwargs):
         }
     elif media_type == 'slogan':
         # Possibly need to fetch the text from the file and place it into the stimulus string
+        contents = stimulus.location.open().read().decode('utf-8')
         trial = {
             'type': 'html-keyboard-response',
-            'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
+            'stimulus': contents,
             'choices': 'none',
             'stimulus_duration': params['slogan_duration_ms'],
             'trial_duration': params['slogan_duration_ms']

@@ -83,7 +83,7 @@ with open(os.path.join(PASS_DIR, 'ensemble_django_main_pass.txt')) as f:
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'ensemble_django_test_newmod',
+        'NAME': 'ensemble_django_main',
         'USER': 'experimenter',
         'PASSWORD': DB_PASS,
         'HOST': 'jlabdb.cmb.ucdavis.edu',
