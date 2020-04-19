@@ -1,6 +1,6 @@
 # jingle_study.py
 
-import os, csv, io
+import os, csv, io, re
 import random
 import json
 
@@ -8,6 +8,8 @@ from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import render
 import django.forms as forms
+from django.utils import timezone
+from django.db.models import Q, Count, Min
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit
@@ -21,6 +23,17 @@ import pdb
 # Specify the stimulus directory relative to the stimulus root
 rootdir = 'jinglestims'
 stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
+
+study_params = {
+    'jingle_project_study1': {
+        'age_ranges':[(6,16),(17,30),(31,64),(65,float('inf'))],
+        'logo_duration_ms': 5000,
+        'slogan_duration_ms': 5000,
+    }
+}
+
+# Ultimately, this should inherit a base ExperimentDefinition class that implements basic import and select methods
+# class JingleStudy(object):
 
 # Imports stimuli for Angela Nazarian's jingle study
 def import_stims(stimdir=stimdir):
@@ -322,19 +335,132 @@ def select(request,*args,**kwargs):
     # https://www.jspsych.org/overview/timeline/
     timeline = []
 
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our experiment session info
+    expsessinfo = request.session['experiment_%d'%(session.experiment.id)]
+
+    # Get our subject
+    subject = session.subject
+
+    # Get the date of birth of our participant
+    dob = subject.dob
+
+    # Determine the media year ranges
+    age_ranges = params['age_ranges']
+    media_year_ranges = [(dob+timezone.timedelta(years=r[0]),dob+timezone.timedelta(years=r[1])) for r in age_ranges]
+
+    # Get our list of stimuli that this subject has already encountered
+    presented_stims = Response.objects.filter(experiment=session.experiment, subject_id=subject).values('stimulus')
+
+    # Get the last presented stimulus to this subject in this experiment
+    previous_stim = presented_stims.last()
+
+    #
+    # Get our list of possible stimuli
+    #
+
+    # Exclude previously presented stimuli
+    possible_stims = Stimulus.objects.exclude(stimulus__in=(presented_stims))
+
+    # Exclude stimuli that are in the same advertisement grouping as any of the presented stimui
+    for stim in presented_stims:
+        # Get the grouping identifier
+        match = re.match('^(?P<group_str>\d+)_',stim.name)
+        group_str = match.groupdict()['group_str']
+        possible_stims = possible_stims.exclude(name__iregex=r'^%s'%(group_str))
+
+    # Exclude stimuli that have the same company as the previously presented stimulus
+    company = StimulusXAttribute.objects.get(stimulus=previous_stim,attribute__name='Company').attribute_value_text
+    possible_stims = possible_stims.exclude(stimulusxattribute__attribute_value_text=company)
+
+    # Determine the number of times that each stimulus has been presented
+    experiment_responses = Count('response', filter=Q(response__experiment=experiment))
+    possible_stims = possible_stims.annotate(num_responses=experiment_responses)
+
+
+    # Determine the existing media types
+    media_types = StimulusXAttribute.objects.filter(stimulus__in=possible_stims,attribute__name='Media Type').values_list('attribute_value_text',flat=True).distinct()
+
+    # Get the first and last played attributes
+    first_attrib = Attribute.objects.get(name='First Played')
+    last_attrib = Attribute.objects.get(name='Last Played')
+
+    # Get the possible stimuli within each year range
+    stims_x_agerange = []
+    for r in media_year_ranges:
+        stims_x_agerange.append(possible_stims
+            .filter(
+                stimulusxattribute__attribute=first_attrib, 
+                stimulusxattribute__attribute_value_double__gte=r[0])
+            .filter(
+                stimulusxattribute__attribute=first_attrib,
+                stimulusxattribute__attribute_value_double__lt=r[1]) 
+            | possible_stims
+            .filter(
+                stimulusxattribute__attribute=last_attrib,
+                stimulusxattribute__attribute_value_double__gte=r[0])
+            .filter(
+                stimulusxattribute__attribute=last_attrib,
+                stimulusxattribute__attribute_value_double__lt=r[1])                
+            )
+
+    # Randomly pick a media type and year range
+    media_idx = random.randrange(0,media_types.count())
+    age_idx = random.randrange(0,len(stims_x_agerange))
+
+    # Select from among the least played stimuli in the target category
+    select_from_stims = stims_x_agerange[age_idx].filter(stimulusxattribute__attribute_value_text=media_types[media_idx])
+    select_from_stims = select_from_stims.filter(num_responses=select_from_stims.aggregate(Min('num_responses')))
+
+    # We've arrived at our stimulus
+    stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
+
     # Select the stimulus
-    jingles = Stimulus.objects.filter(attributes__name='jingle')
+    # jingles = Stimulus.objects.filter(attributes__name='jingle')
 
-    randidx = random.randrange(jingles.count())
-    stimulus = jingles[randidx]
+    # randidx = random.randrange(jingles.count())
+    # stimulus = jingles[randidx]
 
-    # Specify the trial based on the jsPsych definition
-    trial = {
-        'type': 'audio-keyboard-response',
-        'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
-        'choices': 'none',
-        'trial_ends_after_audio': True,
-    }
+    # Determine the stimulus type
+    media_type = media_types[media_idx]
+
+    # Specify the trial based on the jsPsych definition for the corresponding media type
+    if media_type == 'jingle':
+        trial = {
+            'type': 'audio-keyboard-response',
+            'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
+            'choices': 'none',
+            'trial_ends_after_audio': True,
+        }
+    elif media_type == 'logo':
+        trial = {
+            'type': 'image-keyboard-response',
+            'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
+            'stimulus_height': None,
+            'stimulus_width': None,
+            'choices': 'none',
+            'stimulus_duration': params['logo_duration_ms'],
+            'trial_duration': params['logo_duration_ms']
+        }
+    elif media_type == 'slogan':
+        # Possibly need to fetch the text from the file and place it into the stimulus string
+        trial = {
+            'type': 'html-keyboard-response',
+            'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
+            'choices': 'none',
+            'stimulus_duration': params['logo_duration_ms'],
+            'trial_duration': params['logo_duration_ms']
+        }
+    else:
+        raise ValueError(f'Cannot specify trial for {media_type}')
 
     # Push the trial to the timeline
     timeline.append(trial)

@@ -367,6 +367,9 @@ def serve_form(request, experiment_id=None):
             # Get the method handle
             select_func = getattr(select_module,method)
 
+            # Pass along our experiment_id
+            funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
+
             # Call the select function with the parameters to get the trial specification
             timeline, stimulus_id  = select_func(request, *funcdict['args'],**funcdict['kwargs'])
 
