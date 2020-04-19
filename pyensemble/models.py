@@ -322,7 +322,7 @@ class ExperimentXForm(models.Model):
     def conditions_met(self, request):
         met_conditions = True
 
-        expsess_key = 'experiment_%d'%(self.experiment.experiment_id,)
+        expsess_key = 'experiment_%d'%(self.experiment.id,)
         expsessinfo = request.session[expsess_key]
 
         #
@@ -387,18 +387,18 @@ class ExperimentXForm(models.Model):
         #
         # Now check whether there is any condition-checking script that we need to run
         #
-        if met_conditions and self.condition_matlab:
+        if met_conditions and self.condition_script:
             # Parse the function call specification
-            specdict = parse_function_spec(self.condition_matlab)
+            specdict = parse_function_spec(self.condition_script)
 
-            # Call the requested function. Assume it is in the selectors package
+            # Call the requested function. Assume it is in the experiments package
 
 
         return met_conditions
 
     def next_form_idx(self, request):
         next_form_idx = None
-        experiment_id = self.experiment.experiment_id
+        experiment_id = self.experiment.id
 
         expsess_key = f'experiment_{experiment_id}'
         expsessinfo = request.session[expsess_key]

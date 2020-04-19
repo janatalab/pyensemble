@@ -21,26 +21,28 @@
                 <th scope="col">Order</th>
                 <th scope="col">Name</th>
                 <th scope="col">ID</th>
+                <th scope="col">Handler</th>
                 <th scope="col">Goto</th>
                 <th scope="col">Repeat</th>
                 <th scope="col">Break Loop</th>
-                <th scope="col">Handler</th>
                 <th scope="col">Condition</th>
-                <th scope="col">Script</th>
+                <th scope="col">Condition Script</th>
+                <th scope="col">Stimulus Script</th>
             </tr>
         </thead>
         <tbody>
             {% for f in forms.all %}
                 <tr>
                 <th scope="row">{{f.form_order}}</th>
-                <td>{{f.form.form_name}}</td>
-                <td>{{f.form.form_id}}</td>
+                <td>{{f.form.name}}</td>
+                <td>{{f.form.id}}</td>
+                <td>{{f.form_handler}}</td>
                 <td>{{f.goto}}</td>
                 <td>{{f.repeat}}</td>
                 <td>{{f.break_loop_button}}</td>
-                <td>{{f.form_handler}}</td>
                 <td>{{f.condition}}</td>
-                <td>{{f.condition_matlab}}</td>
+                <td>{{f.condition_script}}</td>
+                <td>{{f.stimulus_script}}</td>
                 </tr>
             {% endfor %}
         </tbody>
@@ -70,7 +72,7 @@
                 <tr>
                   <td>{{ticket.ticket_code}}</td>
                   <td>{{ticket.expiration_datetime}}</td>
-                  <td> <a href="/run/{{experiment.pk}}/start/?tc={{ticket.ticket_code}}">Run</a></td>
+                  <td> <a href="/experiments/run/{{experiment.pk}}/start/?tc={{ticket.ticket_code}}">Run</a></td>
                 </tr>
             {% endfor %}
           </tbody>

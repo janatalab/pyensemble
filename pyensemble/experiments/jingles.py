@@ -330,7 +330,7 @@ def delete_exf(request,title):
     ExperimentXForm.objects.filter(experiment__title=title).delete()
     return render(request,'pyensemble/message.html',{'msg':f'Deleted experimentxform for {title}'})
 
-def select(request,*args,**kwargs):
+def select_study1(request,*args,**kwargs):
     # Construct a jsPsych timeline
     # https://www.jspsych.org/overview/timeline/
     timeline = []
@@ -385,7 +385,6 @@ def select(request,*args,**kwargs):
     experiment_responses = Count('response', filter=Q(response__experiment=experiment))
     possible_stims = possible_stims.annotate(num_responses=experiment_responses)
 
-
     # Determine the existing media types
     media_types = StimulusXAttribute.objects.filter(stimulus__in=possible_stims,attribute__name='Media Type').values_list('attribute_value_text',flat=True).distinct()
 
@@ -423,11 +422,9 @@ def select(request,*args,**kwargs):
     # We've arrived at our stimulus
     stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
 
-    # Select the stimulus
-    # jingles = Stimulus.objects.filter(attributes__name='jingle')
-
-    # randidx = random.randrange(jingles.count())
-    # stimulus = jingles[randidx]
+    #
+    # Now, set up the jsPsych trial
+    #
 
     # Determine the stimulus type
     media_type = media_types[media_idx]
@@ -456,8 +453,8 @@ def select(request,*args,**kwargs):
             'type': 'html-keyboard-response',
             'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
             'choices': 'none',
-            'stimulus_duration': params['logo_duration_ms'],
-            'trial_duration': params['logo_duration_ms']
+            'stimulus_duration': params['slogan_duration_ms'],
+            'trial_duration': params['slogan_duration_ms']
         }
     else:
         raise ValueError(f'Cannot specify trial for {media_type}')
@@ -467,6 +464,6 @@ def select(request,*args,**kwargs):
 
     # pdb.set_trace()
 
-    return timeline, stimulus.stimulus_id
+    return timeline, stimulus.id
 
 
