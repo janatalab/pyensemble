@@ -20,5 +20,5 @@ ON qdf.question_id = q.question_id
 LEFT JOIN ensemble_main.data_format as df
 ON df.data_format_id = qdf.answer_format_id
 WHERE e.experiment_title = 'jingle_project_study1'
-ORDER BY exf.form_order
+ORDER BY exf.form_order, fxq.question_iteration, fxq.form_question_num
 ;
