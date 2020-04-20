@@ -353,6 +353,13 @@ def age_meets_criterion(request,*args,**kwargs):
 def select_study1(request,*args,**kwargs):
     # Construct a jsPsych timeline
     # https://www.jspsych.org/overview/timeline/
+    #
+    # Still need to:
+    # prevent repeats of product category
+    # select based on product categories
+    # incorporate desired percentage of Canadian stims
+    # incorporate maximum selected number per-category
+
     timeline = []
 
     # Extract our session ID
