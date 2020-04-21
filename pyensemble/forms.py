@@ -45,7 +45,7 @@ class QuestionModelForm(forms.ModelForm):
         super(QuestionModelForm, self).__init__(*args, **kwargs)
 
         use_crispy = True
-        field_params = {'required': False}
+        field_params = {'required': True}
 
         # Set up the input field as a function of the HTML type
         # html_field_type = self.instance.questionxdataformat_set.get().html_field_type

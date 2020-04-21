@@ -332,13 +332,18 @@ def serve_form(request, experiment_id=None):
 
         # Initialize variables
         skip_trial = False
-        conditions_met = True # Assume all conditions have been met
-        presents_stimulus = False # Does this form present a stimulus
+        presents_stimulus = False # Does this form present a stimulus. Note that this is not the same as requiring a stimulus for the response(s) to this form to be associated with
 
         # Determine whether the handler name ends in _s indicating that the form is handling stimuli
         requires_stimulus = True if re.search('_s$',handler_name) else False  
+
         # Determine whether any conditions on this form have been met
-        conditions_met = currform.conditions_met(request)
+        if not currform.conditions_met(request):
+            expsessinfo['curr_form_idx']+=1
+
+            # Go to the next form
+            request.session.modified=True
+            return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
         # Execute a stimulus selection script if one has been specified
         if currform.stimulus_script:
