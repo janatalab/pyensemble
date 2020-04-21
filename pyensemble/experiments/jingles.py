@@ -287,6 +287,14 @@ def import_attributes(request):
             }
             numeric = ['First_Played','Last_Played']
 
+            condensed_categories = {
+                'Transportation': ['Transportation','Automobiles'],
+                'Consumables': [],
+                'Non-Consumables and Services': [],
+                'Household Cleaners': [],
+                'Child and Toddler': [],
+            }
+
             for row in reader:
                 # Get a stimulus object based on the name
                 stimname = row[cid['Stimulus_ID']]
@@ -311,7 +319,7 @@ def import_attributes(request):
                         value_float = None
 
                     # Create our stimulusxattribute entry
-                    sxa = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attribute, attribute_value_text=value_text, attribute_value_double=value_float)
+                    sxa, created = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attribute, attribute_value_text=value_text, attribute_value_double=value_float)
 
             return render(request,'pyensemble/message.html',{'msg':'Successfully imported the attribute file'})
 
@@ -359,6 +367,7 @@ def select_study1(request,*args,**kwargs):
     # select based on product categories
     # incorporate desired percentage of Canadian stims
     # incorporate maximum selected number per-category
+    # make
 
     timeline = []
 
@@ -389,14 +398,14 @@ def select_study1(request,*args,**kwargs):
     presented_stims = Stimulus.objects.filter(id__in=presented_stim_ids)
 
     # Get the last presented stimulus to this subject in this experiment
-    previous_stim = presented_stims.last()
+    previous_stim = presented_stims.get(id=presented_stim_ids[-1])
 
     #
     # Get our list of possible stimuli
     #
 
     # Exclude previously presented stimuli
-    possible_stims = Stimulus.objects.exclude(id__in=(presented_stims))
+    possible_stims = Stimulus.objects.filter(playlist='Jingle Study').exclude(id__in=(presented_stims))
 
     # Exclude stimuli that are in the same advertisement grouping as any of the presented stimui
     for stim in presented_stims:
