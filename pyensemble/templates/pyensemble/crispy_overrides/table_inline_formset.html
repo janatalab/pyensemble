@@ -18,13 +18,6 @@
         <thead>
             {% if formset.readonly and not formset.queryset.exists %}
             {% else %}
-                <tr>
-                    {% if form.header %}
-                        <th class="form-header">
-                            {{ form.header|safe }}
-                        </th>
-                    {% endif %}
-                </tr>
             {% endif %}
         </thead>
 

@@ -6,6 +6,11 @@
 {% endblock %}
 
 {% block header %}
+    {% if form.header %}
+        <div class="h4 form-header">
+            {{ form.header|safe }}
+        </div>
+    {% endif %}
 {% endblock %}
 
 {% block main %}

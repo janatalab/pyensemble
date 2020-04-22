@@ -122,7 +122,7 @@ def run_experiment(request, experiment_id=None):
 
     # Check whether we have a running session, and initialize a new one if not.
     if not expsessinfo.get('running',False): 
-        ticket = request.GET['tc']
+        ticket = request.GET.get('tc',None)
 
         # Process the ticket
         if not ticket:
@@ -211,7 +211,7 @@ def serve_form(request, experiment_id=None):
     # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
     helper = QuestionModelFormSetHelper()
     helper.add_input(Submit("submit", "Next"))
-    helper.template = 'pyensemble/crispy_overrides/table_inline_formset.html'
+    helper.template = 'pyensemble/crispy_overrides/listgroup_inline_formset.html'
 
     # Initialize other context
     trialspec = {}
@@ -420,6 +420,7 @@ def serve_form(request, experiment_id=None):
     context = {
         'form': form,
         'formset': formset,
+        'form_show_errors': True,
         'exf': currform,
         'helper': helper,
         'timeline': timeline,
