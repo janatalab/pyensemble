@@ -358,6 +358,46 @@ def age_meets_criterion(request,*args,**kwargs):
 
     return (timezone.now().date()-dob).days >= int(kwargs['min'])*365
 
+def stim_was_familiar_and_jingle(request,*args,**kwargs):
+    # Get the current stimulus ID
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=kwargs['session_id']).experiment.id))
+
+    stimulus_id = expsessinfo['stimulus_id']
+
+    if not stimulus_id:
+        raise ValueError('Condition evaluator expected a stimulus_id but got None')
+
+    # Make sure this stimulus was also a jingle
+    attribute = Attribute.objects.get(name='Media Type')
+    is_jingle = StimulusXAttribute.objects.get(stimulus_id=stimulus_id, attribute_id=attribute).attribute_value_text == 'jingle'
+
+    if is_jingle:
+        return False
+
+    # Get the form we want
+    form = Form.objects.get(name='Jingle Project Familiarity')
+
+    # Get the response corresponding to this stimulus
+    last_response = Response.objects.filter(session=kwargs['session_id'],form=form, form_question_num=0, stimulus=stimulus_id).last()
+
+    # Check whether our enum matches
+    # pdb.set_trace()
+    return last_response.response_enum > 0
+
+def imagined_jingle(request,*args,**kwargs):
+    # Get our stimulusID 
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=kwargs['session_id']).experiment.id))
+    stimulus_id = expsessinfo['stimulus_id']
+
+    # Get the form we want
+    form = Form.objects.get(name='heard_jingle')
+    last_response = Response.objects.filter(session=kwargs['session_id'], stimulus=stimulus_id, form=form, form_question_num=0).last()
+
+    if not last_response:
+        return False
+
+    return last_response.response_enum>0
+
 def select_study1(request,*args,**kwargs):
     # Construct a jsPsych timeline
     # https://www.jspsych.org/overview/timeline/
@@ -398,7 +438,10 @@ def select_study1(request,*args,**kwargs):
     presented_stims = Stimulus.objects.filter(id__in=presented_stim_ids)
 
     # Get the last presented stimulus to this subject in this experiment
-    previous_stim = presented_stims.get(id=presented_stim_ids[-1])
+    if presented_stims:
+        previous_stim = presented_stims.get(id=presented_stim_ids.last())
+    else:
+        previous_stim = None
 
     #
     # Get our list of possible stimuli
@@ -411,6 +454,11 @@ def select_study1(request,*args,**kwargs):
     for stim in presented_stims:
         # Get the grouping identifier
         match = re.match('^(?P<group_str>\d+)_',stim.name)
+
+        if not match:
+            # If we don't have a grouping identifier, just continue
+            continue
+
         group_str = match.groupdict()['group_str']
         possible_stims = possible_stims.exclude(name__iregex=r'^%s'%(group_str))
 
