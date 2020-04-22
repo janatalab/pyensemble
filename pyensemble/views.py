@@ -435,7 +435,7 @@ def serve_form(request, experiment_id=None):
 
     if handler_name == 'form_end_session':
         # Close out our session
-        session = Session.objects.get(session_id=expsessinfo['session_id'])
+        session = Session.objects.get(id=expsessinfo['session_id'])
         session.end_datetime = timezone.now()
         session.save()
 

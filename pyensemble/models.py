@@ -425,7 +425,12 @@ class ExperimentXForm(models.Model):
             # Get the method handle
             method = getattr(module,method_name)
 
-            # Pass along our experiment_id
+            # Perform any argument variable substitution
+            for idx,arg in enumerate(funcdict['args']):
+                if arg == 'stimulus_id':
+                    funcdict['args'][idx] = expsessinfo.get('stimulus_id', None)
+
+            # Pass along our session_id
             funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
 
             # Call the select function with the parameters to get the trial specification
