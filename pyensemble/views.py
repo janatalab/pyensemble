@@ -211,7 +211,7 @@ def serve_form(request, experiment_id=None):
     # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
     helper = QuestionModelFormSetHelper()
     helper.add_input(Submit("submit", "Next"))
-    helper.template = 'pyensemble/crispy_overrides/listgroup_inline_formset.html'
+    helper.template = 'pyensemble/partly_crispy/question_formset.html'
 
     # Initialize other context
     trialspec = {}
