@@ -1,29 +1,46 @@
-{% block detailHeader %}
-<div>
-<h2>{{form.form_name}} Questions</h2>
-</div>
+{% extends "pyensemble/editor_detail.html" %}
+
+{% block detailContentTitle %}
+    {{form.name}}
+{% endblock %}
+
+{% block additionalDetailContentNavItems %}
+    <li class="nav-item">
+        <a class="nav-link" href="#">Preview</a>
+    </li>
 {% endblock %}
 
 {% block detailContent %}
-<div class="formlist">
-    <table class="table table-striped table-responsive table-compact table-bordered">
-        <thead>
-            <tr>
-                <th scope="col">Order</th>
-                <th scope="col">ID</th>
-                <th scope="col">Question Text</th>
-            </tr>
-        </thead>
-        
-        <tbody>
-            {% for q in questions.all %}
-                <tr>
-                <th scope="row">{{q.form_question_num}}</th>
-                <td>{{q.question.pk}}</td>
-                <td class='text-left'>{{q.question.question_text}}</td>
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+<ul class="list-group">
+    <li class="list-group-item text-left bg-light">Form header</li>
+    <li class="list-group-item">{{form.header|safe}}</li>
+    <li class="list-group-item text-left bg-light">Form questions</li>
+    <li class="list-group-item">
+        <div class="formlist mb-4 small">
+            <table class="table table-striped table-responsive table-compact table-bordered">
+                <thead>
+                    <tr>
+                        <th scope="col">Order</th>
+                        <!-- <th scope="col">ID</th> -->
+                        <th scope="col">Question Text</th>
+                        <th scope="col">Data Format</th>
+                        <th scope="col">Choices</th>
+                    </tr>
+                </thead>
+                
+                <tbody>
+                    {% for q in questions.all %}
+                        <tr>
+                        <th scope="row">{{q.form_question_num}}</th>
+                        <!-- <td>{{q.question.pk}}</td> -->
+                        <td class='text-left'>{{q.question.text}}</td>
+                        <td class='text-center'>{{q.question.data_format.df_type}}</td>
+                        <td class='text-center'>{{q.question.data_format.enum_values}}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </li>
+</ul>
 {% endblock %}

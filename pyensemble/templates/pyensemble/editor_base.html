@@ -3,6 +3,9 @@
 
 {% block head %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-datetimepicker/2.5.20/jquery.datetimepicker.min.css" integrity="sha256-DOS9W6NR+NFe1fUhEE0PGKY/fubbUCnOfTje2JMDw3Y=" crossorigin="anonymous" />
+
+    <link href="https://unpkg.com/bootstrap-table@1.16.0/dist/bootstrap-table.min.css" rel="stylesheet">
+    <link href="https://unpkg.com/bootstrap-table@1.16.0/dist/extensions/reorder-rows/bootstrap-table-reorder-rows.css" rel="stylesheet">
 {% endblock %}
 
 {% block header %}
@@ -24,32 +27,26 @@
 {% endblock %}
 
 {% block main %}
-<main role="main" class='container-fluid h-90'>
-    <div class="container-fluid my-2">
-        <div class="row align-items-start justify-content-center">
+<main role="main">
+    <!-- <div class="container-fluid my-2"> -->
+        <div class="row align-items-start justify-content-start">
             <!-- left nav -->
-            <div class="col-md-3 border-right" id="content-left">
-                <div id="contentList" class="bd-sidebar">
-                    <div id="contentListHeader" class="nav">
+            <div class="" id="content-left">
+                <div id="contentList" class="list-group bd-sidebar">
+                    <div id="contentListHeader" class="list-group-item list-group-item-dark d-none">
                     </div>
 
-                    <div id="contentListContent" class="text-left">
-                    </div>
+                    <ul id="contentListContent" class="list-group text-left">
+                    </ul>
                 </div>
             </div>
 
-            <div class="col-md-9" id="content-right">
-                <div id="detailHeader">
-                    {% block detailHeader %}
-                    {% endblock %}                    
-                </div>
-                <div id="detailContent">
-                    {% block detailContent %}
-                    {% endblock %}
-                </div>
+            <div class="col-9" id="content-right">
+                {% block editorDetail %}
+                {% endblock %}
             </div>
         </div>
-    </div>
+    <!-- </div> -->
 </main>
 {% endblock %}
 
@@ -61,4 +58,7 @@
     </script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-datetimepicker/2.5.20/jquery.datetimepicker.full.min.js" integrity="sha256-FEqEelWI3WouFOo2VWP/uJfs1y8KJ++FLh2Lbqc8SJk=" crossorigin="anonymous"></script>
+
+    <script src="https://unpkg.com/bootstrap-table@1.16.0/dist/bootstrap-table.min.js"></script>
+    <script src="https://unpkg.com/bootstrap-table@1.16.0/dist/extensions/editable/bootstrap-table-editable.js"></script>
  {% endblock %}

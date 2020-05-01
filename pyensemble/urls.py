@@ -14,13 +14,13 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, reverse
 from django.contrib.auth import views as auth_views
 from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
-from .views import EditorView, ExperimentListView, FormListView, QuestionListView, ExperimentDetailView, FormDetailView, QuestionDetailView, run_experiment, serve_form, create_question
+from .views import EditorView, ExperimentListView, ExperimentUpdateView, FormListView, QuestionListView, ExperimentDetailView, FormDetailView, QuestionDetailView, run_experiment, serve_form, create_question, add_experiment_form
 
 from pyensemble.tasks import reset_session, create_ticket
 import pyensemble.errors as error
@@ -33,15 +33,18 @@ urlpatterns = [
     path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
     path('', RedirectView.as_view(pattern_name='login',permanent=False)),
     path('editor/', login_required(EditorView.as_view(template_name='pyensemble/editor_base.html')),name='editor'),
-    path('experiments/', ExperimentListView.as_view(), name='experiment_list'),
-    path('experiments/<int:pk>/', ExperimentDetailView.as_view(), name='experiment_detail'),
+    path('experiments/', login_required(ExperimentListView.as_view()), name='experiment_list'),
+    # path('experiments/<int:pk>/', ExperimentDetailView, name='experiment_detail'),
+    path('experiments/<int:pk>/', ExperimentUpdateView.as_view(), name='experiment_update'),
+    # path('experiments/create/', ExperimentCreateView.as_view(), name='experiment_create'),
     path('experiments/run/<int:experiment_id>/start/',run_experiment, name='run_experiment'),
     path('experiments/run/<int:experiment_id>/',serve_form, name='serve_form'),
-    path('form/', FormListView.as_view(), name='form_list'),
-    path('form/<int:pk>/', FormDetailView.as_view(), name='form_detail'),
-    path('question/create/', create_question, name='create_question'),
-    path('question/', QuestionListView.as_view(), name='question_list'),
-    path('question/<int:pk>/', QuestionDetailView.as_view(), name='question_detail'),
+    path('forms/', login_required(FormListView.as_view()), name='form_list'),
+    path('forms/add/<int:experiment_id>/', add_experiment_form, name='add_experiment_form'),
+    path('forms/<int:pk>/', FormDetailView.as_view(), name='form_detail'),
+    path('questions/create/', create_question, name='create_question'),
+    path('questions/', QuestionListView.as_view(), name='question_list'),
+    path('questions/<int:pk>/', QuestionDetailView.as_view(), name='question_detail'),
     path('session/reset/<int:experiment_id>/',reset_session, name='reset_session'),
     path('error/<slug:feature_string>/', error.feature_not_enabled, name='feature_not_enabled'),
     path('ticket/create/', create_ticket, name='create_ticket'),

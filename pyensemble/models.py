@@ -58,6 +58,9 @@ class Question(models.Model):
 
         super(Question, self).save(*args, **kwargs)
 
+    def get_absolute_url(self):
+        return reverse('question_detail', kwargs={'pk': self.pk})
+
 class Form(models.Model):
     name = models.CharField(unique=True, max_length=50)
     category = models.CharField(max_length=19, blank=True)
@@ -72,6 +75,9 @@ class Form(models.Model):
     questions = models.ManyToManyField('Question', through='FormXQuestion')
     experiments = models.ManyToManyField('Experiment', through='ExperimentXForm')
 
+    def get_absolute_url(self):
+        return reverse('form_detail', kwargs={'pk': self.pk})
+
 class Experiment(models.Model):
     start_date = models.DateField(blank=True, null=True)
     title = models.CharField(unique=True, max_length=50)
@@ -84,6 +90,9 @@ class Experiment(models.Model):
     locked = models.BooleanField(default=False)
 
     forms = models.ManyToManyField('Form', through='ExperimentXForm')
+
+    def get_absolute_url(self):
+        return reverse('experiment_detail', kwargs={'pk': self.pk})
 
 class Response(models.Model):
     date_time = models.DateTimeField(auto_now_add=True)
@@ -228,8 +237,16 @@ class Ticket(models.Model):
 
 class AttributeXAttribute(models.Model):
     # We can't directly link the Attribute model here due to reverse accessor issues, so just refer to the IDs
-    child = models.IntegerField(null=False)
-    parent = models.IntegerField(null=False)
+    child = models.ForeignKey(
+        Attribute,
+        on_delete=models.CASCADE,
+        related_name='children',
+    )
+    parent = models.ForeignKey(
+        Attribute,
+        on_delete=models.CASCADE,
+        related_name='parents',
+    )
     mapping_name = models.CharField(blank=False, max_length=256)
     mapping_value_double = models.FloatField(blank=True, null=True)
     mapping_value_text = models.CharField(blank=True, max_length=256)
@@ -276,8 +293,8 @@ class ExperimentXForm(models.Model):
     goto = models.IntegerField(blank=True, null=True)
     repeat = models.IntegerField(blank=True, null=True)
     condition = models.TextField(blank=True)
-    condition_script = models.TextField(blank=True)
-    stimulus_script = models.TextField(blank=True)
+    condition_script = models.CharField(max_length=100, blank=True)
+    stimulus_script = models.CharField(max_length=100, blank=True)
     break_loop_button = models.BooleanField(default=False)
     break_loop_button_text = models.CharField(max_length=50, blank=True)
 

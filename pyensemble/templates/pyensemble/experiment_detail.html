@@ -1,46 +1,50 @@
+{% extends "pyensemble/editor_detail.html" %}
 
-{% block detailHeader %}
-<div>
-<h2>{{experiment.experiment_title}} Forms</h2>
-</div>
-<ul class="nav nav-pills nav-fill">
-    <li class="nav-item">
-        <a class="nav-link" href="#">Edit</a>
-    </li>
+{% block detailContentTitle %}
+    Forms for <u>{{experiment.title}}</u>
+{% endblock %}
+
+{% block additionalDetailContentNavItems %}
     <li class="nav-item">
         <a class="nav-link" href="#experimentTickets">Tickets</a>
     </li>
-</ul>
 {% endblock %}
 
 {% block detailContent %}
-<div class="formlist mb-4">
-    <table class="table table-striped table-responsive table-compact table-bordered">
+<div class="formlist mb-4 small">
+    <table class="table table-striped table-responsive table-compact table-bordered"
+      id="table"
+      data-pagination="false"
+      data-search="false"
+      data-show-toggle="false"
+      data-use-row-attr-func="false"
+      data-reorderable-rows="true"
+    >
         <thead>
             <tr>
-                <th scope="col">Order</th>
-                <th scope="col">Name</th>
-                <th scope="col">ID</th>
-                <th scope="col">Handler</th>
-                <th scope="col">Goto</th>
-                <th scope="col">Repeat</th>
-                <th scope="col">Break Loop</th>
-                <th scope="col">Condition</th>
-                <th scope="col">Condition Script</th>
-                <th scope="col">Stimulus Script</th>
+                <th scope="col" data-field="order" data-sortable="true">Order</th>
+                <th scope="col" data-field="name" data-sortable="true">Name</th>
+                <!-- <th scope="col">ID</th> -->
+                <th scope="col" data-field="handler" data-sortable="true">Handler</th>
+                <th scope="col" data-field="goto" data-sortable="true">Goto</th>
+                <th scope="col" data-field="repeat" data-sortable="true">Repeat</th>
+                <th scope="col" data-field="break" data-sortable="true">Break Loop</th>
+                <!-- <th scope="col" data-field="" data-sortable="true">Condition</th> -->
+                <th scope="col" data-field="condscript" data-sortable="true">Condition Script</th>
+                <th scope="col" data-field="stimscript" data-sortable="true">Stimulus Script</th>
             </tr>
         </thead>
         <tbody>
             {% for f in forms.all %}
-                <tr>
+                <tr id="{{f.form.id}}">
                 <th scope="row">{{f.form_order}}</th>
-                <td>{{f.form.name}}</td>
-                <td>{{f.form.id}}</td>
-                <td>{{f.form_handler}}</td>
+                <td class="text-left">{{f.form.name}}</td>
+                <!-- <td>{{f.form.id}}</td> -->
+                <td class="text-left">{{f.form_handler}}</td>
                 <td>{{f.goto}}</td>
                 <td>{{f.repeat}}</td>
                 <td>{{f.break_loop_button}}</td>
-                <td>{{f.condition}}</td>
+                <!-- <td>{{f.condition}}</td> -->
                 <td>{{f.condition_script}}</td>
                 <td>{{f.stimulus_script}}</td>
                 </tr>
@@ -49,35 +53,47 @@
     </table>
 </div>
 
-<div id="experimentTickets" class="">
-    Click on a ticket URL to run the experiment
-    <ul class="nav nav-pills nav-fill">
-        <li class="nav-item">
-            <a class="nav-link" data-toggle="modal" role="button" data-target="#ticketModal" href="#">Generate Tickets</a>
-        </li>
-    </ul>
-    {% for ticket_type, items in tickets.items %}
-        <h5>{{ticket_type|title}} tickets</h5>
+<div id="experimentTickets" class="mt-4 border">
+    <nav class="navbar navbar-expand-md bg-light navbar-light">
+        <div class="navbar-brand">
+            Tickets
+        </div>
+        <div class="collapse navbar-collapse" id="detailEditorNav">
+            <ul class="navbar-nav nav-pills nav-fill">
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="modal" role="button" data-target="#ticketModal" href="#">Generate Tickets</a>
+                </li>
+            </ul>
+            <div class="nav-item ml-auto">Click on a ticket URL to run the experiment</div>
+        </div>
+    </nav>
 
-        <table class="table table-striped mb-4">
-          <thead>
-            <tr>
-              <th scope="col">Code</th>
-              <th scope="col">Expiration</th>
-              <th scope="col">URL</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for ticket in items %}
-                <tr>
-                  <td>{{ticket.ticket_code}}</td>
-                  <td>{{ticket.expiration_datetime}}</td>
-                  <td> <a href="/experiments/run/{{experiment.pk}}/start/?tc={{ticket.ticket_code}}">Run</a></td>
-                </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-    {% endfor %}
+    <div>
+        {% for ticket_type, items in tickets.items %}
+            <div class="pt-3">
+                <h5>{{ticket_type|title}} tickets</h5>
+
+                <table class="table table-striped mb-4">
+                  <thead>
+                    <tr>
+                      <th scope="col">Code</th>
+                      <th scope="col">Expiration</th>
+                      <th scope="col">URL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for ticket in items %}
+                        <tr>
+                          <td>{{ticket.ticket_code}}</td>
+                          <td>{{ticket.expiration_datetime}}</td>
+                          <td> <a href="/experiments/run/{{experiment.pk}}/start/?tc={{ticket.ticket_code}}">Run</a></td>
+                        </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+            </div>
+        {% endfor %}
+    </div>
 </div>
 
 {% include "pyensemble/modals/tickets.html" with title=experiment.experiment_title tickets=tickets %}

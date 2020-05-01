@@ -1,4 +1,4 @@
 {% for f in form_list %}
-    <div class="contentlist-item"><a class="contentlist-item-link" href="/forms/{{f.pk}}/">{{ f.form_name }}</a>
+    <div class="list-group-item contentlist-item"><a class="contentlist-item-link" href="/forms/{{f.pk}}/">{{ f.name }}</a>
     </div>
 {% endfor %}

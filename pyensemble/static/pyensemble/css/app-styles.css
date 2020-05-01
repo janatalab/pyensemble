@@ -1,6 +1,6 @@
 /*app-styles.css*/
 
-body { padding-top: 70px; }
+body { padding-top: 120px; }
 
 .form-check-input {
     position: relative;
@@ -24,4 +24,33 @@ body { padding-top: 70px; }
 .question-text {
     font-size: 1.1rem;
     font-weight: bold;
+}
+
+.contentlist-item {
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+#detailHeader {
+    margin-top: 56px;
+}
+
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Firefox */
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+.experiment-info input,textarea {
+    pointer-events: none;
+    font-size: 0.8rem;
+}
+
+#form_table .textinput {
+    width: 300px;
 }
