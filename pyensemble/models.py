@@ -91,8 +91,8 @@ class Experiment(models.Model):
 
     forms = models.ManyToManyField('Form', through='ExperimentXForm')
 
-    def get_absolute_url(self):
-        return reverse('experiment_detail', kwargs={'pk': self.pk})
+    # def get_absolute_url(self):
+    #     return reverse('experiment_update', kwargs={'pk': self.pk})
 
 class Response(models.Model):
     date_time = models.DateTimeField(auto_now_add=True)

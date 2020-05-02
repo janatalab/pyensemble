@@ -27,7 +27,14 @@ function bindFunctions(){
                 $("#content-right").addClass('d-none');
 
                 $("#contentListHeader").text(itemType);
-                $("#contentListHeader").removeClass('d-none');
+                $("#addButton").text('Add '+itemType.slice(0,itemType.length-1));
+                $("#addButton").on('click',function(ev){
+                    ev.preventDefault();
+
+                    var url = '/'+itemType.toLowerCase()+'/create/';
+                    fetchDetailContent(url);
+                })
+
                 $("#contentListContent").html(response);
                 bindListItems();
             },
@@ -36,42 +43,56 @@ function bindFunctions(){
             },
             complete: function(){
                 // Clear detail content
-                // $("#detailContent").addClass('d-none');
                 $("#content-left").removeClass('d-none');
             }
         });
     });
 }
 
-function bindListItems(){
-    $(".contentlist-item-link").on('click',function(ev){
-        ev.preventDefault();
-
-        $.ajax({
-            url: ev.target.href,
-            type: 'GET',
-            success: function(response){
-                $("#content-right").html(response);
-                $("#content-right").addClass('col-12');
-                $("#content-right").removeClass('d-none');
-
-                // Only want to attach a table if we are in the experiment or form editor
-                // Regexp the url to get the item type
-                // $('#ftable').bootstrapTable();
-                // $('#ftable').on('reorder-row.bs.table', updateFormOrder);
-            },
-            error: function(jqXHR, textStatus, errorThrown){
-                alert(jqXHR.responseText);
-            },
-            complete: function(){
-                $("#content-left").addClass('d-none');
-            }
-        });
+function fetchDetailContent(url){
+    $.ajax({
+        url: url,
+        type: 'GET',
+        success: function(response){
+            $("#content-right").html(response);
+            $("#content-right").addClass('col-12');
+            $("#content-right").removeClass('d-none');
+        },
+        error: function(jqXHR, textStatus, errorThrown){
+            alert(jqXHR.responseText);
+        },
+        complete: function(){
+            $("#content-left").addClass('d-none');
+        }
     });
 }
 
-function updateFormOrder(ev,rows){
-    alert(rows);
+function bindListItems(){
+    var $table = $("#contentListContent table");
+    $table.attr('data-show-header','false');
+    $table.bootstrapTable();
+    $table.bootstrapTable('hideColumn','checkbox');
+
+    $(".contentlist-item-link").on('click',function(ev){
+        ev.preventDefault();
+
+        fetchDetailContent(ev.target.href);
+        // $.ajax({
+        //     url: ev.target.href,
+        //     type: 'GET',
+        //     success: function(response){
+        //         $("#content-right").html(response);
+        //         $("#content-right").addClass('col-12');
+        //         $("#content-right").removeClass('d-none');
+        //     },
+        //     error: function(jqXHR, textStatus, errorThrown){
+        //         alert(jqXHR.responseText);
+        //     },
+        //     complete: function(){
+        //         $("#content-left").addClass('d-none');
+        //     }
+        // });
+    });
 }
 
 function submitEditorForm(){
@@ -91,11 +112,12 @@ function submitEditorForm(){
 
 function fetchFormList(){
     $.ajax({
-        url: '/forms/add/',
+        url: '/forms/',
         type: 'GET',
+        data: {'type':'form_select'},
         success: function(response){
-          $("#formTable tbody").html(response);
-          $('#addFormTable').bootstrapTable('resetView');
+          $("#addFormTable .modal-body").html(response);
+          $("#addFormTable table").bootstrapTable();
         },
         error: function(response,errorText){
           alert(response.responseText);
@@ -104,7 +126,7 @@ function fetchFormList(){
 }
 
 function submitFormAdditions(){
-    data = $("#formTable").bootstrapTable('getAllSelections').map(function(d){return d.name});
+    data = $("#addFormTable table").bootstrapTable('getAllSelections').map(function(d){return d.name});
     experiment_id = $("#experiment_id").val();
     $.ajax({
         url: '/forms/add/'+experiment_id+'/',

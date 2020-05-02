@@ -2,10 +2,17 @@
 {% load crispy_forms_tags %}
 
 {% block detailContentTitle %}
-    {{experiment.title}}
+    {% if form.instance.pk %}
+        {{experiment.title}}
+    {% else %}
+        New Experiment
+    {% endif %}
 {% endblock %}
 
 {% block additionalDetailContentNavItems %}
+    <li class="nav-item">
+        <a class="nav-link" href="#experimentForms">Forms</a>
+    </li>
     <li class="nav-item">
         <a class="nav-link" href="#experimentTickets">Tickets</a>
     </li>
@@ -15,11 +22,13 @@
     <input type="hidden" id="experiment_id" value="{{form.instance.pk}}">
     {% crispy form %}
 
-    {% include "pyensemble/tickets.html" with tickets=tickets %}
+    {% if form.instance.pk %}
+        {% include "pyensemble/tickets.html" with tickets=tickets %}
 
-    {% include "pyensemble/modals/tickets.html" with title=experiment.experiment_title tickets=tickets %}
+        {% include "pyensemble/modals/tickets.html" with title=experiment.experiment_title tickets=tickets %}
+    {% endif %}
 
-    {% include "pyensemble/modals/add_form_table.html" %}
+    {% include "pyensemble/modals/add_experiment_form_modal.html" %}
 
 
 {% endblock %}

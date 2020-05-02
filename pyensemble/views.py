@@ -39,6 +39,15 @@ class ExperimentListView(ListView):
     model = Experiment
     context_object_name = 'experiment_list'
 
+class ExperimentCreateView(CreateView):
+    model = Experiment
+    form_class = ExperimentForm
+    template_name = 'pyensemble/experiment_update.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('experiment_update', kwargs={'pk': self.object.pk})
+
+
 class ExperimentUpdateView(UpdateView):
     model = Experiment
     template_name = 'pyensemble/experiment_update.html'
@@ -58,8 +67,6 @@ class ExperimentUpdateView(UpdateView):
 
         # Get the form for our ticket creation modal
         context['ticket_form'] = TicketCreationForm(initial={'experiment_id':context['experiment'].id})        
-        context['add_form_formset'] = Form.objects.all()
-
         # pdb.set_trace()
         return context
 

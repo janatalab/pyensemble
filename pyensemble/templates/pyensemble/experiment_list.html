@@ -1,6 +1,28 @@
-<!-- <ul class='list-unstyled'> -->
-{% for e in experiment_list %}
-    <li class="list-group-item contentlist-item"><a class="contentlist-item-link" href="/experiments/{{e.pk}}/">{{ e.title }}</a>
-    </li>
-{% endfor %}
-<!-- </ul> -->
+<table
+    data-toggle="table"
+    data-search="true"
+    data-pagination="true"
+    data-click-to-select="true"
+    class="form-list table-striped"
+>
+    <thead>
+      <tr class="list-group-item">
+        <th data-field="checkbox" data-checkbox="true"></th>
+        <th data-field="name">Experiment Name</th>
+      </tr>
+    </thead>
+    <tbody>
+        {% for e in experiment_list %}
+            <tr class="contentlist-item">
+                <td></td>
+                <td class="text-left">
+                    {% if request.GET.type == 'form_select' %}
+                        {{f.name}}
+                    {% else %}
+                        <a class="contentlist-item-link" href="/experiments/{{e.pk}}/">{{ e.title }}</a>
+                    {% endif %}
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

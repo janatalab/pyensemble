@@ -20,7 +20,7 @@ from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
-from .views import EditorView, ExperimentListView, ExperimentUpdateView, FormListView, QuestionListView, ExperimentDetailView, FormDetailView, QuestionDetailView, run_experiment, serve_form, create_question, add_experiment_form
+from .views import EditorView, ExperimentListView, ExperimentCreateView, ExperimentUpdateView, FormListView, QuestionListView, ExperimentDetailView, FormDetailView, QuestionDetailView, run_experiment, serve_form, create_question, add_experiment_form
 
 from pyensemble.tasks import reset_session, create_ticket
 import pyensemble.errors as error
@@ -34,9 +34,8 @@ urlpatterns = [
     path('', RedirectView.as_view(pattern_name='login',permanent=False)),
     path('editor/', login_required(EditorView.as_view(template_name='pyensemble/editor_base.html')),name='editor'),
     path('experiments/', login_required(ExperimentListView.as_view()), name='experiment_list'),
-    # path('experiments/<int:pk>/', ExperimentDetailView, name='experiment_detail'),
+    path('experiments/create/', ExperimentCreateView.as_view(), name='experiment_create'),
     path('experiments/<int:pk>/', ExperimentUpdateView.as_view(), name='experiment_update'),
-    # path('experiments/create/', ExperimentCreateView.as_view(), name='experiment_create'),
     path('experiments/run/<int:experiment_id>/start/',run_experiment, name='run_experiment'),
     path('experiments/run/<int:experiment_id>/',serve_form, name='serve_form'),
     path('forms/', login_required(FormListView.as_view()), name='form_list'),

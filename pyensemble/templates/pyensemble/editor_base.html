@@ -5,7 +5,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-datetimepicker/2.5.20/jquery.datetimepicker.min.css" integrity="sha256-DOS9W6NR+NFe1fUhEE0PGKY/fubbUCnOfTje2JMDw3Y=" crossorigin="anonymous" />
 
     <link href="https://unpkg.com/bootstrap-table@1.16.0/dist/bootstrap-table.min.css" rel="stylesheet">
-    <link href="https://unpkg.com/bootstrap-table@1.16.0/dist/extensions/reorder-rows/bootstrap-table-reorder-rows.css" rel="stylesheet">
 {% endblock %}
 
 {% block header %}
@@ -31,9 +30,13 @@
     <!-- <div class="container-fluid my-2"> -->
         <div class="row align-items-start justify-content-start">
             <!-- left nav -->
-            <div class="" id="content-left">
+            <div class="d-none" id="content-left">
                 <div id="contentList" class="list-group bd-sidebar">
-                    <div id="contentListHeader" class="list-group-item list-group-item-dark d-none">
+                    <div id="contentListHeader" class="list-group-item list-group-item-dark">
+                    </div>
+                    <div id="" class="list-group-item">
+                        <button id="addButton" type="button" class="btn btn-outline-primary btn-block">
+                        </button>
                     </div>
 
                     <ul id="contentListContent" class="list-group text-left">
