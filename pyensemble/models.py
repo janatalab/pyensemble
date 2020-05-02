@@ -75,8 +75,10 @@ class Form(models.Model):
     questions = models.ManyToManyField('Question', through='FormXQuestion')
     experiments = models.ManyToManyField('Experiment', through='ExperimentXForm')
 
-    def get_absolute_url(self):
-        return reverse('form_detail', kwargs={'pk': self.pk})
+    # def get_absolute_url(self):
+    #     return reverse('form_update', kwargs={'pk': self.pk})
+
+    # Add visited and can_visit properties
 
 class Experiment(models.Model):
     start_date = models.DateField(blank=True, null=True)
@@ -277,7 +279,7 @@ class FormXQuestion(models.Model):
     #id = models.IntegerField(primary_key=True) # Not present in original ensemble db
     form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
     question = models.ForeignKey('Question', db_constraint=True, on_delete=models.CASCADE)
-    question_iteration = models.IntegerField()
+    question_iteration = models.IntegerField(default=1)
     form_question_num = models.IntegerField()
     required = models.BooleanField(default=True)
 

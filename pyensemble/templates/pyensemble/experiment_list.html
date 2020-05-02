@@ -16,7 +16,7 @@
             <tr class="contentlist-item">
                 <td></td>
                 <td class="text-left">
-                    {% if request.GET.type == 'form_select' %}
+                    {% if request.GET.type == 'select' %}
                         {{f.name}}
                     {% else %}
                         <a class="contentlist-item-link" href="/experiments/{{e.pk}}/">{{ e.title }}</a>

@@ -19,7 +19,7 @@
 {% endblock %}
 
 {% block detailContent %}
-    <input type="hidden" id="experiment_id" value="{{form.instance.pk}}">
+    <input type="hidden" id="parent_id" value="{{form.instance.pk}}">
     {% crispy form %}
 
     {% if form.instance.pk %}
@@ -28,7 +28,6 @@
         {% include "pyensemble/modals/tickets.html" with title=experiment.experiment_title tickets=tickets %}
     {% endif %}
 
-    {% include "pyensemble/modals/add_experiment_form_modal.html" %}
-
+    {% include "pyensemble/modals/add_item_modal.html" with item_type='form' %}
 
 {% endblock %}

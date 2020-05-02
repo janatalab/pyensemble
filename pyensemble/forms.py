@@ -123,40 +123,58 @@ class QuestionModelFormSetHelper(FormHelper):
 
         self.form_method='post'  
 
-class ExperimentFormForm(forms.ModelForm):
-    # form_name = forms.CharField()
+class FormQuestionForm(forms.ModelForm):
+    class Meta:
+        model = FormXQuestion
+        exclude = ('form_question_num','question_iteration',)
 
+class FormForm(forms.ModelForm):
+    class Meta:
+        model = Form
+        exclude = ('version','category','header_audio_path','footer_audio_path','questions','experiments')
+
+    def __init__(self, *args, **kwargs):
+        super(FormForm, self).__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.template = 'pyensemble/partly_crispy/formquestion_formset.html'
+        self.helper.formset_tag = True
+        self.helper.formset_method = 'POST'
+
+    field_order = ('name','header','footer','visit_once','locked')
+
+FormQuestionFormset = forms.inlineformset_factory(Form, FormXQuestion, 
+    form=FormQuestionForm, 
+    fields=('form_question_num','required'), 
+    can_order=True,
+    can_delete=True,
+    extra=0,
+    )
+
+class ExperimentFormForm(forms.ModelForm):
     class Meta:
         model = ExperimentXForm
         exclude = ('form_order',)
 
     field_order = ('form_handler','goto','repeat','break_loop_button','break_loop_button_text','condition_script','stimulus_script')
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    # def __init__(self, *args, **kwargs):
+    #     super().__init__(*args, **kwargs)
 
-        # self.fields['form_name'].initial = self.instance.form.name
-
-        # pdb.set_trace()
-        # formtag_prefix = re.sub('-[0-9]+$', '', kwargs.get('prefix', ''))
-
-        self.helper = FormHelper()
-        self.helper.form_tag = False
-        self.helper.layout = Layout(
-            Row(
-                UneditableField('form_order'),
-                # Field('form'),
-                Field('form_handler'),
-                Field('goto'),
-                Field('repeat'),
-                Field('condition_script'),
-                Field('stimulus_script'),
-                Field('break_loop_button'),
-                Field('break_loop_button_text'),
-                Field('DELETE'),
-                # css_class='formset_row-{}'.format(formtag_prefix)
-            )
-        )
+    #     self.helper = FormHelper()
+    #     self.helper.form_tag = False
+    #     self.helper.layout = Layout(
+    #         Row(
+    #             UneditableField('form_order'),
+    #             Field('form_handler'),
+    #             Field('goto'),
+    #             Field('repeat'),
+    #             Field('condition_script'),
+    #             Field('stimulus_script'),
+    #             Field('break_loop_button'),
+    #             Field('break_loop_button_text'),
+    #             Field('DELETE'),
+    #         )
+    #     )
 
 class ExperimentForm(forms.ModelForm):
     class Meta:
@@ -166,23 +184,14 @@ class ExperimentForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super(ExperimentForm, self).__init__(*args, **kwargs)
         self.helper = FormHelper()
-        self.helper.template = 'pyensemble/crispy_overrides/experiment_formset.html'
-        self.helper.form_tag = True
+        self.helper.template = 'pyensemble/partly_crispy/experimentform_formset.html'
+        # self.helper.form_tag = True
         self.helper.formset_tag = True
         self.helper.formset_method = 'POST'
-        self.helper.form_class = 'form-horizontal'
-        self.helper.label_class = 'col-md-3 create-label d-none'
-        # self.helper.field_class = 'col-md-9'
-        self.helper.field_class = 'col'
-        # self.helper.layout = Layout(
-        #     Div(
-        #         Field('description'),
-        #         Fieldset(ExpFormFormset('formset')),
-        #         # HTML("<br>"),
-        #         # ButtonHolder(Submit('submit', 'Save')),
-        #     )
-        # )
-
+        # self.helper.form_class = 'form-horizontal'
+        # self.helper.label_class = 'col-md-3 create-label d-none'
+        # # self.helper.field_class = 'col-md-9'
+        # self.helper.field_class = 'col'
 
 ExperimentFormFormset = forms.inlineformset_factory(Experiment, ExperimentXForm, 
     form=ExperimentFormForm, 
@@ -191,7 +200,6 @@ ExperimentFormFormset = forms.inlineformset_factory(Experiment, ExperimentXForm,
     can_delete=True,
     extra=0,
     )
-
 
 # class ExpFormFormset(LayoutObject):
 #     template = "pyensemble/partly_crispy/expform_formset.html"
