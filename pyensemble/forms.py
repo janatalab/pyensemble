@@ -29,22 +29,36 @@ class ImportForm(forms.Form):
         self.helper.add_input(Submit('submit', 'Submit'))
         super(ImportForm, self).__init__(*args, **kwargs)
 
-class CreateQuestionForm(forms.ModelForm):
-    helper = FormHelper()
-    helper.form_method = 'POST'
-
+class QuestionCreateForm(forms.ModelForm):
     class Meta:
         model=Question
-        fields=('text','category','data_format','value_range','value_default','html_field_type','locked','audio_path')
+        exclude=('unique_hash','forms','data_format','category','value_range','value_default','audio_path')
 
         widgets = {
             'text': forms.TextInput(attrs={'placeholder':'Enter the question text here'}),
         }
 
+    def __init__(self,*args,**kwargs):
+        super(QuestionCreateForm, self).__init__(*args, **kwargs)
+
+        helper = FormHelper()
+        helper.form_method = 'POST'
+
+        # self.helper.template = 'pyensemble/partly_crispy/question.html'
+
+    # field_order = ('name','header','footer','visit_once','locked')
+
 # borrowed this from meamstream
-class QuestionModelForm(forms.ModelForm):
+class QuestionForm(forms.ModelForm):
+    # This is just a placeholder definition that has to be here so that the field is found. The choices are actually populated at the time that the form is rendered via the __init__ function
+    option = forms.ChoiceField(widget=forms.RadioSelect, choices=())
+
+    class Meta:
+        model = Question
+        fields = ['option']
+
     def __init__(self, *args, **kwargs):
-        super(QuestionModelForm, self).__init__(*args, **kwargs)
+        super(QuestionForm, self).__init__(*args, **kwargs)
 
         use_crispy = True
         field_params = {'required': False}
@@ -109,14 +123,6 @@ class QuestionModelForm(forms.ModelForm):
         # Set the label of the input element to the question_text
         self.fields['option'].label = self.instance.text
 
-    # This is just a placeholder definition that has to be here so that the field is found. The choices are actually populated at the time that the form is rendered via the __init__ function
-    option = forms.ChoiceField(widget=forms.RadioSelect, choices=())
-    # stimulus = forms.IntegerField()
-
-    class Meta:
-        model = Question
-        fields = ['option']
-
 class QuestionModelFormSetHelper(FormHelper):
     def __init__(self, *args, **kwargs):
         super(QuestionModelFormSetHelper, self).__init__(*args, **kwargs)
@@ -157,24 +163,6 @@ class ExperimentFormForm(forms.ModelForm):
 
     field_order = ('form_handler','goto','repeat','break_loop_button','break_loop_button_text','condition_script','stimulus_script')
 
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-
-    #     self.helper = FormHelper()
-    #     self.helper.form_tag = False
-    #     self.helper.layout = Layout(
-    #         Row(
-    #             UneditableField('form_order'),
-    #             Field('form_handler'),
-    #             Field('goto'),
-    #             Field('repeat'),
-    #             Field('condition_script'),
-    #             Field('stimulus_script'),
-    #             Field('break_loop_button'),
-    #             Field('break_loop_button_text'),
-    #             Field('DELETE'),
-    #         )
-    #     )
 
 class ExperimentForm(forms.ModelForm):
     class Meta:
@@ -200,44 +188,6 @@ ExperimentFormFormset = forms.inlineformset_factory(Experiment, ExperimentXForm,
     can_delete=True,
     extra=0,
     )
-
-# class ExpFormFormset(LayoutObject):
-#     template = "pyensemble/partly_crispy/expform_formset.html"
-
-#     def __init__(self, formset_name_in_context, template=None):
-#         self.formset_name_in_context = formset_name_in_context
-#         self.fields = []
-#         if template:
-#             self.template = template
-#         # pdb.set_trace()
-
-#     def render(self, form, form_style, context, template_pack=settings.CRISPY_TEMPLATE_PACK):
-#         formset = context[self.formset_name_in_context]
-#         return render_to_string(self.template, {'formset': formset})
-
-# class AddFormForm(forms.ModelForm):
-#     class Meta:
-#         model = Form
-#         fields = ('name',)
-
-#         widgets = {
-#             'name': forms.TextInput(attrs={'disabled': True}),
-#         }     
-
-# class AddFormHelper(FormHelper):
-#     def __init__(self, *args, **kwargs):
-#         super(AddFormHelper, self).__init__(*args, **kwargs)
-#         self.form_method = 'POST'
-#         self.form_show_labels = False
-#         self.layout = Layout(
-#             Row(
-#                 Field('add'),
-#                 Field('order'),
-#                 Field('name'),
-#             )
-#         )   
-
-# AddFormFormset = forms.modelformset_factory(Form, form=AddFormForm)
 
 class TicketCreationForm(forms.Form):
     input_format = '%d/%m/%Y %H:00'

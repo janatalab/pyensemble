@@ -44,6 +44,12 @@ function bindFunctions(){
 
                 var $table = $("#contentListContent table");
                 $table.attr('data-show-header','false');
+
+                // Sometimes, bootstrapTable doesn't bind to the element
+                if (!$table.bootstrapTable){
+                    alert('bootstrapTable did not bind to loaded table!\nReload the browser window.')
+                }
+
                 $table.bootstrapTable();
                 $table.bootstrapTable('hideColumn','checkbox');
                 $table.on('page-change.bs.table',function(){

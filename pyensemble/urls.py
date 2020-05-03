@@ -20,7 +20,7 @@ from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
-from .views import EditorView, ExperimentListView, ExperimentCreateView, ExperimentUpdateView, FormListView, QuestionListView, FormCreateView, FormUpdateView, QuestionDetailView, run_experiment, serve_form, create_question, add_experiment_form, add_form_question
+from .views import EditorView, ExperimentListView, ExperimentCreateView, ExperimentUpdateView, FormListView, FormCreateView, FormUpdateView, QuestionListView, QuestionCreateView, QuestionUpdateView, run_experiment, serve_form, add_experiment_form, add_form_question
 
 from pyensemble.tasks import reset_session, create_ticket
 import pyensemble.errors as error
@@ -39,19 +39,19 @@ urlpatterns = [
     path('experiments/run/<int:experiment_id>/start/',run_experiment, name='run_experiment'),
     path('experiments/run/<int:experiment_id>/',serve_form, name='serve_form'),
     path('forms/', login_required(FormListView.as_view()), name='form_list'),
-    path('forms/add/<int:experiment_id>/', add_experiment_form, name='add_experiment_form'),
     path('forms/create/', FormCreateView.as_view(), name='form_create'),
     path('forms/<int:pk>/', FormUpdateView.as_view(), name='form_update'),
-    path('questions/create/', create_question, name='create_question'),
+    path('forms/add/<int:experiment_id>/', add_experiment_form, name='add_experiment_form'),
     path('questions/', QuestionListView.as_view(), name='question_list'),
-    path('questions/<int:pk>/', QuestionDetailView.as_view(), name='question_detail'),
+    path('questions/create/', QuestionCreateView.as_view(), name='question_create'),
+    path('questions/<int:pk>/', QuestionUpdateView.as_view(), name='question_update'),
     path('questions/add/<int:form_id>/', add_form_question, name='add_form_question'),
     path('session/reset/<int:experiment_id>/',reset_session, name='reset_session'),
     path('error/<slug:feature_string>/', error.feature_not_enabled, name='feature_not_enabled'),
     path('ticket/create/', create_ticket, name='create_ticket'),
     path('stimuli/upload/', importers.import_stimuli.import_file),
+    # Add user specific experiment URLs
     path('experiments/', include('pyensemble.experiments.urls')),
-
 ]
 
 if settings.DEBUG:
