@@ -10,7 +10,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import LayoutObject, Layout, Field, Submit, Row, Div, Fieldset
 from crispy_forms.bootstrap import InlineRadios, InlineCheckboxes, UneditableField
 
-from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm
+from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat
 
 import pdb
 
@@ -30,23 +30,46 @@ class ImportForm(forms.Form):
         super(ImportForm, self).__init__(*args, **kwargs)
 
 class QuestionCreateForm(forms.ModelForm):
+    df = forms.ChoiceField(label='Response type', choices=())
+
     class Meta:
         model=Question
         exclude=('unique_hash','forms','data_format','category','value_range','value_default','audio_path')
 
         widgets = {
             'text': forms.TextInput(attrs={'placeholder':'Enter the question text here'}),
+            'html_field_type': forms.Select(attrs={'placeholder':'Choose a display format'}),
+            'df': forms.Select(attrs={'placeholder':'Choose a response type'})
         }
 
     def __init__(self,*args,**kwargs):
         super(QuestionCreateForm, self).__init__(*args, **kwargs)
 
-        helper = FormHelper()
-        helper.form_method = 'POST'
+        # pdb.set_trace()
+        self.fields['html_field_type'].label = 'Display format'
+
+        # Generate choices for the data format
+        self.fields['df'].choices=((df.pk,df.choice()) for df in DataFormat.objects.all())
+
+        # Deal with form layout
+        self.helper = FormHelper()
+        self.helper.form_method = 'POST'
+        self.helper.form_action = '/questions/create/'
+        # self.helper.form_class = 'text-left'
+        self.helper.layout = Layout(
+            Div(
+                Field('text'),
+                Field('df'),
+                Field('html_field_type'),
+                css_class='text-left',
+                ),
+            # Field('locked'), 
+            Submit("submit", "Submit question")
+            )
+        # self.helper.add_input()
 
         # self.helper.template = 'pyensemble/partly_crispy/question.html'
 
-    # field_order = ('name','header','footer','visit_once','locked')
 
 # borrowed this from meamstream
 class QuestionForm(forms.ModelForm):

@@ -192,7 +192,6 @@ class QuestionCreateView(CreateView):
     model = Question
     form_class = QuestionCreateForm
     template_name = 'pyensemble/question_update.html'
-    context_object_name = 'question'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

@@ -26,15 +26,33 @@ class DataFormat(models.Model):
     df_type = models.CharField(max_length=15)
     enum_values = models.TextField(blank=True)
 
+    def choice(self):
+        if self.df_type == 'enum':
+            self._choice = 'enum(%s)'%(self.enum_values)
+        else:
+            self._choice = self.df_type
+
+        return self._choice
+
 class Question(models.Model):
     unique_hash = models.CharField(max_length=32, unique=True)
-    text = models.TextField(blank=True)
+    text = models.TextField(blank=False)
     category = models.CharField(max_length=64, blank=True)
 
     data_format = models.ForeignKey('DataFormat', db_constraint=True, on_delete=models.CASCADE)
     value_range = models.CharField(max_length=30, blank=True)
     value_default = models.CharField(max_length=30, blank=True)
-    html_field_type = models.CharField(max_length=10, blank=True, default='radiogroup')
+
+    HTML_FIELD_TYPE_OPTIONS = [
+        ('radiogroup','radiogroup'),
+        ('checkbox','checkbox'),
+        ('textarea','textarea'),
+        ('text','text'),
+        ('menu','menu'),
+    ]
+
+    html_field_type = models.CharField(max_length=10, blank=False, choices=HTML_FIELD_TYPE_OPTIONS, default='radiogroup')
+
     audio_path = models.CharField(max_length=50, blank=True)
 
     locked = models.BooleanField(default=False)
@@ -58,8 +76,8 @@ class Question(models.Model):
 
         super(Question, self).save(*args, **kwargs)
 
-    def get_absolute_url(self):
-        return reverse('question_detail', kwargs={'pk': self.pk})
+    # def get_absolute_url(self):
+    #     return reverse('question_detail', kwargs={'pk': self.pk})
 
 class Form(models.Model):
     name = models.CharField(unique=True, max_length=50)
