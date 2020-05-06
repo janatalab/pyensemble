@@ -1,0 +1,42 @@
+<div id="experimentTickets" class="mt-4 border">
+    <nav class="navbar navbar-expand-md bg-light navbar-light">
+        <div class="navbar-brand">
+            Tickets
+        </div>
+        <div class="collapse navbar-collapse" id="detailEditorNav">
+            <ul class="navbar-nav nav-pills nav-fill">
+                <li class="nav-item">
+                    <a class="nav-link" data-toggle="modal" role="button" data-target="#ticketModal" href="#">Generate Tickets</a>
+                </li>
+            </ul>
+            <div class="nav-item ml-auto">Click on a ticket URL to run the experiment</div>
+        </div>
+    </nav>
+
+    <div>
+        {% for ticket_type, items in tickets.items %}
+            <div class="pt-3">
+                <h5>{{ticket_type|title}} tickets</h5>
+
+                <table class="table table-striped mb-4">
+                  <thead>
+                    <tr>
+                      <th scope="col">Code</th>
+                      <th scope="col">Expiration</th>
+                      <th scope="col">URL</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for ticket in items %}
+                        <tr>
+                          <td>{{ticket.ticket_code}}</td>
+                          <td>{{ticket.expiration_datetime}}</td>
+                          <td> <a href="/experiments/run/{{experiment.pk}}/start/?tc={{ticket.ticket_code}}">Run</a></td>
+                        </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+            </div>
+        {% endfor %}
+    </div>
+</div>

@@ -1,0 +1,35 @@
+<div id="addItemTable" class="modal fade" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Choose a {{item_type}} to add</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+      </div>
+      <div class="modal-footer">
+        <button id="addItemSubmit" type="button" class="btn btn-primary mr-auto" data-dismiss="modal">Add {{item_type|title}}(s)</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  $(function() {
+    $('#addItemTable').on('show.bs.modal', function(){
+      fetchItemList('{{item_type}}s');
+    });
+
+    $('#addItemSubmit').on('click',function(ev){
+      ev.preventDefault();
+      submitItemAdditions('{{item_type}}s');
+    })
+
+    $('#addItemTable').on('shown.bs.modal', function () {
+      $('#addItemTable table').bootstrapTable('resetView');
+    })
+  })
+</script>

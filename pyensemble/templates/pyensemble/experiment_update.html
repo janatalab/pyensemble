@@ -1,0 +1,33 @@
+{% extends "pyensemble/editor_detail.html" %}
+{% load crispy_forms_tags %}
+
+{% block detailContentTitle %}
+    {% if form.instance.pk %}
+        {{experiment.title}}
+    {% else %}
+        New Experiment
+    {% endif %}
+{% endblock %}
+
+{% block additionalDetailContentNavItems %}
+    <li class="nav-item">
+        <a class="nav-link" href="#experimentForms">Forms</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="#experimentTickets">Tickets</a>
+    </li>
+{% endblock %}
+
+{% block detailContent %}
+    <input type="hidden" id="parent_id" value="{{form.instance.pk}}">
+    {% crispy form %}
+
+    {% if form.instance.pk %}
+        {% include "pyensemble/tickets.html" with tickets=tickets %}
+
+        {% include "pyensemble/modals/tickets.html" with title=experiment.experiment_title tickets=tickets %}
+    {% endif %}
+
+    {% include "pyensemble/modals/add_item_modal.html" with item_type='form' %}
+
+{% endblock %}

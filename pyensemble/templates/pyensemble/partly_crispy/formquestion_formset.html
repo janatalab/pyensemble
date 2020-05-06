@@ -1,0 +1,110 @@
+{% load crispy_forms_tags %}
+{% load crispy_forms_utils %}
+{% load crispy_forms_field %}
+
+{% specialspaceless %}
+{% if formset_tag %}
+<form id="editorForm" {{ flat_attrs|safe }} 
+    method="{{ form_method }}" 
+    {% if formset.is_multipart %} enctype="multipart/form-data"{% endif %} 
+    {% if form.instance.pk %}
+        action="{% url 'form_update' form.instance.pk %}"
+    {% else %}
+        action="{% url 'form_create' %}"
+    {% endif %}
+
+    class="editor-form"
+>
+{% endif %}
+    {% if formset_method|lower == 'post' and not disable_csrf %}
+        {% csrf_token %}
+    {% endif %}
+    <div id="formInfo" class="editor text-left form-info">
+        <ul class="list-group">
+            <li class="list-group-item text-left bg-light">Form Information</li>
+            <li class="list-group-item">{{form.name.label}}{% crispy_field form.name %}</li>
+            <li class="list-group-item">{{form.header.label}}{% crispy_field form.header%}</li>
+            <li class="list-group-item">{{form.footer.label}}{% crispy_field form.footer%}</li>
+            <li class="list-group-item">
+                <div class="row">
+                    <div class="col-4">{% crispy_field form.locked %}{{form.locked.label}}</div>
+                    <div class="col-4 form-check">{% crispy_field form.visit_once %}{{form.visit_once.label}}</div>
+                </div>
+            </li>
+            {% if form.instance.pk %}
+                <li id="formQuestions" class="list-group-item text-left bg-light"><div class='nav'><div class='nav-item'>Questions</div><a id="addQuestion" class='nav-item ml-auto' data-toggle="modal" role="button" data-target="#addItemTable" href="#">Add Question</a></div></li>
+
+                <li class="list-group-item text-center">
+                    <div>
+                        {{ formset.management_form|crispy }}
+                    </div>
+
+                    <table id="question_table" class="table table-striped table-responsive table-compact table-bordered experiment-info">
+                        <thead>
+                            {% if formset.readonly and not formset.queryset.exists %}
+                            {% else %}
+                                <tr>
+                                    {% for field in formset.forms.0 %}
+                                        {% if field.name == 'ORDER' and field.label and not field.is_hidden %}
+                                            <th for="{{ field.auto_id }}" class="control-label {% if field.field.required and not field|is_checkbox %}requiredField{% endif %}">
+                                                {{ field.label|safe }}{% if field.field.required and not field|is_checkbox %}<span class="asteriskField">*</span>{% endif %}
+                                            </th>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    <th>Question text</th>
+
+                                    {% for field in formset.forms.0 %}
+                                        {% if field.name != 'ORDER' and field.label and not field.is_hidden %}
+                                            <th for="{{ field.auto_id }}" class="control-label {% if field.field.required and not field|is_checkbox %}requiredField{% endif %}">
+                                                {{ field.label|safe }}{% if field.field.required and not field|is_checkbox %}<span class="asteriskField">*</span>{% endif %}
+                                            </th>
+                                        {% endif %}
+                                    {% endfor %}
+                                </tr>
+                            {% endif %}
+                        </thead>
+
+                        <tbody>
+                            <tr class="d-none empty-form">
+                                {% for field in formset.empty_form %}
+                                    {% include 'bootstrap/field.html' with tag="td" form_show_labels=False %}
+                                {% endfor %}
+                            </tr>
+
+                            {% for form in formset %}
+                                {% if form_show_errors and not form.is_extra %}
+                                    {% include "bootstrap/errors.html" %}
+                                {% endif %}
+
+                                <tr class="{% if form.is_extra %}d-none{% endif %}">
+                                    {% for field in form %}
+                                        {% if field.name == 'ORDER' %}
+                                            {% include 'bootstrap/field.html' with tag="td" form_show_labels=False %}
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    <td class="text-left small align-middle">{{form.instance.question.text}}</td>
+
+                                    {% for field in form %}
+                                        {% if field.name != 'ORDER' %}
+                                            {% include 'bootstrap/field.html' with tag="td" form_show_labels=False %}
+                                        {% endif %}
+                                    {% endfor %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </li>
+            {% endif %}
+            <li class="list-group-item">
+                <div class="editor form-actions text-center {% if form.instance.pk %}d-none{%endif%}">
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </div>
+            </li>
+        </ul>
+    </div>
+{% if formset_tag %}</form>{% endif %}
+{% endspecialspaceless %}
+
+{% include 'pyensemble/js/editor_form_submit.js' %}

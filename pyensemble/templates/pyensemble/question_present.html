@@ -1,0 +1,31 @@
+{% extends 'pyensemble/editor_detail.html' %}
+{% load crispy_forms_tags %}
+
+{% block detailContentTitle %}
+    {% if form.instance.pk %}
+        Question
+    {% else %}
+        New Question
+    {% endif %}
+{% endblock %}
+
+{% block additionalDetailContentNavItems %}
+{% endblock %}
+
+{% block detailContent %}
+    <div class='mt-3'>
+        <input type="hidden" id="parent_id" value="{{form.instance.pk}}">
+
+        {% include "pyensemble/partly_crispy/question.html" %}
+    </div>
+{% endblock %}
+
+{% block formscript %}
+<script type="text/javascript">
+    $(function(){
+        $("#formTableEditButton").on('click', function(){
+            fetchDetailContent('{% url 'question_update' form.instance.pk %}');
+        })
+    })
+</script>
+{% endblock %}

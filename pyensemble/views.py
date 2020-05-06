@@ -10,16 +10,19 @@ from django.views.generic.base import TemplateView
 from django.views.decorators.http import require_http_methods
 
 import django.forms as forms
+from django.db import transaction, IntegrityError
 from django.db.models import Q
 
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
 from django.shortcuts import render
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 
 from django.conf import settings
+from django.views.generic.edit import CreateView, UpdateView, FormView
 
-from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, Stimulus, Subject, Response
-from .forms import CreateQuestionForm, QuestionModelForm, RegisterSubjectForm, QuestionModelFormSetHelper, TicketCreationForm
+from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
+
+from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSetHelper, EnumCreateForm
 
 from .tasks import get_expsess_key, fetch_subject_id
 from pyensemble.utils.parsers import parse_function_spec
@@ -33,44 +36,149 @@ import pdb
 class EditorView(TemplateView):
     template_name = 'editor_base.html'
 
+#
+# Experiment editing views
+#
+
 class ExperimentListView(ListView):
     model = Experiment
     context_object_name = 'experiment_list'
 
-class ExperimentDetailView(DetailView):
+class ExperimentCreateView(CreateView):
     model = Experiment
-    context_object_name = 'experiment'
+    form_class = ExperimentForm
+    template_name = 'pyensemble/experiment_update.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('experiment_update', kwargs={'pk': self.object.pk})
+
+class ExperimentUpdateView(UpdateView):
+    model = Experiment
+    template_name = 'pyensemble/experiment_update.html'
+    form_class = ExperimentForm
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+        context = super(ExperimentUpdateView, self).get_context_data(**kwargs)
+        if self.request.POST:
+            context['formset'] = ExperimentFormFormset(self.request.POST, instance=self.object)
+        else:
+            context['formset'] = ExperimentFormFormset(instance=self.object, queryset=self.object.experimentxform_set.order_by('form_order'))
 
-        # Arrange our form data
-        context['forms'] = context['experiment'].experimentxform_set.all().order_by('form_order')
-
-        # Get our master and user tickets
         context['tickets'] = {'master': context['experiment'].ticket_set.filter(Q(type='master', expiration_datetime=None) | Q(type='master',expiration_datetime__gte=timezone.now())),
             'user': context['experiment'].ticket_set.filter(Q(type='user', expiration_datetime=None) | Q(type='user',expiration_datetime__gte=timezone.now()))}
 
         # Get the form for our ticket creation modal
-        context['ticket_form'] = TicketCreationForm(initial={'experiment_id':context['experiment'].id})
-
+        context['ticket_form'] = TicketCreationForm(initial={'experiment_id':context['experiment'].id})        
+        # pdb.set_trace()
         return context
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+        formset = context['formset']
+        with transaction.atomic():
+            self.object = form.save()
+            if formset.is_valid():
+                # Save forms in (new) order
+                for idx,f in enumerate(formset.ordered_forms):
+                    f.instance.form_order = idx+1
+                    f.instance.save()
+
+                # Delete forms flagged for deletion
+                for f in formset.deleted_forms:
+                    f.instance.delete()
+
+        return super(ExperimentUpdateView, self).form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy('experiment_update', kwargs={'pk': self.object.pk})
+
+def add_experiment_form(request, experiment_id):
+    if request.method == 'POST':
+        # Get our Experiment instance
+        experiment = Experiment.objects.get(id=experiment_id)
+
+        for form_name in json.loads(request.body):
+            num_existing = ExperimentXForm.objects.filter(experiment=experiment).count()
+
+            # Get our form instance
+            form = Form.objects.get(name=form_name)
+
+            # Create a new entry
+            ExperimentXForm.objects.create(experiment_id=experiment_id,form=form,form_order=num_existing+1)
+
+    return HttpResponseRedirect(reverse('experiment_update', kwargs={'pk': experiment_id}))
+
+#
+# Form editing views
+#
 
 class FormListView(ListView):
     model = Form
     context_object_name = 'form_list'
 
-class FormDetailView(DetailView):
+class FormCreateView(CreateView):
     model = Form
-    context_object_name = 'form'
+    form_class = FormForm
+    template_name = 'pyensemble/form_update.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('form_update', kwargs={'pk': self.object.pk})
+
+class FormUpdateView(UpdateView):
+    model = Form
+    template_name = 'pyensemble/form_update.html'
+    form_class = FormForm
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+        context = super(FormUpdateView, self).get_context_data(**kwargs)
 
-        # Arrange our form data
-        context['questions'] = context['form'].formxquestion_set.all().order_by('form_question_num')
-
+        if self.request.POST:
+            context['formset'] = FormQuestionFormset(self.request.POST, instance=self.object)
+        else:
+            context['formset'] = FormQuestionFormset(instance=self.object, queryset=self.object.formxquestion_set.order_by('form_question_num'))
+        
+        # pdb.set_trace()
         return context
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+        formset = context['formset']
+        with transaction.atomic():
+            self.object = form.save()
+            if formset.is_valid():
+                # Save forms in (new) order
+                for idx,f in enumerate(formset.ordered_forms):
+                    f.instance.form_question_num = idx+1
+                    f.instance.save()
+
+                # Delete forms flagged for deletion
+                for f in formset.deleted_forms:
+                    f.instance.delete()
+
+        return super(FormUpdateView, self).form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy('form_update', kwargs={'pk': self.object.pk})
+
+def add_form_question(request, form_id):
+    if request.method == 'POST':
+        # Get our Experiment instance
+        form = Form.objects.get(id=form_id)
+
+        for question_text in json.loads(request.body):
+            num_existing = FormXQuestion.objects.filter(form=form).count()
+
+            # Get our form instance
+            question = Question.objects.get(text=question_text)
+
+            # Create a new entry
+            FormXQuestion.objects.create(form=form,question=question,form_question_num=num_existing+1)
+
+    return HttpResponseRedirect(reverse('form_update', kwargs={'pk': form_id}))
+
+#
+# Question editing views
+#
 
 class QuestionListView(ListView):
     model = Question
@@ -81,34 +189,89 @@ class QuestionListView(ListView):
 
         return context
 
-
-class QuestionDetailView(DetailView):
+class QuestionCreateView(CreateView):
     model = Question
-    context_object_name = 'question'
+    form_class = QuestionCreateForm
+    template_name = 'pyensemble/question_create.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        # pdb.set_trace()
         return context
 
-def create_question(request):
+    def form_valid(self, form):
+        context = self.get_context_data()
 
-    if request.method == 'POST':
-        form = CreateQuestionForm(request.POST)
+        form.instance.data_format = DataFormat.objects.get(id=form.cleaned_data['dfid'])
+        form.instance.save()
 
-        if form.is_valid():
-            pass
-    else:
-        form = CreateQuestionForm()
+        return super(QuestionCreateView, self).form_valid(form)
 
+    def get_success_url(self):
+        return reverse_lazy('question_present', kwargs={'pk': self.object.pk})
 
-    context = {
-        'form': form
-    }
+class QuestionUpdateView(UpdateView):
+    model = Question
+    form_class = QuestionUpdateForm
+    template_name = 'pyensemble/question_create.html'
+    # context_object_name = 'question'
 
-    template_name = 'pyensemble/question_edit.html'
-    return render(request,template_name,context)
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form'].helper.form_action = reverse('question_update', kwargs={'pk': self.object.pk})
 
+        # pdb.set_trace()
+        return context
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+
+        form.instance.data_format = DataFormat.objects.get(id=form.cleaned_data['dfid'])
+        form.instance.save()
+        return super(QuestionUpdateView, self).form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy('question_present', kwargs={'pk': self.object.pk})
+
+class QuestionPresentView(UpdateView):
+    model = Question
+    form_class = QuestionPresentForm
+    template_name = 'pyensemble/question_present.html'
+    # context_object_name = 'question'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # pdb.set_trace()
+        return context
+
+#
+# Views for enumerated response options
+# 
+class EnumListView(ListView):
+    model = DataFormat
+    context_object_name = 'enum_list'
+    template_name = 'pyensemble/enum_list.html'
+    ordering = ['pk']
+
+class EnumCreateView(CreateView):
+    model = DataFormat
+    form_class = EnumCreateForm
+    template_name = 'pyensemble/enum_create.html'
+
+    def post(self,request,*args,**kwargs):
+        try:
+            super().post(request, *args, **kwargs)
+        except IntegrityError:
+            return HttpResponseBadRequest('The enum already exists')
+
+    def get_success_url(self):
+        return reverse_lazy('editor')
+
+#
+# Views for running experiments
+#
 
 # Start experiment
 @require_http_methods(['GET'])
@@ -167,6 +330,9 @@ def run_experiment(request, experiment_id=None):
 
     return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
+#
+# serve_form is the view that handles the running of the experiment following initialization by run_experiment
+#
 def serve_form(request, experiment_id=None):
     # Get the key that we can use to retrieve experiment-specific session information for this user   
     expsess_key = get_expsess_key(experiment_id)
@@ -206,7 +372,7 @@ def serve_form(request, experiment_id=None):
         return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
     # Define our formset
-    QuestionModelFormSet = forms.modelformset_factory(Question, form=QuestionModelForm, extra=0, max_num=1)
+    QuestionModelFormSet = forms.modelformset_factory(Question, form=QuestionPresentForm, extra=0, max_num=1)
 
     # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
     helper = QuestionModelFormSetHelper()

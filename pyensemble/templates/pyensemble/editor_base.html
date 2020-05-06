@@ -3,6 +3,10 @@
 
 {% block head %}
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-datetimepicker/2.5.20/jquery.datetimepicker.min.css" integrity="sha256-DOS9W6NR+NFe1fUhEE0PGKY/fubbUCnOfTje2JMDw3Y=" crossorigin="anonymous" />
+
+    <link href="https://unpkg.com/bootstrap-table@1.16.0/dist/bootstrap-table.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'pyensemble/css/chosen.css' %}" type="text/css" />
+
 {% endblock %}
 
 {% block header %}
@@ -17,6 +21,7 @@
             <li class="nav-item content-link"><a class="nav-link" href="#">Experiments</a></li>
             <li><a class="nav-link content-link" href="#">Forms</a></li>
             <li><a class="nav-link content-link" href="#">Questions</a></li>
+            <li><a class="nav-link content-link" href="#">Enums</a></li>
         </ul>
     </div>
   </div>
@@ -24,32 +29,30 @@
 {% endblock %}
 
 {% block main %}
-<main role="main" class='container-fluid h-90'>
-    <div class="container-fluid my-2">
-        <div class="row align-items-start justify-content-center">
+<main role="main">
+    <!-- <div class="container-fluid my-2"> -->
+        <div class="row align-items-start justify-content-start">
             <!-- left nav -->
-            <div class="col-md-3 border-right" id="content-left">
-                <div id="contentList" class="bd-sidebar">
-                    <div id="contentListHeader" class="nav">
+            <div class="d-none" id="content-left">
+                <div id="contentList" class="list-group bd-sidebar">
+                    <div id="contentListHeader" class="list-group-item list-group-item-dark">
+                    </div>
+                    <div id="" class="list-group-item">
+                        <button id="addButton" type="button" class="btn btn-outline-primary btn-block">
+                        </button>
                     </div>
 
-                    <div id="contentListContent" class="text-left">
-                    </div>
+                    <ul id="contentListContent" class="list-group text-left">
+                    </ul>
                 </div>
             </div>
 
-            <div class="col-md-9" id="content-right">
-                <div id="detailHeader">
-                    {% block detailHeader %}
-                    {% endblock %}                    
-                </div>
-                <div id="detailContent">
-                    {% block detailContent %}
-                    {% endblock %}
-                </div>
+            <div class="col-9" id="content-right">
+                {% block editorDetail %}
+                {% endblock %}
             </div>
         </div>
-    </div>
+    <!-- </div> -->
 </main>
 {% endblock %}
 
@@ -61,4 +64,8 @@
     </script>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-datetimepicker/2.5.20/jquery.datetimepicker.full.min.js" integrity="sha256-FEqEelWI3WouFOo2VWP/uJfs1y8KJ++FLh2Lbqc8SJk=" crossorigin="anonymous"></script>
+
+    <script src="https://unpkg.com/bootstrap-table@1.16.0/dist/bootstrap-table.min.js"></script>
+    <script src="https://unpkg.com/bootstrap-table@1.16.0/dist/extensions/editable/bootstrap-table-editable.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.7/chosen.jquery.min.js"></script>
  {% endblock %}

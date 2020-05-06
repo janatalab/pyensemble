@@ -1,0 +1,35 @@
+{% extends 'pyensemble/editor_detail.html' %}
+{% load crispy_forms_tags %}
+
+{% block detailContentTitle %}
+    {% if form.instance.pk %}
+        Edit Question
+    {% else %}
+        New Question
+    {% endif %}
+{% endblock %}
+
+{% block additionalDetailContentNavItems %}
+{% endblock %}
+
+{% block detailContent %}
+    <input type="hidden" id="parent_id" value="{{form.instance.pk}}">
+
+    {% crispy form %}
+
+    <div class="editor form-actions text-center {% if form.instance.pk %}d-none{%endif%}">
+        <button type="submit" class="btn btn-primary">Submit question</button>
+    </div>
+
+    <script type="text/javascript">
+        $(function(){
+            $('select').chosen();
+            $(".editor.form-actions button").on('click',function(ev){
+                ev.preventDefault();
+                submitEditorForm();
+            });
+        });
+    </script>
+
+{% endblock %}
+

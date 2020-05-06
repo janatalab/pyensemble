@@ -1,0 +1,33 @@
+
+<nav id="detailHeader" class="navbar navbar-dark navbar-expand-md bg-secondary fixed-top">
+    <div class="navbar-brand">
+        {% block detailContentTitle %}
+        {% endblock %}
+    </div>
+    <div class="collapse navbar-collapse" id="detailEditorNav">
+        <ul class="navbar-nav">
+            <li class="nav-item">
+                <a class="nav-link" id="formTableEditButton" href="#">Edit</a>
+            </li>
+            {% block additionalDetailContentNavItems %}
+            {% endblock %}
+        </ul>
+    </div>
+</nav>
+<div id="detailContent">
+    {% block detailContent %}
+    {% endblock %}
+</div>
+
+{% block formscript %}
+<script type="text/javascript">
+    $(function(){
+        $("#formTableEditButton").on('click', function(){
+            $(".experiment-info input,textarea").css('pointer-events','auto');
+            $(".editor.form-actions").removeClass('d-none');
+            $(this).addClass('btn btn-danger active');
+        })
+    })
+</script>
+
+{% endblock %}

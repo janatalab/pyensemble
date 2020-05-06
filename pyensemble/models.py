@@ -23,18 +23,39 @@ class Attribute(models.Model):
     attribute_class = models.CharField(db_column='class', max_length=15)  # Field renamed because it was a Python reserved word.
 
 class DataFormat(models.Model):
-    df_type = models.CharField(max_length=15)
-    enum_values = models.TextField(blank=True)
+    df_type = models.CharField(max_length=15,default='enum')
+    enum_values = models.CharField(max_length=512, blank=True)
+
+    class Meta:
+        unique_together = (("df_type", "enum_values"),)
+
+    def choice(self):
+        if self.df_type == 'enum':
+            self._choice = 'enum(%s)'%(self.enum_values)
+        else:
+            self._choice = self.df_type
+
+        return self._choice
 
 class Question(models.Model):
     unique_hash = models.CharField(max_length=32, unique=True)
-    text = models.TextField(blank=True)
+    text = models.TextField(blank=False)
     category = models.CharField(max_length=64, blank=True)
 
     data_format = models.ForeignKey('DataFormat', db_constraint=True, on_delete=models.CASCADE)
     value_range = models.CharField(max_length=30, blank=True)
     value_default = models.CharField(max_length=30, blank=True)
-    html_field_type = models.CharField(max_length=10, blank=True, default='radiogroup')
+
+    HTML_FIELD_TYPE_OPTIONS = [
+        ('radiogroup','radiogroup'),
+        ('checkbox','checkbox'),
+        ('textarea','textarea'),
+        ('text','text'),
+        ('menu','menu'),
+    ]
+
+    html_field_type = models.CharField(max_length=10, blank=False, choices=HTML_FIELD_TYPE_OPTIONS, default='radiogroup')
+
     audio_path = models.CharField(max_length=50, blank=True)
 
     locked = models.BooleanField(default=False)
@@ -71,6 +92,8 @@ class Form(models.Model):
 
     questions = models.ManyToManyField('Question', through='FormXQuestion')
     experiments = models.ManyToManyField('Experiment', through='ExperimentXForm')
+
+    # Add visited and can_visit properties
 
 class Experiment(models.Model):
     start_date = models.DateField(blank=True, null=True)
@@ -210,7 +233,6 @@ class Ticket(models.Model):
         )
     used = models.BooleanField(default=False)
     expiration_datetime = models.DateTimeField(blank=True, null=True)
-    # session = models.ForeignKey('Session',db_column='session_id',on_delete=models.CASCADE,null=True)
     assigned = models.BooleanField(default=False)
 
     @property
@@ -227,9 +249,16 @@ class Ticket(models.Model):
 #
 
 class AttributeXAttribute(models.Model):
-    # We can't directly link the Attribute model here due to reverse accessor issues, so just refer to the IDs
-    child = models.IntegerField(null=False)
-    parent = models.IntegerField(null=False)
+    child = models.ForeignKey(
+        Attribute,
+        on_delete=models.CASCADE,
+        related_name='children',
+    )
+    parent = models.ForeignKey(
+        Attribute,
+        on_delete=models.CASCADE,
+        related_name='parents',
+    )
     mapping_name = models.CharField(blank=False, max_length=256)
     mapping_value_double = models.FloatField(blank=True, null=True)
     mapping_value_text = models.CharField(blank=True, max_length=256)
@@ -239,7 +268,6 @@ class AttributeXAttribute(models.Model):
 
 
 class StimulusXAttribute(models.Model):
-    # id = models.IntegerField(primary_key=True) # Not present in original ensemble db
     stimulus = models.ForeignKey('Stimulus', db_constraint=True, on_delete=models.CASCADE)
     attribute = models.ForeignKey('Attribute', db_constraint=True, on_delete=models.CASCADE)
     attribute_value_double = models.FloatField(blank=True, null=True)
@@ -249,7 +277,6 @@ class StimulusXAttribute(models.Model):
         unique_together = (("stimulus", "attribute"),)
 
 class ExperimentXStimulus(models.Model):
-    # id = models.IntegerField(primary_key=True) # Not present in original ensemble db
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     stimulus = models.ForeignKey('Stimulus', db_constraint=True, on_delete=models.CASCADE)
 
@@ -257,10 +284,9 @@ class ExperimentXStimulus(models.Model):
         unique_together = (("experiment", "stimulus"),)
 
 class FormXQuestion(models.Model):
-    #id = models.IntegerField(primary_key=True) # Not present in original ensemble db
     form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
     question = models.ForeignKey('Question', db_constraint=True, on_delete=models.CASCADE)
-    question_iteration = models.IntegerField()
+    question_iteration = models.IntegerField(default=1)
     form_question_num = models.IntegerField()
     required = models.BooleanField(default=True)
 
@@ -268,7 +294,6 @@ class FormXQuestion(models.Model):
         unique_together = (("form","question","form_question_num","question_iteration"),)
 
 class ExperimentXForm(models.Model):
-    #id = models.IntegerField(primary_key=True) # Not present in original ensemble db
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
     form_order = models.IntegerField()
@@ -276,8 +301,8 @@ class ExperimentXForm(models.Model):
     goto = models.IntegerField(blank=True, null=True)
     repeat = models.IntegerField(blank=True, null=True)
     condition = models.TextField(blank=True)
-    condition_script = models.TextField(blank=True)
-    stimulus_script = models.TextField(blank=True)
+    condition_script = models.CharField(max_length=100, blank=True)
+    stimulus_script = models.CharField(max_length=100, blank=True)
     break_loop_button = models.BooleanField(default=False)
     break_loop_button_text = models.CharField(max_length=50, blank=True)
 
