@@ -23,8 +23,11 @@ class Attribute(models.Model):
     attribute_class = models.CharField(db_column='class', max_length=15)  # Field renamed because it was a Python reserved word.
 
 class DataFormat(models.Model):
-    df_type = models.CharField(max_length=15)
-    enum_values = models.TextField(blank=True)
+    df_type = models.CharField(max_length=15,default='enum')
+    enum_values = models.CharField(max_length=512, blank=True)
+
+    class Meta:
+        unique_together = (("df_type", "enum_values"),)
 
     def choice(self):
         if self.df_type == 'enum':

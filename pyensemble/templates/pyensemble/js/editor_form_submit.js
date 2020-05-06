@@ -1,6 +1,8 @@
 <script type="text/javascript">
-    $("#editorForm").on('submit',function(ev){
-        ev.preventDefault();
-        submitEditorForm();
+    $(function(){
+        $(".editor-form").on('submit',function(ev){
+            ev.preventDefault();
+            submitEditorForm();
+        });
     });
 </script>

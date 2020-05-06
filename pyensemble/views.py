@@ -10,7 +10,7 @@ from django.views.generic.base import TemplateView
 from django.views.decorators.http import require_http_methods
 
 import django.forms as forms
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import Q
 
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
@@ -18,10 +18,11 @@ from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
 
 from django.conf import settings
-from django.views.generic.edit import CreateView, UpdateView
+from django.views.generic.edit import CreateView, UpdateView, FormView
 
-from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response
-from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionForm, QuestionModelFormSetHelper
+from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
+
+from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSetHelper, EnumCreateForm
 
 from .tasks import get_expsess_key, fetch_subject_id
 from pyensemble.utils.parsers import parse_function_spec
@@ -191,30 +192,87 @@ class QuestionListView(ListView):
 class QuestionCreateView(CreateView):
     model = Question
     form_class = QuestionCreateForm
-    template_name = 'pyensemble/question_update.html'
+    template_name = 'pyensemble/question_create.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
         # pdb.set_trace()
         return context
-    
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+
+        form.instance.data_format = DataFormat.objects.get(id=form.cleaned_data['dfid'])
+        form.instance.save()
+
+        return super(QuestionCreateView, self).form_valid(form)
+
     def get_success_url(self):
-        return reverse_lazy('question_update', kwargs={'pk': self.object.pk})
+        return reverse_lazy('question_present', kwargs={'pk': self.object.pk})
 
 class QuestionUpdateView(UpdateView):
     model = Question
-    form_class = QuestionForm
-    template_name = 'pyensemble/question_update.html'
-    context_object_name = 'question'
+    form_class = QuestionUpdateForm
+    template_name = 'pyensemble/question_create.html'
+    # context_object_name = 'question'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form'].helper.form_action = reverse('question_update', kwargs={'pk': self.object.pk})
+
+        # pdb.set_trace()
+        return context
+
+    def form_valid(self, form):
+        context = self.get_context_data()
+
+        form.instance.data_format = DataFormat.objects.get(id=form.cleaned_data['dfid'])
+        form.instance.save()
+        return super(QuestionUpdateView, self).form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy('question_present', kwargs={'pk': self.object.pk})
+
+class QuestionPresentView(UpdateView):
+    model = Question
+    form_class = QuestionPresentForm
+    template_name = 'pyensemble/question_present.html'
+    # context_object_name = 'question'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        # pdb.set_trace()
         return context
 
+#
+# Views for enumerated response options
+# 
+class EnumListView(ListView):
+    model = DataFormat
+    context_object_name = 'enum_list'
+    template_name = 'pyensemble/enum_list.html'
+    ordering = ['pk']
+
+    # def get_context_data(self, **kwargs):
+    #     context = super().get_context_data(**kwargs)
+
+    #     return context
+
+class EnumCreateView(CreateView):
+    model = DataFormat
+    form_class = EnumCreateForm
+    template_name = 'pyensemble/enum_create.html'
+
+    def post(self,request,*args,**kwargs):
+        try:
+            super().post(request, *args, **kwargs)
+        except IntegrityError:
+            return HttpResponseBadRequest('The enum already exists')
+
     def get_success_url(self):
-        return reverse_lazy('question_update', kwargs={'pk': self.object.pk})
+        return reverse_lazy('editor')
 
 #
 # Views for running experiments
@@ -319,7 +377,7 @@ def serve_form(request, experiment_id=None):
         return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
     # Define our formset
-    QuestionModelFormSet = forms.modelformset_factory(Question, form=QuestionModelForm, extra=0, max_num=1)
+    QuestionModelFormSet = forms.modelformset_factory(Question, form=QuestionPresentForm, extra=0, max_num=1)
 
     # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
     helper = QuestionModelFormSetHelper()

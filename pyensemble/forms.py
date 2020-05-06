@@ -29,8 +29,39 @@ class ImportForm(forms.Form):
         self.helper.add_input(Submit('submit', 'Submit'))
         super(ImportForm, self).__init__(*args, **kwargs)
 
+class EnumCreateForm(forms.ModelForm):
+    class Meta:
+        model = DataFormat
+        exclude = ('df_type',)
+
+        widgets = {
+            'enum_values': forms.TextInput(attrs={'placeholder':'e.g. "Yes","No"'})
+        }
+
+    def __init__(self,*args,**kwargs):
+        super(EnumCreateForm, self).__init__(*args, **kwargs)
+
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.form_action = 'enum_create'
+        self.helper.form_class = 'editor-form'
+
+class QuestionEditHelper(FormHelper):
+    form_method = 'POST'
+    form_class = 'editor-form'
+    # form_action = '/questions/create/'
+    layout = Layout(
+        Div(
+            Field('text'),
+            Field('dfid'),
+            Field('html_field_type'),
+            css_class='text-left',
+            ),
+        # Field('locked'), 
+        )   
+
 class QuestionCreateForm(forms.ModelForm):
-    df = forms.ChoiceField(label='Response type', choices=())
+    dfid = forms.ChoiceField(label='Response type', choices=())
 
     class Meta:
         model=Question
@@ -39,7 +70,7 @@ class QuestionCreateForm(forms.ModelForm):
         widgets = {
             'text': forms.TextInput(attrs={'placeholder':'Enter the question text here'}),
             'html_field_type': forms.Select(attrs={'placeholder':'Choose a display format'}),
-            'df': forms.Select(attrs={'placeholder':'Choose a response type'})
+            'dfid': forms.Select(attrs={'placeholder':'Choose a response type'})
         }
 
     def __init__(self,*args,**kwargs):
@@ -49,30 +80,39 @@ class QuestionCreateForm(forms.ModelForm):
         self.fields['html_field_type'].label = 'Display format'
 
         # Generate choices for the data format
-        self.fields['df'].choices=((df.pk,df.choice()) for df in DataFormat.objects.all())
+        self.fields['dfid'].choices=((dfid.pk,dfid.choice()) for dfid in DataFormat.objects.all())
 
         # Deal with form layout
-        self.helper = FormHelper()
-        self.helper.form_method = 'POST'
+        self.helper = QuestionEditHelper()
         self.helper.form_action = '/questions/create/'
-        # self.helper.form_class = 'text-left'
-        self.helper.layout = Layout(
-            Div(
-                Field('text'),
-                Field('df'),
-                Field('html_field_type'),
-                css_class='text-left',
-                ),
-            # Field('locked'), 
-            Submit("submit", "Submit question")
-            )
+        # self.helper = FormHelper()
+        # self.helper.form_method = 'POST'
+        # self.helper.form_action = '/questions/create/'
+        # # self.helper.form_class = 'text-left'
+        # self.helper.layout = Layout(
+        #     Div(
+        #         Field('text'),
+        #         Field('dfid'),
+        #         Field('html_field_type'),
+        #         css_class='text-left',
+        #         ),
+        #     # Field('locked'), 
+        #     Submit("submit", "Submit question")
+        #     )
         # self.helper.add_input()
 
         # self.helper.template = 'pyensemble/partly_crispy/question.html'
 
 
+class QuestionUpdateForm(QuestionCreateForm):
+    def __init__(self,*args,**kwargs):
+        super(QuestionUpdateForm,self).__init__(*args,**kwargs)
+
+        self.helper = QuestionEditHelper()
+
+
 # borrowed this from meamstream
-class QuestionForm(forms.ModelForm):
+class QuestionPresentForm(forms.ModelForm):
     # This is just a placeholder definition that has to be here so that the field is found. The choices are actually populated at the time that the form is rendered via the __init__ function
     option = forms.ChoiceField(widget=forms.RadioSelect, choices=())
 
@@ -81,7 +121,7 @@ class QuestionForm(forms.ModelForm):
         fields = ['option']
 
     def __init__(self, *args, **kwargs):
-        super(QuestionForm, self).__init__(*args, **kwargs)
+        super(QuestionPresentForm, self).__init__(*args, **kwargs)
 
         use_crispy = True
         field_params = {'required': False}

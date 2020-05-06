@@ -36,7 +36,8 @@ function bindFunctions(){
                 $("#addButton").on('click',function(ev){
                     ev.preventDefault();
 
-                    var url = '/'+itemType.toLowerCase()+'/create/';
+                    var itemType = this.innerText;
+                    var url = '/'+itemType.slice(itemType.search(' ')+1,).toLowerCase()+'s/create/';
                     fetchDetailContent(url);
                 })
 
@@ -126,7 +127,7 @@ function submitItemAdditions(item_type){
 }
 
 function submitEditorForm(){
-    var form=$("#editorForm");
+    var form=$(".editor-form");
     $.ajax({
         type: form.attr('method'),
         url: form.attr('action'),
@@ -135,6 +136,7 @@ function submitEditorForm(){
             $("#content-right").html(response);
         },
         error: function(response){
+            $("#content-right").html();
             alert(response.responseText);
         }
     });

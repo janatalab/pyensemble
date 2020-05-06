@@ -12,6 +12,8 @@
     {% else %}
         action="{% url 'form_create' %}"
     {% endif %}
+
+    class="editor-form"
 >
 {% endif %}
     {% if formset_method|lower == 'post' and not disable_csrf %}
