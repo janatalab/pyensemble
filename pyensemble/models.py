@@ -79,9 +79,6 @@ class Question(models.Model):
 
         super(Question, self).save(*args, **kwargs)
 
-    # def get_absolute_url(self):
-    #     return reverse('question_detail', kwargs={'pk': self.pk})
-
 class Form(models.Model):
     name = models.CharField(unique=True, max_length=50)
     category = models.CharField(max_length=19, blank=True)
@@ -95,9 +92,6 @@ class Form(models.Model):
 
     questions = models.ManyToManyField('Question', through='FormXQuestion')
     experiments = models.ManyToManyField('Experiment', through='ExperimentXForm')
-
-    # def get_absolute_url(self):
-    #     return reverse('form_update', kwargs={'pk': self.pk})
 
     # Add visited and can_visit properties
 
@@ -113,9 +107,6 @@ class Experiment(models.Model):
     locked = models.BooleanField(default=False)
 
     forms = models.ManyToManyField('Form', through='ExperimentXForm')
-
-    # def get_absolute_url(self):
-    #     return reverse('experiment_update', kwargs={'pk': self.pk})
 
 class Response(models.Model):
     date_time = models.DateTimeField(auto_now_add=True)
@@ -242,7 +233,6 @@ class Ticket(models.Model):
         )
     used = models.BooleanField(default=False)
     expiration_datetime = models.DateTimeField(blank=True, null=True)
-    # session = models.ForeignKey('Session',db_column='session_id',on_delete=models.CASCADE,null=True)
     assigned = models.BooleanField(default=False)
 
     @property
@@ -259,7 +249,6 @@ class Ticket(models.Model):
 #
 
 class AttributeXAttribute(models.Model):
-    # We can't directly link the Attribute model here due to reverse accessor issues, so just refer to the IDs
     child = models.ForeignKey(
         Attribute,
         on_delete=models.CASCADE,
@@ -279,7 +268,6 @@ class AttributeXAttribute(models.Model):
 
 
 class StimulusXAttribute(models.Model):
-    # id = models.IntegerField(primary_key=True) # Not present in original ensemble db
     stimulus = models.ForeignKey('Stimulus', db_constraint=True, on_delete=models.CASCADE)
     attribute = models.ForeignKey('Attribute', db_constraint=True, on_delete=models.CASCADE)
     attribute_value_double = models.FloatField(blank=True, null=True)
@@ -289,7 +277,6 @@ class StimulusXAttribute(models.Model):
         unique_together = (("stimulus", "attribute"),)
 
 class ExperimentXStimulus(models.Model):
-    # id = models.IntegerField(primary_key=True) # Not present in original ensemble db
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     stimulus = models.ForeignKey('Stimulus', db_constraint=True, on_delete=models.CASCADE)
 
@@ -297,7 +284,6 @@ class ExperimentXStimulus(models.Model):
         unique_together = (("experiment", "stimulus"),)
 
 class FormXQuestion(models.Model):
-    #id = models.IntegerField(primary_key=True) # Not present in original ensemble db
     form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
     question = models.ForeignKey('Question', db_constraint=True, on_delete=models.CASCADE)
     question_iteration = models.IntegerField(default=1)
@@ -308,7 +294,6 @@ class FormXQuestion(models.Model):
         unique_together = (("form","question","form_question_num","question_iteration"),)
 
 class ExperimentXForm(models.Model):
-    #id = models.IntegerField(primary_key=True) # Not present in original ensemble db
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
     form_order = models.IntegerField()

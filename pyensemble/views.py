@@ -255,11 +255,6 @@ class EnumListView(ListView):
     template_name = 'pyensemble/enum_list.html'
     ordering = ['pk']
 
-    # def get_context_data(self, **kwargs):
-    #     context = super().get_context_data(**kwargs)
-
-    #     return context
-
 class EnumCreateView(CreateView):
     model = DataFormat
     form_class = EnumCreateForm

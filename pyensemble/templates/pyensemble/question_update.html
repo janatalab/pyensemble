@@ -1,0 +1,20 @@
+{% extends 'pyensemble/editor_detail.html' %}
+{% load crispy_forms_tags %}
+
+{% block detailContentTitle %}
+    Edit Question
+{% endblock %}
+
+{% block additionalDetailContentNavItems %}
+{% endblock %}
+
+{% block detailContent %}
+    <input type="hidden" id="parent_id" value="{{form.instance.pk}}">
+
+    {% crispy form %}
+
+{% endblock %}
+
+{% block formscript %}
+
+{% endblock %}
