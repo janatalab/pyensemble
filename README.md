@@ -48,17 +48,25 @@ The installation steps below are based on an installation on an Amazon Linux AMI
 
 ## Python environment and packages
 - Update pip
->`> python3 -m pip install --user --upgrade pip`
+```
+> python3 -m pip install --user --upgrade pip
+```
 
 - Deploy a virtual environment (e.g. pyensemble):
->`> python3 -m venv pyensemble`
+```
+> python3 -m venv pyensemble
+```
 
 - Activate the virtual environment:
->`> source pyensemble/bin/activate`
+```
+> source pyensemble/bin/activate
+```
 
 ### From within the directory into which you have cloned this repository
 - Install the necessary python packages (will install into your virtualenv)
->`> pip install -r requirements.txt`
+```
+> pip install -r requirements.txt
+```
 Do this for the pyensemble user and any other user who might be involved in writing code that plugs into PyEnsemble.
 
 ## Create a pyensemble user
