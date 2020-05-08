@@ -98,11 +98,9 @@ Add the following code block to httpd.conf:
 ```
 <Location /pyensemble>
   WSGIProcessGroup pyensemble_wsgi
+  WSGIScriptAlias /pyensemble /var/www/html/pyensemble/wsgi_prod.py
+  WSGIDaemonProcess pyensemble_wsgi python-home=/home/pyensemble/pyensemble python-path=/var/www/html
 </Location>
-WSGIScriptAlias /pyensemble /var/www/html/pyensemble/wsgi_prod.py
-WSGIPythonHomne /home/pyensemble/pyensemble
-WSGIPythonPath /var/www/html
-WSGIDaemonProcess pyensemble_wsgi
 
 <Directory /var/www/html/pyensemble>
   <Files wsgi.py>
