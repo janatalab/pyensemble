@@ -33,7 +33,7 @@ The installation steps below are based on an installation on an Amazon Linux AMI
 ## Clone this git repo
 ```
 > mkdir git
-> git clone 
+> git clone https://github.com/janatalab/pyensemble.git
 ```
 
 ## Python environment and packages
@@ -85,3 +85,30 @@ At this point, you could launch a development server. Please note that the Djang
 Running a production server requires that you tell your HTTP server where to find the PyEnsemble code, more specifically, the wsgi.py module that runs the application. The instructions below are for modifying the httpd.conf file for an Apache HTTP server. 
 
 You are advised to only serve pages via HTTPS in which case you will need to have an SSL certificate installed. LetsEncrypt is a good source for free SSL certificates.
+
+```
+> cd /etc/httpd/conf
+```
+
+This assumes that the root of your pyensemble project is located at /var/www/html/pyensemble. If the project is checked out under the pyensemble user, create a symlink between the user's directory and /var/www/html/pyensemble, e.g.
+
+>`> ln -s /home/pyensemble/git/pyensemble /var/www/html/pyensemble`
+
+Add the following code block to httpd.conf:
+```
+<Location /pyensemble>
+  WSGIProcessGroup pyensemble_wsgi
+</Location>
+WSGIScriptAlias /pyensemble /var/www/html/pyensemble/wsgi_prod.py
+WSGIPythonHomne /home/pyensemble/pyensemble
+WSGIPythonPath /var/www/html
+WSGIDaemonProcess pyensemble_wsgi
+
+<Directory /var/www/html/pyensemble>
+  <Files wsgi.py>
+    Allow from all
+    Order allow,deny
+  </Files>
+</Directory>
+
+```
