@@ -9,21 +9,31 @@ The installation steps below are based on an installation on an Amazon Linux AMI
 
 ## System packages and libraries
 - Install Python 3.6 or better
->`> sudo yum install python36`
+```
+> sudo yum install python36
+```
 
 - Install git (if necessary)
->`> sudo yum install git`
+```
+> sudo yum install git
+```
 
 - Install httpd (if necessary) - we use Apache 2.4
->`> sudo yum install httpd24`
+```
+> sudo yum install httpd24
+```
 
 - Install your database software of choice
 
 - Install mysql dependencies (if applicable)
->`> sudo yum install python36-devel`
+```
+> sudo yum install python36-devel
+```
 
 - Install memcached (necessary for caching session data in memory)
->`> sudo yum install memcached`
+```
+> sudo yum install memcached
+```
   - Start memcached and add it to the system files for automatic load on startup
   ```
   sudo /sbin/service memcached start
@@ -59,8 +69,7 @@ Do this for the pyensemble user and any other user who might be involved in writ
 
 Repeat the virtualenv creation, git repo cloning, and Python package steps described above for the pyensemble user.
 
-# Usage
-## Setup
+## Site-specific setup
 Getting started takes a small number of steps in order to create the database schema with which Django interacts.
 
 ### Database
@@ -74,12 +83,24 @@ In order to communicate with your database instance, you will need to edit the [
 
 ### Instantiating the database schema
 Once the settings.py file is configured with your specifics, you can populate the database tables by running a migration. From within the top-level pyensemble directory, which contains the manage.py file, run:
->`> python manage.py migrate`
+```
+> python manage.py makemigrations
+> python manage.py migrate
+```
 
 At this point, you could launch a development server. Please note that the Django development server does not support HTTPS, and running it on anything other than your local machine, i.e. localhost, risks exposure of information. To run a secure development server, use the dev_settings.py settings file:
->`> python manage.py runsslserver 0.0.0.0:8000 --settings=pyensemble.settings.dev_settings`
+```
+> python manage.py runsslserver 0.0.0.0:8000 --settings=pyensemble.settings.dev_settings
+```
 
-## Deploying the production server
+### Creating users
+In order to access the various editing interfaces and generate tickets for running experiments, it is necessary to create authorized users. At a minimum, one has to create a superuser who can then create additional users. To create a superuser, run:
+```
+> python manage.py createsuperuser
+```
+Using the admin interfaces at https://<server_name>/pyensemble/admin one can create additional users
+
+### Deploying the production server
 **DO NOT run a Django development server, even the secure one, as your production server!** When errors occur, debugging information is transmitted that may expose secret information or vulnerabilities about your system.
 
 Running a production server requires that you tell your HTTP server where to find the PyEnsemble code, more specifically, the wsgi.py module that runs the application. The instructions below are for modifying the httpd.conf file for an Apache HTTP server. 
@@ -92,7 +113,9 @@ You are advised to only serve pages via HTTPS in which case you will need to hav
 
 This assumes that the root of your pyensemble project is located at /var/www/html/pyensemble. If the project is checked out under the pyensemble user, create a symlink between the user's directory and /var/www/html/pyensemble, e.g.
 
->`> ln -s /home/pyensemble/git/pyensemble /var/www/html/pyensemble`
+```
+> ln -s /home/pyensemble/git/pyensemble /var/www/html/pyensemble
+```
 
 Add the following code block to httpd.conf:
 ```
@@ -108,5 +131,5 @@ Add the following code block to httpd.conf:
     Order allow,deny
   </Files>
 </Directory>
-
 ```
+## Usage
