@@ -20,25 +20,26 @@ from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
-from .views import EditorView, ExperimentListView, ExperimentCreateView, ExperimentUpdateView, FormListView, FormCreateView, FormUpdateView, QuestionListView, QuestionCreateView, QuestionUpdateView, QuestionPresentView, EnumListView, EnumCreateView, run_experiment, serve_form, add_experiment_form, add_form_question
+from .views import EditorView, ExperimentListView, ExperimentCreateView, ExperimentUpdateView, FormListView, FormCreateView, FormUpdateView, QuestionListView, QuestionCreateView, QuestionUpdateView, QuestionPresentView, EnumListView, EnumCreateView, run_experiment, serve_form, add_experiment_form, add_form_question, create_ticket, reset_session
 
-from pyensemble.tasks import reset_session, create_ticket
 import pyensemble.errors as error
 from pyensemble import importers
 
-from django.contrib.auth.decorators import login_required
+from .experiments import urls as experiment_urls
+
+# from django.contrib.auth.decorators import login_required
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
     path('', RedirectView.as_view(pattern_name='login',permanent=False)),
-    path('editor/', login_required(EditorView.as_view(template_name='pyensemble/editor_base.html')),name='editor'),
-    path('experiments/', login_required(ExperimentListView.as_view()), name='experiment_list'),
+    path('editor/', EditorView.as_view(template_name='pyensemble/editor_base.html'),name='editor'),
+    path('experiments/', ExperimentListView.as_view(), name='experiment_list'),
     path('experiments/create/', ExperimentCreateView.as_view(), name='experiment_create'),
     path('experiments/<int:pk>/', ExperimentUpdateView.as_view(), name='experiment_update'),
     path('experiments/run/<int:experiment_id>/start/',run_experiment, name='run_experiment'),
     path('experiments/run/<int:experiment_id>/',serve_form, name='serve_form'),
-    path('forms/', login_required(FormListView.as_view()), name='form_list'),
+    path('forms/', FormListView.as_view(), name='form_list'),
     path('forms/create/', FormCreateView.as_view(), name='form_create'),
     path('forms/<int:pk>/', FormUpdateView.as_view(), name='form_update'),
     path('forms/add/<int:experiment_id>/', add_experiment_form, name='add_experiment_form'),
@@ -54,7 +55,7 @@ urlpatterns = [
     path('ticket/create/', create_ticket, name='create_ticket'),
     path('stimuli/upload/', importers.import_stimuli.import_file),
     # Add user specific experiment URLs
-    path('experiments/', include('pyensemble.experiments.urls')),
+    path('experiments/', include(experiment_urls, namespace='experiments')),
 ]
 
 if settings.DEBUG:

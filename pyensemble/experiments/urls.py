@@ -2,12 +2,14 @@
 #
 # Enable experiment specific end-points
 
-from django.urls import path
-from .jingles import import_experiment_structure, delete_exf, import_attributes, import_stims
+from django.urls import include, path
+
+from .jingles import urls as jingle_urls
+from .musmemfmri import urls as musmemfmri_urls
+
+app_name='experiments'
 
 urlpatterns = [
-    path('jingles/import_experiment_structure/', import_experiment_structure),
-    path('jingles/import_stims/', import_stims),
-    path('jingles/import_attributes/', import_attributes),
-    path('jingles/delete_exf/<slug:title>/', delete_exf),
+    path('jingles/', include(jingle_urls, namespace='jingles')),
+    path('musmemfmri/', include(musmemfmri_urls, namespace='musmemfmri')),
 ]

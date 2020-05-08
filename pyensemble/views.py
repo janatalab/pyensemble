@@ -4,6 +4,7 @@ import json
 from django.utils import timezone
 
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 
 from django.views.generic import ListView, DetailView
 from django.views.generic.base import TemplateView
@@ -30,21 +31,21 @@ from pyensemble import experiments
 
 from crispy_forms.layout import Submit
 
+
 import pdb
 
-# @login_required
-class EditorView(TemplateView):
+class EditorView(LoginRequiredMixin,TemplateView):
     template_name = 'editor_base.html'
 
 #
 # Experiment editing views
 #
 
-class ExperimentListView(ListView):
+class ExperimentListView(LoginRequiredMixin,ListView):
     model = Experiment
     context_object_name = 'experiment_list'
 
-class ExperimentCreateView(CreateView):
+class ExperimentCreateView(LoginRequiredMixin,CreateView):
     model = Experiment
     form_class = ExperimentForm
     template_name = 'pyensemble/experiment_update.html'
@@ -52,7 +53,7 @@ class ExperimentCreateView(CreateView):
     def get_success_url(self):
         return reverse_lazy('experiment_update', kwargs={'pk': self.object.pk})
 
-class ExperimentUpdateView(UpdateView):
+class ExperimentUpdateView(LoginRequiredMixin,UpdateView):
     model = Experiment
     template_name = 'pyensemble/experiment_update.html'
     form_class = ExperimentForm
@@ -112,11 +113,11 @@ def add_experiment_form(request, experiment_id):
 # Form editing views
 #
 
-class FormListView(ListView):
+class FormListView(LoginRequiredMixin,ListView):
     model = Form
     context_object_name = 'form_list'
 
-class FormCreateView(CreateView):
+class FormCreateView(LoginRequiredMixin,CreateView):
     model = Form
     form_class = FormForm
     template_name = 'pyensemble/form_update.html'
@@ -124,7 +125,7 @@ class FormCreateView(CreateView):
     def get_success_url(self):
         return reverse_lazy('form_update', kwargs={'pk': self.object.pk})
 
-class FormUpdateView(UpdateView):
+class FormUpdateView(LoginRequiredMixin,UpdateView):
     model = Form
     template_name = 'pyensemble/form_update.html'
     form_class = FormForm
@@ -180,7 +181,7 @@ def add_form_question(request, form_id):
 # Question editing views
 #
 
-class QuestionListView(ListView):
+class QuestionListView(LoginRequiredMixin,ListView):
     model = Question
     context_object_name = 'question_list'
 
@@ -189,7 +190,7 @@ class QuestionListView(ListView):
 
         return context
 
-class QuestionCreateView(CreateView):
+class QuestionCreateView(LoginRequiredMixin,CreateView):
     model = Question
     form_class = QuestionCreateForm
     template_name = 'pyensemble/question_create.html'
@@ -211,7 +212,7 @@ class QuestionCreateView(CreateView):
     def get_success_url(self):
         return reverse_lazy('question_present', kwargs={'pk': self.object.pk})
 
-class QuestionUpdateView(UpdateView):
+class QuestionUpdateView(LoginRequiredMixin,UpdateView):
     model = Question
     form_class = QuestionUpdateForm
     template_name = 'pyensemble/question_create.html'
@@ -234,7 +235,7 @@ class QuestionUpdateView(UpdateView):
     def get_success_url(self):
         return reverse_lazy('question_present', kwargs={'pk': self.object.pk})
 
-class QuestionPresentView(UpdateView):
+class QuestionPresentView(LoginRequiredMixin,UpdateView):
     model = Question
     form_class = QuestionPresentForm
     template_name = 'pyensemble/question_present.html'
@@ -249,13 +250,13 @@ class QuestionPresentView(UpdateView):
 #
 # Views for enumerated response options
 # 
-class EnumListView(ListView):
+class EnumListView(LoginRequiredMixin,ListView):
     model = DataFormat
     context_object_name = 'enum_list'
     template_name = 'pyensemble/enum_list.html'
     ordering = ['pk']
 
-class EnumCreateView(CreateView):
+class EnumCreateView(LoginRequiredMixin,CreateView):
     model = DataFormat
     form_class = EnumCreateForm
     template_name = 'pyensemble/enum_create.html'
@@ -613,3 +614,64 @@ def serve_form(request, experiment_id=None):
     request.session.modified=True
     return render(request, form_template, context)
 
+@login_required
+def create_ticket(request):
+    # Creates a ticket for an experiment.
+    # Type can be master (multi-use) or user (single-use)
+    # pdb.set_trace()
+
+    # Get our request data
+    ticket_request = TicketCreationForm(request.POST)
+
+    # Validate the request data
+    if ticket_request.is_valid():
+        # Get the number of existing tickets
+        num_existing_tickets = Ticket.objects.all().count()
+
+        # Initialize our new ticket list
+        ticket_list = []
+
+        # Get our experiment
+        experiment_id = ticket_request.cleaned_data['experiment_id']
+        experiment = Experiment.objects.get(id=experiment_id)
+
+        # Get our ticket types
+        ticket_types = [tt[0] for tt in Ticket.TICKET_TYPE_CHOICES]
+
+        for ticket_type in ticket_types:
+            num_tickets = ticket_request.cleaned_data[f'num_{ticket_type}']
+
+            if num_tickets:
+                expiration_datetime = ticket_request.cleaned_data[f'{ticket_type}_expiration']
+
+                # Add the ticket(s)
+                for iticket in range(num_tickets):
+                    num_new_tickets = len(ticket_list)
+                    unencrypted_str = '%d_%d'%(num_existing_tickets+num_new_tickets,experiment_id)
+                    encrypted_str = hashlib.md5(unencrypted_str.encode('utf-8')).hexdigest()
+
+                    # Add a new ticket to our list
+                    ticket_list.append(Ticket(
+                        ticket_code=encrypted_str, 
+                        experiment=experiment, 
+                        type=ticket_type, 
+                        expiration_datetime=expiration_datetime)
+                    )
+
+        # Create the tickets in the database
+        Ticket.objects.bulk_create(ticket_list)
+
+        return HttpResponseRedirect(reverse('experiment_detail', 
+        args=(experiment.pk,)))
+
+def reset_session(request, experiment_id):
+    expsess_key = get_expsess_key(experiment_id)
+    expsessinfo = request.session.get(expsess_key)
+
+    if not expsessinfo:
+        msg = f'Experiment {experiment_id} session not initialized'
+    else:
+        msg = f'Experiment {experiment_id} session reset'
+        request.session[expsess_key] = {}
+
+    return render(request,'pyensemble/message.html',{'msg':msg})

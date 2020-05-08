@@ -28,8 +28,11 @@ with open(os.path.join(PASS_DIR, 'pyensemble_django_secret_key.txt')) as f:
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
-ALLOWED_HOSTS = ['atonal.ucdavis.edu']
+with open(os.path.join(PASS_DIR, 'pyensemble_allowed_hosts.txt')) as f:
+    allowed_host_names = f.read().strip()
 
+# Specify the list of allowed hosts
+ALLOWED_HOSTS = [allowed_host_names]
 
 # Application definition
 INSTALLED_APPS = [
@@ -77,21 +80,30 @@ WSGI_APPLICATION = 'pyensemble.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
-with open(os.path.join(PASS_DIR, 'ensemble_django_main_pass.txt')) as f:
+with open(os.path.join(PASS_DIR, 'pyensemble_db_name.txt')) as f:
+    DB_NAME = f.read().strip()
+
+with open(os.path.join(PASS_DIR, 'pyensemble_db_user.txt')) as f:
+    DB_USER = f.read().strip()
+
+with open(os.path.join(PASS_DIR, 'pyensemble_db_pass.txt')) as f:
     DB_PASS = f.read().strip()
+
+with open(os.path.join(PASS_DIR, 'pyensemble_db_host.txt')) as f:
+    DB_HOST = f.read().strip()
 
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'ensemble_django_main',
-        'USER': 'experimenter',
+        'NAME': DB_NAME,
+        'USER': DB_USER,
         'PASSWORD': DB_PASS,
-        'HOST': 'jlabdb.cmb.ucdavis.edu',
-        'PORT': '3306',
+        'HOST': DB_HOST,
+        'PORT': '3306', # 3306 is the default mysql port
     }
 }
 
-with open(os.path.join(PASS_DIR, 'ensemble_django_encryption_key.txt')) as f:
+with open(os.path.join(PASS_DIR, 'pyensemble_django_encryption_key.txt')) as f:
     FIELD_ENCRYPTION_KEY = f.read().strip()
 
 # Specify cache engine
@@ -148,7 +160,9 @@ STATICFILES_DIRS = [
 
 STATIC_URL = '/static/'
 
-MEDIA_ROOT = '/var/www/html/ensemble/stimuli/'
+with open(os.path.join(PASS_DIR, 'pyensemble_media_root.txt')) as f:
+    MEDIA_ROOT = f.read().strip()
+
 MEDIA_URL = '/media/'
 
 # Login and logout stuff

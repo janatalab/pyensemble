@@ -217,7 +217,6 @@ class Subject(models.Model):
     dob = EncryptedDateField()
     notes = models.TextField()
 
-
 class Ticket(models.Model):
     TICKET_TYPE_CHOICES=[
         ('master','Master'),
