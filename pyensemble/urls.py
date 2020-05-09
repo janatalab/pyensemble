@@ -30,7 +30,7 @@ from .importers import urls as importer_urls
 
 # from django.contrib.auth.decorators import login_required
 
-urlpatterns = [
+app_patterns = ([
     path('admin/', admin.site.urls),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
     path('', RedirectView.as_view(pattern_name='login',permanent=False)),
@@ -58,6 +58,10 @@ urlpatterns = [
     # Add user specific experiment URLs
     path('experiments/', include(experiment_urls, namespace='experiments')),
     path('importers/', include(importer_urls, namespace='importers')),
+], 'pyensemble')
+
+urlpatterns = [
+    path('pyensemble/', include(app_patterns)),
 ]
 
 if settings.DEBUG:
