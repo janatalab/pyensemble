@@ -115,23 +115,37 @@ Running a production server requires that you tell your HTTP server where to fin
 
 You are advised to only serve pages via HTTPS in which case you will need to have an SSL certificate installed. LetsEncrypt is a good source for free SSL certificates.
 
-```
-> cd /etc/httpd/conf
-```
-
 This assumes that the root of your pyensemble project is located at /var/www/html/pyensemble. If the project is checked out under the pyensemble user, create a symlink between the user's directory and /var/www/html/pyensemble, e.g.
 
 ```
 > ln -s /home/pyensemble/git/pyensemble /var/www/html/pyensemble
 ```
 
-Add the following code block to httpd.conf:
+Make sure that permissions on /home/pysensemble will allow at least the apache group to get through.
+
+The pyensemble application is served via mod_wsgi. It is likely that you will need to install mod_wsgi and associated Apache libraries.
+
+Make sure you have the Apache 2.4 development libraries installed:
 ```
+> sudo yum install httpd24-devel
+```
+
+Now pip install mod-wsgi:
+```
+> pip install mod_wsgi
+```
+
+Add the following code block to /etc/httpd/conf/httpd.conf (after first making a backup of httpd.conf):
+```
+LoadModule wsgi_module "/home/pyensemble/pyensemble/lib64/python3.6/dist-packages/mod_wsgi/server/mod_wsgi-py36.cpython-36m-x86_64-linux-gnu.so"
+
+WSGIPythonHome "/home/pyensemble/pyensemble"
 <Location /pyensemble>
   WSGIProcessGroup pyensemble_wsgi
-  WSGIScriptAlias /pyensemble /var/www/html/pyensemble/wsgi_prod.py
-  WSGIDaemonProcess pyensemble_wsgi python-home=/home/pyensemble/pyensemble python-path=/var/www/html
 </Location>
+
+WSGIScriptAlias /pyensemble /var/www/html/pyensemble/pyensemble/wsgi.py
+WSGIDaemonProcess pyensemble_wsgi python-home=/home/pyensemble/pyensemble python-path=/var/www/html
 
 <Directory /var/www/html/pyensemble>
   <Files wsgi.py>
@@ -140,4 +154,5 @@ Add the following code block to httpd.conf:
   </Files>
 </Directory>
 ```
+
 ## Usage
