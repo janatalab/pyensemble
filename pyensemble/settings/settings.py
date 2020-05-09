@@ -172,3 +172,34 @@ LOGOUT_REDIRECT_URL = '/'
 
 # Various things pertaining to sessions
 SESSION_DURATION=60*60*24 # default session duration
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'timestamped': {
+            'format': '%(levelname)s %(asctime)s %(module)s %(message)s',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': '/home/pyensemble/log/django-debug.txt',
+            'formatter': 'timestamped',
+        },
+        'error-file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': '/home/pyensemble/log/django-error.txt',
+            'formatter': 'timestamped',
+        }
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['file','error-file'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    },
+}
