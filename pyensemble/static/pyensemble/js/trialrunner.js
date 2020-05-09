@@ -27,10 +27,4 @@ function start_trial(timeline){
     // Initialize jsPsych
     jsPsych.init(options);
 
-    // Run the jsPsych timeline
-    // jsPsych.startExperiment(); 
 }
-
-// $(document).ready(function () {
-
-// });

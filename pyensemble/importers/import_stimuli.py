@@ -23,10 +23,8 @@ class StimulusImportForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         self.helper = FormHelper()
-        # self.helper.form_id = 'id-exampleForm'
         self.helper.form_class = 'importform'
         self.helper.form_method = 'post'
-        # self.helper.form_action = 'submit_survey'
 
         self.helper.add_input(Submit('submit', 'Submit'))
         super(StimulusImportForm, self).__init__(*args, **kwargs)

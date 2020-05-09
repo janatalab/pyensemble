@@ -26,6 +26,7 @@ import pyensemble.errors as error
 from pyensemble import importers
 
 from .experiments import urls as experiment_urls
+from .importers import urls as importer_urls
 
 # from django.contrib.auth.decorators import login_required
 
@@ -56,6 +57,7 @@ urlpatterns = [
     path('stimuli/upload/', importers.import_stimuli.import_file),
     # Add user specific experiment URLs
     path('experiments/', include(experiment_urls, namespace='experiments')),
+    path('importers/', include(importer_urls, namespace='importers')),
 ]
 
 if settings.DEBUG:

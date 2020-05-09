@@ -1,10 +1,17 @@
 # tasks.py
+import hashlib
+
 from pyensemble.models import Subject
 
 import pdb
 
 def get_expsess_key(experiment_id):
     return f'experiment_{experiment_id}'
+
+def hash_text(text):
+    m = hashlib.md5()
+    m.update(text.encode('utf-8'))
+    return m.digest()
 
 def fetch_subject_id(subject, scheme='nhdl'):
     subject_id=None

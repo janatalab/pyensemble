@@ -1,6 +1,7 @@
 # views.py
 import os, re
 import json
+import hashlib
 from django.utils import timezone
 
 from django.contrib.auth.decorators import login_required
@@ -661,7 +662,7 @@ def create_ticket(request):
         # Create the tickets in the database
         Ticket.objects.bulk_create(ticket_list)
 
-        return HttpResponseRedirect(reverse('experiment_detail', 
+        return HttpResponseRedirect(reverse('experiment_update', 
         args=(experiment.pk,)))
 
 def reset_session(request, experiment_id):

@@ -38,7 +38,7 @@ class DataFormat(models.Model):
         return self._choice
 
 class Question(models.Model):
-    unique_hash = models.CharField(max_length=32, unique=True)
+    _unique_hash = models.CharField(max_length=128, unique=True, db_column='unique_hash')
     text = models.TextField(blank=False)
     category = models.CharField(max_length=64, blank=True)
 
@@ -63,7 +63,7 @@ class Question(models.Model):
     forms = models.ManyToManyField('Form', through='FormXQuestion')
 
     class Meta:
-        unique_together = (("unique_hash", "data_format"),)
+        unique_together = (("_unique_hash", "data_format"),)
 
     def __unicode__(self):
         return self.text
@@ -72,12 +72,19 @@ class Question(models.Model):
         items = self.data_format.enum_values.split('","')
         return [(idx,lbl.replace('"','')) for idx,lbl in enumerate(items)]
 
-    def save(self, *args, **kwargs):
-        m = hashlib.md5()
-        m.update(self.text.encode('utf-8'))
-        self.unique_hash = m.digest()
+    @property
+    def unique_hash(self):
+        if self.text:
+            m = hashlib.md5()
+            m.update(self.text.encode('utf-8'))
+            self._unique_hash = m.digest()
+        else:
+            self._unique_hash = ''
 
-        super(Question, self).save(*args, **kwargs)
+        return self._unique_hash
+
+    # def save(self, *args, **kwargs):
+    #     super(Question, self).save(*args, **kwargs)
 
 class Form(models.Model):
     name = models.CharField(unique=True, max_length=50)
