@@ -158,6 +158,8 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "thirdparty"),
 ]
 
+
+STATIC_ROOT '/var/www/html/static/'
 STATIC_URL = '/static/'
 
 with open(os.path.join(PASS_DIR, 'pyensemble_media_root.txt')) as f:
