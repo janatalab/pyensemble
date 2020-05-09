@@ -14,16 +14,6 @@ from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment
 
 import pdb
 
-class ImportForm(forms.Form):
-    file = forms.FileField(label='Select a .csv or .json file to import')
-
-    def __init__(self, *args, **kwargs):
-        self.helper = FormHelper()
-        self.helper.form_class = 'importform'
-        self.helper.form_method = 'post'
-
-        self.helper.add_input(Submit('submit', 'Submit'))
-        super(ImportForm, self).__init__(*args, **kwargs)
 
 class EnumCreateForm(forms.ModelForm):
     class Meta:
@@ -53,7 +43,6 @@ class QuestionEditHelper(FormHelper):
             Field('html_field_type'),
             css_class='text-left',
             ),
-        # Field('locked'), 
         )   
 
 class QuestionCreateForm(forms.ModelForm):
@@ -61,7 +50,7 @@ class QuestionCreateForm(forms.ModelForm):
 
     class Meta:
         model=Question
-        exclude=('unique_hash','forms','data_format','category','value_range','value_default','audio_path')
+        exclude=('_unique_hash','forms','data_format','category','value_range','value_default','audio_path')
 
         widgets = {
             'text': forms.TextInput(attrs={'placeholder':'Enter the question text here'}),
