@@ -21,13 +21,14 @@ $(document).ready(function () {
 
 function bindFunctions(){
     $(".content-link").on('click', function(ev){
-        var itemType = ev.target.innerText;
-//        var url = itemType.toLowerCase()+'/'
+        ev.preventDefault();
 
-        // Get listing of the items
+        var itemType = ev.target.innerText;
+
         $.ajax({
             url: ev.target.href,
             type: 'GET',
+            dataType: 'html',
             success: function(response){
                 $("#content-right").addClass('d-none');
 
@@ -142,3 +143,17 @@ function submitEditorForm(){
     });
 }
 
+function submitForm(target){
+    $.ajax({
+        type: target.attr('method'),
+        url: target.attr('action'),
+        data: target.serialize(),
+        success: function(response){
+            $("#content-right").html(response);
+        },
+        error: function(response){
+            $("#content-right").html();
+            alert(response.responseText);
+        }
+    });
+}

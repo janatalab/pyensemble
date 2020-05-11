@@ -218,9 +218,10 @@ class TicketCreationForm(forms.Form):
     experiment_id = forms.IntegerField(widget=forms.HiddenInput())
 
     helper = FormHelper()
-    helper.add_input(Submit('submit', 'Create Ticket(s)', css_class='btn-primary contentlist-item-link'))
+    # helper.add_input(Submit('submit', 'Create Ticket(s)', css_class='btn-primary contentlist-item-link'))
     helper.form_method = 'POST'
     helper.form_action = 'create_ticket'
+    helper.form_id = 'ticketCreateForm'
 
 class RegisterSubjectForm(forms.ModelForm):
 

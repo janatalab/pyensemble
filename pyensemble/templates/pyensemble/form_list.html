@@ -19,7 +19,7 @@
                     {% if request.GET.type == 'select' %}
                         {{f.name}}
                     {% else %}
-                        <a class="contentlist-item-link" href="/forms/{{f.pk}}/">{{ f.name }}</a>
+                        <a class="contentlist-item-link" href="{% url 'form_update' f.pk %}">{{ f.name }}</a>
                     {% endif %}
                 </td>
             </tr>

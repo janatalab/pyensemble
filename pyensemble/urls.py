@@ -34,8 +34,6 @@ editor_patterns = [
     path('experiments/', ExperimentListView.as_view(), name='experiment_list'),
     path('experiments/create/', ExperimentCreateView.as_view(), name='experiment_create'),
     path('experiments/<int:pk>/', ExperimentUpdateView.as_view(), name='experiment_update'),
-    path('experiments/run/<int:experiment_id>/start/',run_experiment, name='run_experiment'),
-    path('experiments/run/<int:experiment_id>/',serve_form, name='serve_form'),
     path('forms/', FormListView.as_view(), name='form_list'),
     path('forms/create/', FormCreateView.as_view(), name='form_create'),
     path('forms/<int:pk>/', FormUpdateView.as_view(), name='form_update'),
@@ -49,12 +47,14 @@ editor_patterns = [
     path('enums/create/', EnumCreateView.as_view(), name='enum_create'),
 ]
 
-urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
+app_patterns = [
     path('', RedirectView.as_view(pattern_name='login',permanent=False)),
+    path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
+    path('admin/', admin.site.urls),
     path('editor/', EditorView.as_view(template_name='pyensemble/editor_base.html'),name='editor'),
     path('editor/', include(editor_patterns)),
+    path('run/<int:experiment_id>/start/',run_experiment, name='run_experiment'),
+    path('run/<int:experiment_id>/',serve_form, name='serve_form'),    
     path('session/reset/<int:experiment_id>/',reset_session, name='reset_session'),
     path('error/<slug:feature_string>/', error.feature_not_enabled, name='feature_not_enabled'),
     path('ticket/create/', create_ticket, name='create_ticket'),
@@ -64,9 +64,9 @@ urlpatterns = [
     path('importers/', include(importer_urls, namespace='importers')),
 ]
 
-#urlpatterns = [
-#    path('pyensemble/', include(app_patterns)),
-#]
+urlpatterns = [
+   path('pyensemble/', include(app_patterns)),
+]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL,
