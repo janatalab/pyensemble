@@ -17,9 +17,9 @@
                 <td></td>
                 <td class="text-left">
                     {% if request.GET.type == 'select' %}
-                        {{f.name}}
+                        {{e.title}}
                     {% else %}
-                        <a class="contentlist-item-link" href="/experiments/{{e.pk}}/">{{ e.title }}</a>
+                        <a class="contentlist-item-link" href="{% url 'experiment_update' e.pk %}">{{ e.title }}</a>
                     {% endif %}
                 </td>
             </tr>

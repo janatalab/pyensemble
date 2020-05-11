@@ -21,13 +21,14 @@ $(document).ready(function () {
 
 function bindFunctions(){
     $(".content-link").on('click', function(ev){
-        var itemType = ev.target.innerText;
-        var url = '/'+itemType.toLowerCase()+'/';
+        ev.preventDefault();
 
-        // Get listing of the items
+        var itemType = ev.target.innerText;
+
         $.ajax({
-            url: url,
+            url: ev.target.href,
             type: 'GET',
+            dataType: 'html',
             success: function(response){
                 $("#content-right").addClass('d-none');
 
@@ -37,7 +38,7 @@ function bindFunctions(){
                     ev.preventDefault();
 
                     var itemType = this.innerText;
-                    var url = '/'+itemType.slice(itemType.search(' ')+1,).toLowerCase()+'s/create/';
+                    var url = itemType.slice(itemType.search(' ')+1,).toLowerCase()+'s/create/';
                     fetchDetailContent(url);
                 })
 
@@ -97,7 +98,7 @@ function fetchDetailContent(url){
 
 function fetchItemList(item_type){
     $.ajax({
-        url: '/'+item_type+'/',
+        url: item_type+'/',
         type: 'GET',
         data: {'type':'select'},
         success: function(response){
@@ -114,7 +115,7 @@ function submitItemAdditions(item_type){
     data = $("#addItemTable table").bootstrapTable('getAllSelections').map(function(d){return d.name});
     parent_id = $("#parent_id").val();
     $.ajax({
-        url: '/'+item_type+'/add/'+parent_id+'/',
+        url: item_type+'/add/'+parent_id+'/',
         type: 'POST',
         data: JSON.stringify(data),
         success: function(response){
@@ -142,3 +143,17 @@ function submitEditorForm(){
     });
 }
 
+function submitForm(target){
+    $.ajax({
+        type: target.attr('method'),
+        url: target.attr('action'),
+        data: target.serialize(),
+        success: function(response){
+            $("#content-right").html(response);
+        },
+        error: function(response){
+            $("#content-right").html();
+            alert(response.responseText);
+        }
+    });
+}

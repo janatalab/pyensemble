@@ -18,11 +18,7 @@
                 <tr class="contentlist-item">
                     <td></td>
                     <td class="text-left">        
-                        {% if request.GET.type == 'select' %}
-                            {{e.enum_values}}
-                        {% else %}
-                            <a class="contentlist-item-link" href="/enums/{{q.pk}}/">{{ e.enum_values}}</a>
-                        {% endif %}
+                        {{e.enum_values}}
                     </td>
                 </tr>
             {% endif %}

@@ -6,7 +6,7 @@
         <div class="collapse navbar-collapse" id="detailEditorNav">
             <ul class="navbar-nav nav-pills nav-fill">
                 <li class="nav-item">
-                    <a class="nav-link" data-toggle="modal" role="button" data-target="#ticketModal" href="#">Generate Tickets</a>
+                    <a class="nav-link" data-toggle="modal" role="button" data-target="#ticketModal" href="">Generate Tickets</a>
                 </li>
             </ul>
             <div class="nav-item ml-auto">Click on a ticket URL to run the experiment</div>
@@ -31,7 +31,7 @@
                         <tr>
                           <td>{{ticket.ticket_code}}</td>
                           <td>{{ticket.expiration_datetime}}</td>
-                          <td> <a href="/experiments/run/{{experiment.pk}}/start/?tc={{ticket.ticket_code}}">Run</a></td>
+                          <td> <a href="{% url 'run_experiment' experiment.pk %}?tc={{ticket.ticket_code}}">Run</a></td>
                         </tr>
                     {% endfor %}
                   </tbody>

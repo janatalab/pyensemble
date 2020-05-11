@@ -13,8 +13,8 @@
         {% crispy ticket_form %}
       </div>
       <div class="modal-footer">
+        <button id="createTicketBtn" type="button" class="btn btn-primary mr-auto">Create ticket(s)</button>
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
-        <!-- <button type="button" class="btn btn-primary">Create ticket(s)</button> -->
       </div>
     </div>
   </div>
@@ -28,5 +28,10 @@
     $("#id_user_expiration").datetimepicker({
       format: 'd/m/Y H:00',
     });
+    $("#createTicketBtn").on('click', function(ev){
+      ev.preventDefault();
+      $("#ticketModal").modal('hide');
+      submitForm($("#ticketCreateForm"));
+    })
   });
 </script>

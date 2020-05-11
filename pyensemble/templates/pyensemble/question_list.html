@@ -20,7 +20,7 @@
                     {% if request.GET.type == 'select' %}
                         {{q.text}}
                     {% else %}
-                        <a class="contentlist-item-link" href="/questions/{{q.pk}}/">{{ q.text}}</a>
+                        <a class="contentlist-item-link" href="{% url 'question_present' q.pk %}">{{ q.text}}</a>
                     {% endif %}
                 </td>
             </tr>

@@ -160,7 +160,7 @@ STATICFILES_DIRS = [
 
 
 STATIC_ROOT = '/var/www/html/static/pyensemble/'
-STATIC_URL = '/static/pyensemble/'
+STATIC_URL = '/static/'
 
 with open(os.path.join(PASS_DIR, 'pyensemble_media_root.txt')) as f:
     MEDIA_ROOT = f.read().strip()
@@ -168,7 +168,7 @@ with open(os.path.join(PASS_DIR, 'pyensemble_media_root.txt')) as f:
 MEDIA_URL = '/media/'
 
 # Login and logout stuff
-LOGIN_URL = '/accounts/login/'
+LOGIN_URL = 'accounts/login/'
 LOGIN_REDIRECT_URL = '/pyensemble/editor/'
 LOGOUT_REDIRECT_URL = '/'
 

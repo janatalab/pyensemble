@@ -11,17 +11,17 @@
 
 {% block header %}
 <nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light">
-    <a class="navbar-brand" href="/editor/">PyEnsemble</a>
+    <a class="navbar-brand" href="{% url 'editor' %}">PyEnsemble</a>
     <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#editor-navbar" aria-expanded="false" aria-controls="editor-navbar">
         <span class="navbar-toggler-icon"></span>
     </button>
 
     <div class="collapse navbar-collapse" id="editor-navbar">
         <ul class="navbar-nav mr-auto">
-            <li class="nav-item content-link"><a class="nav-link" href="#">Experiments</a></li>
-            <li><a class="nav-link content-link" href="#">Forms</a></li>
-            <li><a class="nav-link content-link" href="#">Questions</a></li>
-            <li><a class="nav-link content-link" href="#">Enums</a></li>
+            <li class="nav-item content-link"><a class="nav-link" href="{% url 'experiment_list' %}">Experiments</a></li>
+            <li><a class="nav-link content-link" href="{% url 'form_list' %}">Forms</a></li>
+            <li><a class="nav-link content-link" href="{% url 'question_list' %}">Questions</a></li>
+            <li><a class="nav-link content-link" href="{% url 'enum_list' %}">Enums</a></li>
         </ul>
     </div>
   </div>
