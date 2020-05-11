@@ -151,8 +151,7 @@ WSGIDaemonProcess pyensemble_wsgi python-home=/home/pyensemble/pyensemble python
 
 <Directory /var/www/html/pyensemble>
   <Files wsgi.py>
-    Allow from all
-    Order allow,deny
+    Require all granted
   </Files>
 </Directory>
 ```
