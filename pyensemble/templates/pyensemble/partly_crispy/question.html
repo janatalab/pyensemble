@@ -24,7 +24,7 @@
                 <div class="response-options row mt-2 justify-content-center align-items-end pt-3 border-top">
                     {% for choice in field.field.choices %}
                         {% if field|is_radioselect %}
-                            <div class="col-2">
+                            <div class="{% if field.field.choices|length > 6 %}col{%else%}col-2{%endif%}">
                                     <div class='col-12'>
                                         <label for="id_{{ field.html_name }}_{{ forloop.counter }}" class="form-check-label">
                                             {{ choice.1|unlocalize }}
