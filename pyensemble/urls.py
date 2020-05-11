@@ -65,7 +65,8 @@ app_patterns = [
 ]
 
 urlpatterns = [
-   path('pyensemble/', include(app_patterns)),
+#   path('pyensemble/', include(app_patterns)),
+    path('', include(app_patterns)),
 ]
 
 if settings.DEBUG:
