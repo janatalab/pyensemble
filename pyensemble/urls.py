@@ -30,11 +30,7 @@ from .importers import urls as importer_urls
 
 # from django.contrib.auth.decorators import login_required
 
-app_patterns = ([
-    path('admin/', admin.site.urls),
-    path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
-    path('', RedirectView.as_view(pattern_name='login',permanent=False)),
-    path('editor/', EditorView.as_view(template_name='pyensemble/editor_base.html'),name='editor'),
+editor_patterns = [
     path('experiments/', ExperimentListView.as_view(), name='experiment_list'),
     path('experiments/create/', ExperimentCreateView.as_view(), name='experiment_create'),
     path('experiments/<int:pk>/', ExperimentUpdateView.as_view(), name='experiment_update'),
@@ -51,6 +47,14 @@ app_patterns = ([
     path('questions/add/<int:form_id>/', add_form_question, name='add_form_question'),
     path('enums/', EnumListView.as_view(), name='enum_list'),
     path('enums/create/', EnumCreateView.as_view(), name='enum_create'),
+]
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
+    path('', RedirectView.as_view(pattern_name='login',permanent=False)),
+    path('editor/', EditorView.as_view(template_name='pyensemble/editor_base.html'),name='editor'),
+    path('editor/', include(editor_patterns)),
     path('session/reset/<int:experiment_id>/',reset_session, name='reset_session'),
     path('error/<slug:feature_string>/', error.feature_not_enabled, name='feature_not_enabled'),
     path('ticket/create/', create_ticket, name='create_ticket'),
@@ -58,11 +62,11 @@ app_patterns = ([
     # Add user specific experiment URLs
     path('experiments/', include(experiment_urls, namespace='experiments')),
     path('importers/', include(importer_urls, namespace='importers')),
-], 'pyensemble')
-
-urlpatterns = [
-    path('pyensemble/', include(app_patterns)),
 ]
+
+#urlpatterns = [
+#    path('pyensemble/', include(app_patterns)),
+#]
 
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL,
