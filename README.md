@@ -73,6 +73,7 @@ Do this for the pyensemble user and any other user who might be involved in writ
 ```
 > sudo adduser pyensemble
 > sudo passwd pyensemble
+> sudo usermod -a -G www pyensemble
 ```
 
 Repeat the virtualenv creation, git repo cloning, and Python package steps described above for the pyensemble user.
@@ -94,6 +95,7 @@ Once the settings.py file is configured with your specifics, you can populate th
 ```
 > python manage.py makemigrations
 > python manage.py migrate
+> python manage.py collecstatic
 ```
 
 At this point, you could launch a development server. Please note that the Django development server does not support HTTPS, and running it on anything other than your local machine, i.e. localhost, risks exposure of information. To run a secure development server, use the dev_settings.py settings file:
@@ -154,5 +156,13 @@ WSGIDaemonProcess pyensemble_wsgi python-home=/home/pyensemble/pyensemble python
   </Files>
 </Directory>
 ```
+
+Restart the httpd server
+```
+> sudo service httpd restart
+```
+
+
+Sometimes issues arise with permissions on the logging files. It may be necessary to delete the files in the log directory before restarting the server or trying to load pyensemble.
 
 ## Usage
