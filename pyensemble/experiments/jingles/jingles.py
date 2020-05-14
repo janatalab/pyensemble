@@ -16,6 +16,8 @@ import django.forms as forms
 from django.utils import timezone
 from django.db.models import Q, Count, Min
 
+from django.contrib.auth.decorators import login_required
+
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit
 
@@ -41,6 +43,7 @@ study_params = {
 # class JingleStudy(object):
 
 # Imports stimuli for Angela Nazarian's jingle study
+@login_required
 def import_stims(request,stimdir=stimdir):
     # Determine the number of subdirectories, corresponding to media types
     mediadirs = []
@@ -78,6 +81,7 @@ def import_stims(request,stimdir=stimdir):
 
     return render(request,'pyensemble/message.html',{'msg':'Successfully imported the stimuli'})
 
+@login_required
 def import_attributes(request):
     template = 'pyensemble/importers/import_generic.html'
 
@@ -108,14 +112,6 @@ def import_attributes(request):
                 'Modality': 'Modality',
             }
             numeric = ['First_Played','Last_Played']
-
-            condensed_categories = {
-                'Transportation': ['Transportation','Automobiles'],
-                'Consumables': [],
-                'Non-Consumables and Services': [],
-                'Household Cleaners': [],
-                'Child and Toddler': [],
-            }
 
             for row in reader:
                 # Get a stimulus object based on the name
@@ -152,6 +148,7 @@ def import_attributes(request):
 
     return render(request, template, context)
 
+@login_required
 def delete_exf(request,title):
     ExperimentXForm.objects.filter(experiment__title=title).delete()
     return render(request,'pyensemble/message.html',{'msg':f'Deleted experimentxform for {title}'})
@@ -244,7 +241,7 @@ def select_study1(request,*args,**kwargs):
     media_year_ranges = [((dob+timezone.timedelta(days=r[0]*365)).year,(dob+timezone.timedelta(days=r[1]*365)).year) for r in age_ranges]
 
     # Get our list of stimuli that this subject has already encountered
-    presented_stim_ids = Response.objects.filter(experiment=session.experiment, subject_id=subject, stimulus__isnull=False).values_list('stimulus',flat=True)
+    presented_stim_ids = Response.objects.filter(experiment=session.experiment, subject_id=subject, stimulus__isnull=False).values_list('stimulus',flat=True).distinct()
     presented_stims = Stimulus.objects.filter(id__in=presented_stim_ids)
 
     # Get the last presented stimulus to this subject in this experiment
@@ -262,15 +259,31 @@ def select_study1(request,*args,**kwargs):
 
     # Exclude stimuli that are in the same advertisement grouping as any of the presented stimui
     for stim in presented_stims:
-        # Get the grouping identifier
-        match = re.match('^(?P<group_str>\d+)_',stim.name)
+        use_prefix = False
+        if use_prefix:
+            # Get the grouping identifier
+            match = re.match('^(?P<group_str>\d+)_',stim.name)
 
-        if not match:
-            # If we don't have a grouping identifier, just continue
-            continue
+            if not match:
+                # If we don't have a grouping identifier, just continue
+                continue
 
-        group_str = match.groupdict()['group_str']
-        possible_stims = possible_stims.exclude(name__iregex=r'^%s'%(group_str))
+            group_str = match.groupdict()['group_str']
+            possible_stims = possible_stims.exclude(name__iregex=r'^%s'%(group_str))
+
+        else:
+            try:
+                # Find the item that this stimulus advertised
+                sxa_instance = StimulusXAttribute.objects.get(stimulus=stim,attribute__name='Product')
+
+                product_name = sxa_instance.attribute_value_text
+
+                possible_stims = possible_stims.exclude(
+                    stimulusxattribute__attribute__id=sxa_instance.attribute.id,
+                    stimulusxattribute__attribute_value_text=product_name)
+            except:
+                if settings.DEBUG:
+                    pdb.set_trace()
 
     # Exclude stimuli that have the same company as the previously presented stimulus
     if previous_stim:
