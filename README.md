@@ -95,7 +95,6 @@ Once the settings.py file is configured with your specifics, you can populate th
 ```
 > python manage.py makemigrations
 > python manage.py migrate
-> python manage.py collecstatic
 ```
 
 At this point, you could launch a development server. Please note that the Django development server does not support HTTPS, and running it on anything other than your local machine, i.e. localhost, risks exposure of information. To run a secure development server, use the dev_settings.py settings file:
@@ -155,6 +154,21 @@ WSGIDaemonProcess pyensemble_wsgi python-home=/home/pyensemble/pyensemble python
   </Files>
 </Directory>
 ```
+
+Make sure that the static files for jsPsych are visible. Since jsPsych is a git submodule, one has to run a couple of commands to clone the submodule:
+
+```
+> git submodule init
+> git submodule update
+```
+
+Now make sure to collect all of the static files
+```
+> python manage.py collectstatic --settings=pyensemble.settings.prepprod_settings
+```
+
+The prepprod_settings.py settings module is identical to settings.py but it turns off logging to avoid permission conflicts.
+
 
 Restart the httpd server
 ```
