@@ -91,7 +91,7 @@ class QuestionPresentForm(forms.ModelForm):
         super(QuestionPresentForm, self).__init__(*args, **kwargs)
 
         use_crispy = True
-        field_params = {'required': False}
+        field_params = {'required': True}
 
         # Set up the input field as a function of the HTML type
         html_field_type = self.instance.html_field_type
