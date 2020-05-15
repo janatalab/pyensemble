@@ -39,12 +39,6 @@ The installation steps below are based on an installation on an Amazon Linux AMI
   sudo /sbin/service memcached start
   sudo chkconfig memcached on
   ```
-  
-## Clone this git repo
-```
-> mkdir git
-> git clone https://github.com/janatalab/pyensemble.git
-```
 
 ## Python environment and packages
 - Update pip
@@ -52,14 +46,21 @@ The installation steps below are based on an installation on an Amazon Linux AMI
 > python3 -m pip install --user --upgrade pip
 ```
 
-- Deploy a virtual environment (e.g. pyensemble):
+- In your home directory, or within a project directory, deploy a virtual environment (e.g. pyensemble):
 ```
+> cd ~
 > python3 -m venv pyensemble
 ```
 
 - Activate the virtual environment:
 ```
 > source pyensemble/bin/activate
+```
+
+## Clone this git repo
+```
+> mkdir git
+> git clone https://github.com/janatalab/pyensemble.git
 ```
 
 ### From within the directory into which you have cloned this repository
