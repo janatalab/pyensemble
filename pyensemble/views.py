@@ -67,7 +67,7 @@ class ExperimentUpdateView(LoginRequiredMixin,UpdateView):
             context['formset'] = ExperimentFormFormset(instance=self.object, queryset=self.object.experimentxform_set.order_by('form_order'))
 
         context['tickets'] = {'master': context['experiment'].ticket_set.filter(Q(type='master', expiration_datetime=None) | Q(type='master',expiration_datetime__gte=timezone.now())),
-            'user': context['experiment'].ticket_set.filter(Q(type='user', expiration_datetime=None) | Q(type='user',expiration_datetime__gte=timezone.now()))}
+            'user': context['experiment'].ticket_set.filter(Q(type='user', expiration_datetime=None, used=False) | Q(type='user',expiration_datetime__gte=timezone.now(), used=False))}
 
         # Get the form for our ticket creation modal
         context['ticket_form'] = TicketCreationForm(initial={'experiment_id':context['experiment'].id})        

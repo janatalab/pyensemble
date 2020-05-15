@@ -21,6 +21,10 @@
     <!-- Insert necessary plugins -->
     {% for trial in timeline %}
         <script src="{% static 'jsPsych/plugins/jspsych-'|add:trial.type|add:'.js' %}"></script>
+
+        {% if 'audio' in trial.type %}
+            <script src="http://www.google.com/url?q=http%3A%2F%2Fcwilso.github.com%2FAudioContext-MonkeyPatch%2FAudioContextMonkeyPatch.js&sa=D&sntz=1&usg=AFQjCNHkaUtWVF_hbymkU-qEf1LffO3_NA"></script>
+        {% endif %}
     {% endfor %}
 
     <script>
