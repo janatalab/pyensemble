@@ -182,10 +182,10 @@ def stim_was_familiar_and_jingle(request,*args,**kwargs):
         return False
 
     # Get the form we want
-    form = Form.objects.get(name='Jingle Project Familiarity')
+    form_name='Jingle Project Familiarity'
 
     # Get the response corresponding to this stimulus
-    last_response = Response.objects.filter(session=kwargs['session_id'],form=form, form_question_num=0, stimulus=stimulus_id).last()
+    last_response = Response.objects.filter(session=kwargs['session_id'],form__name=form_name, question__text__contains='familiar', stimulus=stimulus_id).last()
 
     # Check whether our enum matches
     # pdb.set_trace()
@@ -329,11 +329,17 @@ def select_study1(request,*args,**kwargs):
     age_idx = available_ranges[random.randrange(0,len(available_ranges))]
 
     # Select from among the least played stimuli in the target category
-    select_from_stims = stims_x_agerange[age_idx].filter(stimulusxattribute__attribute_value_text=media_types[media_idx])
+    select_from_stims = stims_x_agerange[age_idx].filter(
+        stimulusxattribute__attribute__name='Media Type',
+        stimulusxattribute__attribute_value_text=media_types[media_idx])
     num_min = select_from_stims.aggregate(Min('num_responses'))['num_responses__min']
     select_from_stims = select_from_stims.filter(num_responses=num_min)
 
     # We've arrived at our stimulus
+    if not select_from_stims.count():
+        if settings.DEBUG:
+            pdb.set_trace()
+
     stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
 
     #
