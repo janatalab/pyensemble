@@ -41,7 +41,10 @@ The installation steps below are based on an installation on an Amazon Linux AMI
   ```
 
 ## Python environment and packages
-- Update pip
+
+The instructions below apply both to installing a production server user, e.g. pyensemble, as well as any other user on your machine who will be involved in development/testing of site-specific experiments.
+
+- Upgrade pip (optional)
 ```
 > python3 -m pip install --user --upgrade pip
 ```
@@ -60,10 +63,11 @@ The installation steps below are based on an installation on an Amazon Linux AMI
 ## Clone this git repo
 ```
 > mkdir git
+> cd git
 > git clone https://github.com/janatalab/pyensemble.git
 ```
 
-### From within the directory into which you have cloned this repository
+### From within the directory into which you have cloned this repository, e.g. ~/git/pyensemble/
 - Install the necessary python packages (will install into your virtualenv)
 ```
 > pip install -r requirements.txt
