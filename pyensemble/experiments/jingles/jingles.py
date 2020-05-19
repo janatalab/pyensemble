@@ -34,8 +34,8 @@ stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
 study_params = {
     'jingle_project_study1': {
         'age_ranges':[(6,16),(17,30),(31,64),(65,120)],
-        'logo_duration_ms': 5000,
-        'slogan_duration_ms': 5000,
+        'logo_duration_ms': 15000,
+        'slogan_duration_ms': 15000,
     }
 }
 
