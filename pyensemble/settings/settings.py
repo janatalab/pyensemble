@@ -155,7 +155,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, "thirdparty"),
+    os.path.join(BASE_DIR, "thirdparty/"),
 ]
 
 
@@ -165,7 +165,7 @@ STATIC_URL = '/static/'
 with open(os.path.join(PASS_DIR, 'pyensemble_media_root.txt')) as f:
     MEDIA_ROOT = f.read().strip()
 
-MEDIA_URL = '/media/'
+MEDIA_URL = '/ensemble/stimuli/'
 
 # Login and logout stuff
 LOGIN_URL = 'login'
