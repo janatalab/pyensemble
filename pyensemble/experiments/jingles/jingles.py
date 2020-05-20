@@ -159,7 +159,7 @@ def age_meets_criterion_and_lived_in_USA(request,*args,**kwargs):
     dob = Session.objects.get(id=kwargs['session_id']).subject.dob
 
     #display this form if the'yre under 18 years of age
-    if (timezone.now().date()-dob).days < int(kwargs['min'])*365:
+    if (timezone.now().date()-dob).days > int(kwargs['min'])*365:
        return False
 
     # Get the form we want
