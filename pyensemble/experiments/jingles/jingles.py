@@ -158,8 +158,8 @@ def age_meets_criterion_and_lived_in_USA(request,*args,**kwargs):
     # Get the subject's dob from the session
     dob = Session.objects.get(id=kwargs['session_id']).subject.dob
 
-    #if they're older than 17 years of age, they should not receive this form
-    if (timezone.now().date()-dob).days > int(kwargs['max'])*365:
+    #display this form if the'yre under 18 years of age
+    if (timezone.now().date()-dob).days < int(kwargs['min'])*365:
        return False
 
     # Get the form we want
@@ -169,7 +169,7 @@ def age_meets_criterion_and_lived_in_USA(request,*args,**kwargs):
     USA_response = Response.objects.filter(session=kwargs['session_id'],form__name=form_name, question__text__contains='born').last()
 
     # Do not present this form to them if they did not state that they moved here from 6 years of age or older
-    if USA_response.response_enum != '6-9 years' and last_response.response_enum != '10 or more years':
+    if USA_response.response_enum < 6:
         return False
 
 def age_meets_criterion(request,*args,**kwargs):
@@ -364,6 +364,13 @@ def select_study1(request,*args,**kwargs):
     #
     # Now, set up the jsPsych trial
     #
+    prestim_trial = {
+    		'type':'html-keyboard-response'.
+    		'stimulus':'<div style="font-size:35px;">You will be presented with an advertisement on the next page</div>',
+    		'choices': jsPsych.NO_KEYS,
+    		'trial_duration': 3000
+    	}
+    timeline.push(prestim_trial)
 
     # Determine the stimulus type
     media_type = media_types[media_idx]
