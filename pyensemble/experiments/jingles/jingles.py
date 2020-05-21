@@ -368,14 +368,14 @@ def select_study1(request,*args,**kwargs):
 
     # Specify the trial based on the jsPsych definition for the corresponding media type
     if media_type == 'jingle':
-        var trial = {
+        trial = {
             'type': 'audio-keyboard-response',
             'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
             'choices': 'none',
             'trial_ends_after_audio': True,
         }
     elif media_type == 'logo':
-        var trial = {
+        trial = {
             'type': 'image-keyboard-response',
             'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
             'stimulus_height': None,
@@ -387,7 +387,7 @@ def select_study1(request,*args,**kwargs):
     elif media_type == 'slogan':
         # Possibly need to fetch the text from the file and place it into the stimulus string
         contents = stimulus.location.open().read().decode('utf-8')
-        var trial = {
+        trial = {
             'type': 'html-keyboard-response',
             'stimulus': '<p style="color: black; font-size: 48px; font-weight: bold;">contents</p>',
             #'stimulus':'<div style="font-size:32px;">contents</div>',
