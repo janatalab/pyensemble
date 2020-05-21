@@ -62,7 +62,8 @@ ROOT_URLCONF = 'pyensemble.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        #'DIRS': [],
+        'DIRS': [/home/anazarian/git/pyensemble/pyensemble/templates/],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
