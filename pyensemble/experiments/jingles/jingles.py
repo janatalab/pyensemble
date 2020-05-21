@@ -399,7 +399,7 @@ def select_study1(request,*args,**kwargs):
         raise ValueError(f'Cannot specify trial for {media_type}')
 
     prestim_trial = {
-            'type':'html-keyboard-response'.
+            'type':'html-keyboard-response',
             'stimulus':'<p style="color: black; font-size: 48px; font-weight: bold;">You will be presented with an advertisement on the next page</p>',
             #'stimulus':'<div style="font-size:35px;">You will be presented with an advertisement on the next page</div>',
             'choices': jsPsych.NO_KEYS,
