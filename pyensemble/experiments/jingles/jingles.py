@@ -368,14 +368,14 @@ def select_study1(request,*args,**kwargs):
 
     # Specify the trial based on the jsPsych definition for the corresponding media type
     if media_type == 'jingle':
-        trial = {
+        var trial = {
             'type': 'audio-keyboard-response',
             'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
             'choices': 'none',
             'trial_ends_after_audio': True,
         }
     elif media_type == 'logo':
-        trial = {
+        var trial = {
             'type': 'image-keyboard-response',
             'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
             'stimulus_height': None,
@@ -387,7 +387,7 @@ def select_study1(request,*args,**kwargs):
     elif media_type == 'slogan':
         # Possibly need to fetch the text from the file and place it into the stimulus string
         contents = stimulus.location.open().read().decode('utf-8')
-        trial = {
+        var trial = {
             'type': 'html-keyboard-response',
             'stimulus': '<p style="color: black; font-size: 48px; font-weight: bold;">contents</p>',
             #'stimulus':'<div style="font-size:32px;">contents</div>',
@@ -398,8 +398,17 @@ def select_study1(request,*args,**kwargs):
     else:
         raise ValueError(f'Cannot specify trial for {media_type}')
 
+    prestim_trial = {
+            'type':'html-keyboard-response'.
+            'stimulus':'<p style="color: black; font-size: 48px; font-weight: bold;">You will be presented with an advertisement on the next page</p>',
+            #'stimulus':'<div style="font-size:35px;">You will be presented with an advertisement on the next page</div>',
+            'choices': jsPsych.NO_KEYS,
+            'trial_duration': 3000
+        }
+
     # Push the trial to the timeline
-    timeline.append(trial)
+    timeline.append(prestim_trial, trial)
+    #timeline.append(trial)
 
     # pdb.set_trace()
 
