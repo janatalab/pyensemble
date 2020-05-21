@@ -222,7 +222,6 @@ def imagined_jingle(request,*args,**kwargs):
 
     return last_response.response_enum>0
 
-
 def select_study1(request,*args,**kwargs):
     # Construct a jsPsych timeline
     # https://www.jspsych.org/overview/timeline/
@@ -399,12 +398,9 @@ def select_study1(request,*args,**kwargs):
     else:
         raise ValueError(f'Cannot specify trial for {media_type}')
 
-
     # Push the trial to the timeline
     timeline.append(trial)
 
     # pdb.set_trace()
 
     return timeline, stimulus.id
-
-
