@@ -364,14 +364,7 @@ def select_study1(request,*args,**kwargs):
     #
     # Now, set up the jsPsych trial
     #
-    prestim_trial = {
-    		'type':'html-keyboard-response'.
-    		'stimulus':'<div style="font-size:35px;">You will be presented with an advertisement on the next page</div>',
-    		'choices': jsPsych.NO_KEYS,
-    		'trial_duration': 3000
-    	}
-    timeline.push(prestim_trial)
-
+    
     # Determine the stimulus type
     media_type = media_types[media_idx]
 
