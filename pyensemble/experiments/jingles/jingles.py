@@ -153,23 +153,6 @@ def delete_exf(request,title):
     ExperimentXForm.objects.filter(experiment__title=title).delete()
     return render(request,'pyensemble/message.html',{'msg':f'Deleted experimentxform for {title}'})
 
-def age_meets_criterion_and_lived_in_USA(request,*args,**kwargs):
-    #
-    # Get the subject's dob from the session
-    dob = Session.objects.get(id=kwargs['session_id']).subject.dob
-
-    # Display this form if they're under 18 years of age
-    return (timezone.now().date()-dob).days < int(kwargs['min'])*365
-
-    # Get the form we want
-    form_name='jingle_project_demographics'
-    
-    # Get the response corresponding to Question 2 from this form
-    USA_response = Response.objects.filter(session=kwargs['session_id'],form__name=form_name, question__text__contains='born').last()
-
-    # Display this form if they moved to the USA at 6 years of age or older
-    return (USA_response.response_enum > 4) 
-
 def age_meets_criterion(request,*args,**kwargs):
     #
     # Need to expand this to account for various min,max,eq possibilities
