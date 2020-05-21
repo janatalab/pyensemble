@@ -222,6 +222,16 @@ def imagined_jingle(request,*args,**kwargs):
 
     return last_response.response_enum>0
 
+timeline = []
+
+prestim_trial = {
+            'type':'html-keyboard-response',
+            'stimulus':'<p style="color: black; font-size: 48px; font-weight: bold;">You will be presented with an advertisement on the next page</p>',
+            #'stimulus':'<div style="font-size:35px;">You will be presented with an advertisement on the next page</div>',
+            'choices': jsPsych.NO_KEYS,
+            'trial_duration': 3000
+        }
+
 def select_study1(request,*args,**kwargs):
     # Construct a jsPsych timeline
     # https://www.jspsych.org/overview/timeline/
@@ -233,7 +243,7 @@ def select_study1(request,*args,**kwargs):
     # incorporate maximum selected number per-category
     # make
 
-    timeline = []
+    #timeline = []
 
     # Extract our session ID
     session_id = kwargs['session_id']
@@ -398,16 +408,9 @@ def select_study1(request,*args,**kwargs):
     else:
         raise ValueError(f'Cannot specify trial for {media_type}')
 
-    prestim_trial = {
-            'type':'html-keyboard-response',
-            'stimulus':'<p style="color: black; font-size: 48px; font-weight: bold;">You will be presented with an advertisement on the next page</p>',
-            #'stimulus':'<div style="font-size:35px;">You will be presented with an advertisement on the next page</div>',
-            'choices': jsPsych.NO_KEYS,
-            'trial_duration': 3000
-        }
 
     # Push the trial to the timeline
-    timeline.append(prestim_trial, trial)
+    timeline.append(trial)
     #timeline.append(trial)
 
     # pdb.set_trace()
