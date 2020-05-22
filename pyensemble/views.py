@@ -445,13 +445,15 @@ def serve_form(request, experiment_id=None):
 
                     response_text=question.cleaned_data.get('response_text','')
                     declined=question.cleaned_data.get('decline',False)
-                    misc_info='' # json string with jsPsych data
+
+                    # Pull in any miscellaneous info that has been set by the experiment 
+                    # This can be an arbitrary string, though json-encoded strings are recommended
+                    misc_info = expsessinfo.get('misc_info','')
+
                     if expsessinfo['stimulus_id']:
                         stimulus = Stimulus.objects.get(pk=expsessinfo['stimulus_id'])
                     else:
                         stimulus = None
-
-                    # pdb.set_trace()
 
                     responses.append(Response(
                         experiment=currform.experiment,
@@ -461,7 +463,6 @@ def serve_form(request, experiment_id=None):
                         form_order=form_idx,
                         stimulus=stimulus,
                         question=question.cleaned_data['id'],
-                        # qdf=question.cleaned_data['question_id'].questionxdataformat_set.all()[0],
                         form_question_num=idx,
                         question_iteration=1, # this needs to be modified to reflect original Ensemble intent
                         response_order=expsessinfo['response_order'],
@@ -479,9 +480,6 @@ def serve_form(request, experiment_id=None):
             num_visits = expsessinfo['visit_count'].get(form_idx,0)
             num_visits +=1
             expsessinfo['visit_count'][form_idx] = num_visits
-
-            # Get and set the break_loop state
-            # expsessinfo['break_loop'] = formset.cleaned_data.get('break_loop',True)
 
             # Determine our next form index
             expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
