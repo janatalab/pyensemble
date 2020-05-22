@@ -206,6 +206,11 @@ class QuestionCreateView(LoginRequiredMixin,CreateView):
         context = self.get_context_data()
 
         form.instance.data_format = DataFormat.objects.get(id=form.cleaned_data['dfid'])
+
+        # Need to create the unique hash
+        form.instance.unique_hash
+
+        # Now save the form
         form.instance.save()
 
         return super(QuestionCreateView, self).form_valid(form)
