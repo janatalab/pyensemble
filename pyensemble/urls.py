@@ -20,7 +20,7 @@ from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
-from .views import EditorView, ExperimentListView, ExperimentCreateView, ExperimentUpdateView, FormListView, FormCreateView, FormUpdateView, QuestionListView, QuestionCreateView, QuestionUpdateView, QuestionPresentView, EnumListView, EnumCreateView, run_experiment, serve_form, add_experiment_form, add_form_question, create_ticket, reset_session
+from .views import EditorView, ExperimentListView, ExperimentCreateView, ExperimentUpdateView, FormListView, FormCreateView, FormUpdateView, FormPresentView, QuestionListView, QuestionCreateView, QuestionUpdateView, QuestionPresentView, EnumListView, EnumCreateView, run_experiment, serve_form, add_experiment_form, add_form_question, create_ticket, reset_session
 
 import pyensemble.errors as error
 from pyensemble import importers
@@ -36,7 +36,8 @@ editor_patterns = [
     path('experiments/<int:pk>/', ExperimentUpdateView.as_view(), name='experiment_update'),
     path('forms/', FormListView.as_view(), name='form_list'),
     path('forms/create/', FormCreateView.as_view(), name='form_create'),
-    path('forms/<int:pk>/', FormUpdateView.as_view(), name='form_update'),
+    path('forms/update/<int:pk>', FormUpdateView.as_view(), name='form_update'),
+    path('forms/<int:pk>/', FormPresentView.as_view(), name='form_present'),
     path('forms/add/<int:experiment_id>/', add_experiment_form, name='add_experiment_form'),
     path('questions/', QuestionListView.as_view(), name='question_list'),
     path('questions/create/', QuestionCreateView.as_view(), name='question_create'),
