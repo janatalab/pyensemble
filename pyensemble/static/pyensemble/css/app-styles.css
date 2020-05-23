@@ -19,6 +19,10 @@ body > main {
     display: block;
 }
 
+.control-label {
+    min-width: 70px;
+}
+
 .custom-radio {
     /*margin-bottom: 20px;*/
 }
