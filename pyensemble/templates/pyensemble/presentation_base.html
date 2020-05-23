@@ -7,7 +7,7 @@
 
 {% block header %}
     {% if form.header %}
-        <div class="h4 form-header">
+        <div class="form-header py-3 h5">
             {{ form.header|safe }}
         </div>
     {% endif %}
@@ -28,7 +28,11 @@
 {% endblock %}
 
 {% block footer %}
-    {{form.footer}}
+    {% if form.footer %}
+        <div class="form-footer py-3 h5">
+            {{form.footer|safe}}
+        </div>
+    {% endif %}
 {% endblock %}
 
 {% block appscript %}

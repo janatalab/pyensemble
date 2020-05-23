@@ -1,6 +1,8 @@
 /*app-styles.css*/
 
-body { padding-top: 120px; }
+body > main { 
+    padding-top: 120px; 
+}
 
 .form-check-input {
     position: relative;
@@ -46,7 +48,7 @@ input[type=number] {
   -moz-appearance: textfield;
 }
 
-.experiment-info input,textarea {
+.experiment-info>input .experiment-info>textarea {
     pointer-events: none;
     font-size: 0.8rem;
 }
