@@ -168,8 +168,8 @@ def age_meets_criterion_and_lived_in_USA(request,*args,**kwargs):
     USA_response = Response.objects.filter(session=kwargs['session_id'],form__name=form_name, question__text__contains='born').last()
 
     # Display this form if they moved to the USA at 6 years of age or older
-    return USA_response.response_enum > 0
-    #return ("6" in USA_response.value or "10" in USA_response.value)
+    #return USA_response.response_enum > 0
+    return ("6" in USA_response.value_text or "10" in USA_response.value_text)
     #return ("6" in USA_response.enum_values or "10" in USA_response.enum_values)
     
 
