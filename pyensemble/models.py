@@ -52,6 +52,7 @@ class Question(models.Model):
         ('textarea','textarea'),
         ('text','text'),
         ('menu','menu'),
+        ('numeric','numeric'),
     ]
 
     html_field_type = models.CharField(max_length=10, blank=False, choices=HTML_FIELD_TYPE_OPTIONS, default='radiogroup')

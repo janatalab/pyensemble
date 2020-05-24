@@ -24,7 +24,7 @@ from django.views.generic.edit import CreateView, UpdateView, FormView
 
 from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
 
-from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSetHelper, EnumCreateForm
+from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm
 
 from .tasks import get_expsess_key, fetch_subject_id
 from pyensemble.utils.parsers import parse_function_spec
@@ -162,6 +162,29 @@ class FormUpdateView(LoginRequiredMixin,UpdateView):
     def get_success_url(self):
         return reverse_lazy('form_update', kwargs={'pk': self.object.pk})
 
+class FormPresentView(LoginRequiredMixin,UpdateView):
+    model = Form
+    # form_class = FormForm
+    fields=()
+    # exclude = ('header','footer','version','category','header_audio_path','footer_audio_path','questions','experiments')
+    template_name = 'pyensemble/handlers/form_generic.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # pdb.set_trace()
+        context['form']=context['object']
+        context['formset']=QuestionModelFormSet(queryset=context['object'].questions.all())
+
+        helper = QuestionModelFormSetHelper()
+        helper.template = 'pyensemble/partly_crispy/question_formset.html'
+
+        context['helper'] = helper
+
+        # pdb.set_trace()
+        return context
+
+
 def add_form_question(request, form_id):
     if request.method == 'POST':
         # Get our Experiment instance
@@ -206,6 +229,11 @@ class QuestionCreateView(LoginRequiredMixin,CreateView):
         context = self.get_context_data()
 
         form.instance.data_format = DataFormat.objects.get(id=form.cleaned_data['dfid'])
+
+        # Need to create the unique hash
+        form.instance.unique_hash
+
+        # Now save the form
         form.instance.save()
 
         return super(QuestionCreateView, self).form_valid(form)
@@ -262,15 +290,23 @@ class EnumCreateView(LoginRequiredMixin,CreateView):
     form_class = EnumCreateForm
     template_name = 'pyensemble/enum_create.html'
 
-    def post(self,request,*args,**kwargs):
+    def form_valid(self,form):
         try:
-            super().post(request, *args, **kwargs)
-        except IntegrityError:
+            form.save()
+            return HttpResponse("Created the enum")
+
+        except:
             return HttpResponseBadRequest('The enum already exists')
+
+    # def post(self,request,*args,**kwargs):
+    #     try:
+    #         super().post(request, *args, **kwargs)
+
+    #     except IntegrityError:
+    #         return HttpResponseBadRequest('The enum already exists')
 
     def get_success_url(self):
         return reverse_lazy('editor')
-
 #
 # Views for running experiments
 #
@@ -373,9 +409,6 @@ def serve_form(request, experiment_id=None):
         request.session.modified = True
         return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
-    # Define our formset
-    QuestionModelFormSet = forms.modelformset_factory(Question, form=QuestionPresentForm, extra=0, max_num=1)
-
     # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
     helper = QuestionModelFormSetHelper()
     helper.add_input(Submit("submit", "Next"))
@@ -445,13 +478,15 @@ def serve_form(request, experiment_id=None):
 
                     response_text=question.cleaned_data.get('response_text','')
                     declined=question.cleaned_data.get('decline',False)
-                    misc_info='' # json string with jsPsych data
+
+                    # Pull in any miscellaneous info that has been set by the experiment 
+                    # This can be an arbitrary string, though json-encoded strings are recommended
+                    misc_info = expsessinfo.get('misc_info','')
+
                     if expsessinfo['stimulus_id']:
                         stimulus = Stimulus.objects.get(pk=expsessinfo['stimulus_id'])
                     else:
                         stimulus = None
-
-                    # pdb.set_trace()
 
                     responses.append(Response(
                         experiment=currform.experiment,
@@ -461,7 +496,6 @@ def serve_form(request, experiment_id=None):
                         form_order=form_idx,
                         stimulus=stimulus,
                         question=question.cleaned_data['id'],
-                        # qdf=question.cleaned_data['question_id'].questionxdataformat_set.all()[0],
                         form_question_num=idx,
                         question_iteration=1, # this needs to be modified to reflect original Ensemble intent
                         response_order=expsessinfo['response_order'],
@@ -479,9 +513,6 @@ def serve_form(request, experiment_id=None):
             num_visits = expsessinfo['visit_count'].get(form_idx,0)
             num_visits +=1
             expsessinfo['visit_count'][form_idx] = num_visits
-
-            # Get and set the break_loop state
-            # expsessinfo['break_loop'] = formset.cleaned_data.get('break_loop',True)
 
             # Determine our next form index
             expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
@@ -589,7 +620,7 @@ def serve_form(request, experiment_id=None):
         'form': form,
         'formset': formset,
         'form_show_errors': True,
-        'exf': currform,
+        # 'exf': currform,
         'helper': helper,
         'timeline': timeline,
         'timeline_json': json.dumps(timeline),

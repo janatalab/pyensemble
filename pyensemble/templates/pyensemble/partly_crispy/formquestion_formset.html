@@ -19,7 +19,7 @@
     {% if formset_method|lower == 'post' and not disable_csrf %}
         {% csrf_token %}
     {% endif %}
-    <div id="formInfo" class="editor text-left form-info">
+    <div id="formInfo" class="editor text-left form-info experiment-info">
         <ul class="list-group">
             <li class="list-group-item text-left bg-light">Form Information</li>
             <li class="list-group-item">{{form.name.label}}{% crispy_field form.name %}</li>
