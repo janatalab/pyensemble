@@ -304,7 +304,18 @@ class ExperimentXForm(models.Model):
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
     form_order = models.IntegerField()
-    form_handler = models.CharField(max_length=50, blank=True)
+
+    FORM_HANDLER_OPTIONS = [
+        ('form_generic','form_generic'),
+        ('form_stimulus_s','form_stimulus_s'),
+        ('form_generic_s','form_generic_s'),
+        ('form_start_session','form_start_session'),
+        ('form_start_session','form_start_session'),
+        ('form_subject_register','form_subject_register'),
+        ('form_image_s','form_image_s'),
+    ]
+
+    form_handler = models.CharField(max_length=50, blank=True, default='form_generic')
     goto = models.IntegerField(blank=True, null=True)
     repeat = models.IntegerField(blank=True, null=True)
     condition = models.TextField(blank=True)
