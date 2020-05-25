@@ -22,8 +22,8 @@
 
                 <!-- Response options -->
                 <div class="response-options row mt-2 justify-content-center align-items-end pt-3 border-top">
-                    {% for choice in field.field.choices %}
-                        {% if field|is_radioselect %}
+                    {% if field|is_radioselect or field|is_checkboxselectmultiple %}
+                        {% for choice in field.field.choices %}   
                             <div class="{% if field.field.choices|length > 6 %}col{%else%}col-2{%endif%}">
                                     <div class='col-12'>
                                         <label for="id_{{ field.html_name }}_{{ forloop.counter }}" class="form-check-label">
@@ -31,35 +31,29 @@
                                         </label>
                                     </div>
                                     <div class='col-12'>
-                                        <input type="radio" class="form-check-input{% if field.errors %} is-invalid{% endif %}"{% if choice.0|stringformat:"s" == field.value|default_if_none:""|stringformat:"s" %} checked="checked"{% endif %} name="{{ field.html_name }}" id="id_{{ field.html_name }}_{{ forloop.counter }}" value="{{ choice.0|unlocalize }}" {{ field.field.widget.attrs|flatatt }}>
+                                        <input type="{%if field|is_radioselect%}radio{%else%}checkbox{%endif%}" class="form-check-input{% if field.errors %} is-invalid{% endif %}"{% if choice.0|stringformat:"s" == field.value|default_if_none:""|stringformat:"s" %} checked="checked"{% endif %} name="{{ field.html_name }}" id="id_{{ field.html_name }}_{{ forloop.counter }}" value="{{ choice.0|unlocalize }}" {{ field.field.widget.attrs|flatatt }}>
                                     </div>
 
                                     {% if field.errors and forloop.last and not inline_class %}
                                         {% include 'bootstrap4/layout/field_errors_block.html' %}
                                     {% endif %}
                             </div>
-                        {% endif %}
+                            {% endfor %}
+                    {% endif %}
 
-                        {% if field|is_checkboxselectmultiple %}
-                            {% include 'bootstrap/layout/checkboxselectmultiple.html' %}
-                        {% endif %}
-
-                        {% if not field|is_checkboxselectmultiple and not field|is_radioselect %}
-                            <div class="controls">
-                                {% if field|is_checkbox and form_show_labels %}
-                                    <label for="{{ field.id_for_label }}" class="checkbox">
-                                        {% crispy_field field %}
-                                        {{ field.label|safe }}
-                                    </label>
-                                    {% include 'bootstrap/layout/help_text_and_errors.html' %}
-                                {% else %}
+                    {% if not field|is_checkboxselectmultiple and not field|is_radioselect %}
+                        <div class="controls">
+                            {% if field|is_checkbox and form_show_labels %}
+                                <label for="{{ field.id_for_label }}" class="checkbox">
                                     {% crispy_field field %}
-                                    {% include 'bootstrap/layout/help_text_and_errors.html' %}
-                                {% endif %}
-                            </div>
-                        {% endif %}
-
-                    {% endfor %}
+                                    {{ field.label|safe }}
+                                </label>
+                            {% else %}
+                                {% crispy_field field %}
+                            {% endif %}
+                            {% include 'bootstrap/layout/help_text_and_errors.html' %}
+                        </div>
+                    {% endif %}
                 </div>
                 {% if field.errors %}
                     <div class="text-danger">*Please choose a response option</div>

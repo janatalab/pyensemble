@@ -14,7 +14,7 @@
         <a class="nav-link" href="#formQuestions">Questions</a>
     </li>
     <li class="nav-item">
-        <a class="nav-link" href="#">Preview</a>
+        <a class="nav-link" href="{% url 'form_present' form.instance.pk %}" target="_blank">Preview</a>
     </li>
 {% endblock %}
 
