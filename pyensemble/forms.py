@@ -69,7 +69,7 @@ class QuestionCreateForm(forms.ModelForm):
 
         # Deal with form layout
         self.helper = QuestionEditHelper()
-        self.helper.form_action = '/questions/create/'
+        self.helper.form_action = 'question_create'
 
 class QuestionUpdateForm(QuestionCreateForm):
     def __init__(self,*args,**kwargs):

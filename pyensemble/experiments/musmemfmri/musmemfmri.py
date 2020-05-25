@@ -1,10 +1,14 @@
 # musmemfmri.py
 import pdb
 import os, csv
+import random
+import json
+#import helpfuncs as helpfuncs
 
 from django.conf import settings
+from django.db.models import Q, Count, Min
 
-from pyensemble.models import Stimulus, Experiment, Attribute, AttributeXAttribute, StimulusXAttribute
+from pyensemble.models import Subject, Response, Session, Stimulus, Experiment, Attribute, AttributeXAttribute, StimulusXAttribute
 
 # Ultimately, this should inherit a base ExperimentDefinition class that implements basic import and select methods
 # class JingleStudy(object):
@@ -13,9 +17,28 @@ from pyensemble.models import Stimulus, Experiment, Attribute, AttributeXAttribu
 rootdir = 'musmemfmristims'
 stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
 
+study_params = {
+    'musmemfmri_bio_pilot': {
+        'ignore_subs': ['01test0101','addmorehere','01mtt89012'],
+        'breakAfterTheseTrials': ['trial10'],
+        'practice_face_stim_ids': [840, 841],
+        'face_stim_ids': [range(820,820+20)],
+        'encoding_bio_duration_ms': 16000,#16000
+        'encoding_1back_question_duration_ms': 8000,
+        'encoding_feature_question_duration_ms': 8000,
+        'encoding_trials_1-20': range(146,146+20),
+        'encoding_trials_21-40': range(166,166+20),
+        'bioFeature_names': ['face_name','location','job','hobby','relation','relation_name'],
+        'bio_template': ['Hi, my name is [insert_face_name]. ' +
+                'I live in [insert_location] and work as a [insert_job]. ' +
+                'I enjoy [insert_hobby] in my spare time with my [insert_relation] [insert_relation_name].']
+    }
+}
+
 # Imports stimuli for Angela Nazarian's jingle study
 #@login_required
 def import_stims(stimin):#removed request arg. stimdir=stimdir
+    #stimin='/home/bmk/stims2upload/' 
     # Determine the number of subdirectories, corresponding to media types
     mediadirs = []
 
@@ -49,13 +72,14 @@ def import_stims(stimin):#removed request arg. stimdir=stimdir
                         )
 
                     # Create a stimulusXattribute entry
+                    #import pdb; pdb.set_trace()
                     stimXattrib, _ = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attribute, attribute_value_text=media_type)
 
     return print('pyensemble/message.html',{'msg':'Successfully imported the stimuli'})
     #return render(request,'pyensemble/message.html',{'msg':'Successfully imported the stimuli'})
 
 def import_attributes(stimin):
-    #'/home/bmk/stims2upload/musmemfmri_attribute_uploadsV2..csv'
+    #stimin='/home/bmk/stims2upload/musmemfmri_attribute_uploadsV2.csv'
     #load up the csv file
     #with open(stimdir,'rt', encoding='ISO-8859-1') as f:
     with open(stimin,'rt', encoding='ISO-8859-1') as f:
@@ -77,7 +101,7 @@ def import_attributes(stimin):
     return print('pyensemble/message.html',{'msg':'Successfully imported the attributes'})
 
 def import_stimXattributes(stimin):
-    #'/home/bmk/stims2upload/musmemfmri_stimXattribute_uploads.csv'
+    #stimin='/home/bmk/stims2upload/musmemfmri_stimXattribute_uploads.csv'
 
     with open(stimin,'rt', encoding='ISO-8859-1') as f:
         reader = csv.reader(f)
@@ -113,12 +137,13 @@ def import_stimXattributes(stimin):
             value_float = None
 
             # Create our stimulusxattribute entry
+            import pdb; pdb.set_trace()
             sxa, created = StimulusXAttribute.objects.get_or_create(stimulus=thisstim, attribute=thisattr, attribute_value_text=value_text, attribute_value_double=value_float)
 
     return print('pyensemble/message.html',{'msg':'Successfully imported the stim X attribute file'})
 
 def import_attributesXattribute(stimin):
-    #'/home/bmk/stims2upload/musmemfmri_stat_attributes.csv'
+    #stimin='/home/bmk/stims2upload/musmemfmri_stat_attributes.csv'
 
     with open(stimin,'rt', encoding='ISO-8859-1') as f:
         reader = csv.reader(f)
@@ -152,18 +177,743 @@ def import_attributesXattribute(stimin):
 
             # Create our attribute X attribute entry
             axa = AttributeXAttribute.objects.get_or_create(child=childattr, parent=parentattr, mapping_name='',)
+            #import pdb; pdb.set_trace()
+
+def assign_face_stim(srequest,*args,**kwargs):
+    #This function assembles the bios and assigns them to trials
+    #in the attr X attr table
+
+    NotAPracticeTrial = True #set this flag
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our experiment session info
+    #expsessinfo = request.session['experiment_%d'%(session.experiment.id)]
+
+    # Get our subject
+    subject = session.subject
+
+    #get the session var
+    #expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+
+    # Grab the face stims
+    try:
+        #practice_stims = Stimulus.objects.get(id=params['practice_face_stim_ids'])
+        face_stims = Stimulus.objects.filter(id__in=params['face_stim_ids'][0])
+    except:
+        print(f'Cannot find face stims')
+
+
+    #grab all previous subs who have participated
+    all_prev_subids = Response.objects.filter(experiment_id=session.experiment.id,).values_list('subject_id',flat=True).distinct()
+    all_prev_subs = Subject.objects.filter(subject_id__in=all_prev_subids)
+    prev_subs = all_prev_subs.exclude(subject_id__in=params['ignore_subs'])
+        
+
+    #OK, so let's just try and just get em assigned once, so it's easier to test the db
+    curr_face_stims = face_stims #need to remove faces once's we've assigned one
+    triallAttrIDsRun1 = params['encoding_trials_1-20']
+    for itrial in range(0,len(triallAttrIDsRun1)):
+
+        currentTrial = Attribute.objects.get(id=str(triallAttrIDsRun1[itrial]))
+
+        # Check to see if we already assigned a bio for this trial 
+
+        currBioDic, currBio = doesThisBioExist(subject,currentTrial,params)
+        
+        if not currBioDic:
+            curr_stims_x_pres = [] #tally number of times face was assigned to this trial
+            print(f'Creating and loggin a new bio')
+            #for each trial, find the face least often assigned across previous subs and
+            #choose that one
+            #grab all names of all stims presented on this trial (includes)
+            thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentTrial,mapping_name__in=prev_subs,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
+            for iface in range(0,len(curr_face_stims)):
+                if curr_face_stims[iface].name in thisTrialPrevFaces:
+                    #if the current face is in this Q, count the number of times
+                    curr_stims_x_pres.append([*thisTrialPrevFaces].count(curr_face_stims[iface].name))
+                else:
+                    #it hasn't been presented on this trial yet, so add 0
+                    curr_stims_x_pres.append(0)
+
+            #this is idx from curr_stims_x_pres of the stims presented least often
+            final_face_idxs = [i for i, x in enumerate(curr_stims_x_pres) if x == min(curr_stims_x_pres)]
+
+            #randomly select the face, 
+            choose_this_face_idx = final_face_idxs[random.randrange(0,len(final_face_idxs))]
+            currFaceStim = curr_face_stims[choose_this_face_idx]
+            #import pdb; pdb.set_trace() 
+            #need to ensure it doesn't get picked in a subsequent step
+            curr_face_stims = curr_face_stims.exclude(name=curr_face_stims[choose_this_face_idx].name)
+
+            # Grab and assemble a random bio (for a male); 
+            currBioDic, currBio = assembleThisBio(subject,currFaceStim,currentTrial,params,prev_subs)
+            import pdb; pdb.set_trace() 
+            # Save the particular bio config so we know what it was later on!
+            tmp = logThisBio(subject,currBioDic,currentTrial,params)
+        else:
+            #remove the face incase we need to assign more trials 
+            #need to ensure it doesn't get picked in a subsequent step
+            curr_face_stims = curr_face_stims.exclude(name=currBioDic['picture'].name)
+
+        print('currBio')
+        print(currBio)
+        #print(currBioDic)
+        print(itrial)
+        print(str(triallAttrIDsRun1[itrial]))
+        #import pdb; pdb.set_trace() 
+        
+    import pdb; pdb.set_trace()    
+    curr_face_stims = face_stims #need to remove faces once's we've assigned one
+    triallAttrIDsRun2 = params['encoding_trials_21-40']
+    for itrial in range(0,len(triallAttrIDsRun2)):
+        currentTrial = Attribute.objects.get(id=triallAttrIDsRun2[itrial])
+
+        # Check to see if we already assigned a bio for this trial 
+        currBioDic, currBio = doesThisBioExist(subject,currentTrial,params)
+        if not currBioDic:
+            curr_stims_x_pres = [] #tally number of times face was assigned to this trial
+            print(f'Creating and loggin a new bio')
+            currentOldTrial = Attribute.objects.get(id=str(triallAttrIDsRun1[itrial]))
+            #grab all names of all stims presented on this trial (includes)
+            thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentOldTrial,mapping_name__in=prev_subs,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
+            for iface in range(0,len(curr_face_stims)):
+                if curr_face_stims[iface].name in thisTrialPrevFaces:
+                    #if the current face is in this Q, count the number of times
+                    curr_stims_x_pres.append([*thisTrialPrevFaces].count(curr_face_stims[iface].name))
+                else:
+                    #it hasn't been presented on this trial yet, so add 0
+                    curr_stims_x_pres.append(0)
+
+            #this is idx from curr_stims_x_pres of the stims presented least often
+            min_n_pres_idxs = [i for i, x in enumerate(curr_stims_x_pres) if x == min(curr_stims_x_pres)]
+
+            #grab the orig bio trial (bio doesn't get modified) so we can exclude this face from this trial
+            tmpBioDic, currBio = doesThisBioExist(subject,currentOldTrial,params)
+
+            remove_face_idxs = [i for i, x in enumerate(curr_face_stims.values_list('name',flat=True)) if x == tmpBioDic['picture'].name]
+            
+            #import pdb; pdb.set_trace()
+            #remove the prev. face idx from the possibilities 
+            try:
+                final_face_idxs = min_n_pres_idxs.remove(remove_face_idxs)
+            except:
+                final_face_idxs = min_n_pres_idxs
+
+            #randomly select the face, 
+            choose_this_face_idx = final_face_idxs[random.randrange(0,len(final_face_idxs))]
+            curr_face = curr_face_stims[choose_this_face_idx]
+
+            #need to ensure it doesn't get picked in a subsequent step
+            curr_face_stims = curr_face_stims.exclude(name=curr_face_stims[choose_this_face_idx].name)
+
+            #now grab the bio already created for this face and assign it to the current trial
+            oldTrialThisFace = AttributeXAttribute.objects.filter(mapping_name=subject.subject_id,mapping_value_text=curr_face.name,child__attribute_class='relation_name')
+            currBioDic, currBio = doesThisBioExist(subject,oldTrialThisFace[0].parent,params)
+
             import pdb; pdb.set_trace()
+            # Save the particular bio config so we know what it was later on!
+            tmp = logThisBio(subject,currBioDic,currentTrial,params)
+        else:
+            #remove the face incase we need to assign more trials 
+            #need to ensure it doesn't get picked in a subsequent step
+            curr_face_stims = curr_face_stims.exclude(name=currBioDic['picture'].name)
 
-def select():
-    # Get uptodate distribution of stimulus properties
-    pass
+        print('currBioDic2')
+        print(currBio)
+        #print(currBioDic)
+        print(itrial)
+        print(str(triallAttrIDsRun2[itrial]))
+        #import pdb; pdb.set_trace()  
+
+    return('','')
+
+def time4rest(request,*args,**kwargs):
+    #update this, needs to return True when it's time for a rest form to be presented
+    #should be based on the trial param in the session info
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our subject
+    subject = session.subject
+
+    # Get the appropraite Trial attribute from the current session
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    lastTrialAttribute = expsessinfo['currTrialAttribute']
+
+    import pdb; pdb.set_trace()
+    # if it's practice_trial, go ahead and present trial01
+    if lastTrialAttribute.name in params['breakAfterTheseTrials']:
+        #take a break! 
+        time2rest = True
+    else:
+        time2rest = False
+
+    return time2rest
+
+def select_stim(request,*args,**kwargs):
+    # script selects previoulsy assembled face bios from the attr x attr table 
+
+    # Construct a jsPsych timeline
+    # https://www.jspsych.org/overview/timeline/
+    #
+    timeline = []
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our subject
+    subject = session.subject
+
+    # Get the appropraite Trial attribute from the current session
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    lastTrialAttribute = expsessinfo['currTrialAttribute']
+
+    expsessinfo['misc_info'] = 'NULL' #reset it for sanity 
+
+    import pdb; pdb.set_trace()
+    # if it's practice_trial, go ahead and present trial01
+    if lastTrialAttribute.name == 'trial_practice':
+        currTrialAttribute = Attribute.objects.get(name='trial01')
+
+    else:
+        # grab the lst two char (numbers) in the attr. name
+        tmpTrialNum = int(lastTrialAttribute.name[-2:])
+        # increment them by 1 and put back into the string
+        tmpTrialNum = tmpTrialNum + 1
+        # grab the attribute for the new trial 
+        currTrialAttribute = Attribute.objects.get(name='trial%2.0d'%tmpTrialNum)
 
 
-def already_presented():
-    # # Look up the response table
-    # expt = Experiment.objects.get(experiment_id=experiment_id)
+    # Check to see if we already assigned a bio for this trial 
+    currBioDic, currBio = doesThisBioExist(subject,currTrialAttribute,params)
+    if not currBioDic:
+        print(f'SOMETHING IS WRONG. CANNOT FIND TRIAL')
+        import pdb; pdb.set_trace()
+        # Something went wrong, bio should already exist 
 
-    # resptable_name = expt.response_table
 
-    # Look up the already presented trials
-    AttributeXAttribute.filter()
+    thisStim = currBioDic['picture']
+    #
+    # Now, set up the jsPsych trial
+    #
+    trial = {
+            'type': 'image-keyboard-response',
+            'stimulus': os.path.join(settings.MEDIA_URL,thisStim.location.url),
+            'stimulus_height': None,
+            'stimulus_width': None,
+            'choices': 'none',
+            'stimulus_duration': params['encoding_bio_duration_ms'],
+            'trial_duration': params['encoding_bio_duration_ms'],
+            'prompt': currBio
+        }
+
+    # Push the trial to the timeline
+    timeline.append(trial)
+
+    # NOTE THAT THIS DOESN"T RECORD A STIMULUS IN THE RESPONSE TABLE
+    #but if we have the trial attributes assigned we can use those.
+    addParams2Session(currBioDic,currTrialAttribute,request,session_id,params)
+
+    return(timeline, thisStim.id) 
+
+def select_practice_stim(request,*args,**kwargs):
+    #i don't think there is really a big issue with using a relation_name and the reg. features 
+    #(even though they'll get remapped onto a real bio during the task)
+
+    # Construct a jsPsych timeline
+    # https://www.jspsych.org/overview/timeline/
+    #
+    timeline = []
+
+    NotAPracticeTrial = False #set this flag
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our experiment session info
+    #expsessinfo = request.session['experiment_%d'%(session.experiment.id)]
+
+    # Get our subject
+    subject = session.subject
+
+    # Grab the practice stim
+    try:
+        #practice_stims = Stimulus.objects.get(id=params['practice_face_stim_ids'])
+        practice_stims = Stimulus.objects.filter(id__in=params['practice_face_stim_ids'])
+    except:
+        print(f'Unable to locate practice faces with id ')
+
+    try:
+        sexAttributes = Attribute.objects.get(name='male')
+    except:
+        print(f'Unable to locate attribute with name: male')
+
+    thisStim = practice_stims.filter(stimulusxattribute__attribute__id=sexAttributes.id)
+
+    # Get the appropraite Trial attribute
+    TrialAttribute = Attribute.objects.get(name='trial_practice')
+
+    # Check to see if we already assigned a bio for this trial 
+    currBioDic, practice_bio = doesThisBioExist(subject,TrialAttribute,params)
+    if not currBioDic:
+        import pdb; pdb.set_trace()
+        # Grab and assemble a random bio (for a male); use the name Jim; 
+        currBioDic, practice_bio = assembleThisBio(subject,thisStim[0],NotAPracticeTrial,params,[])
+        # Save the particular bio config so we know what it was later on!
+        tmp = logThisBio(subject,currBioDic,TrialAttribute,params)
+
+    #
+    # Now, set up the jsPsych trial
+    #
+    trial = {
+            'type': 'image-keyboard-response',
+            'stimulus': os.path.join(settings.MEDIA_URL,thisStim[0].location.url),
+            'stimulus_height': None,
+            'stimulus_width': None,
+            'choices': 'none',
+            'stimulus_duration': params['encoding_bio_duration_ms'],
+            'trial_duration': params['encoding_bio_duration_ms'],
+            'prompt': practice_bio
+        }
+
+    # Push the trial to the timeline
+    timeline.append(trial)
+
+    # NOTE THAT THIS DOESN"T RECORD A STIMULUS IN THE RESPONSE TABLE
+    #but if we have the trial attributes assigned we can use those.
+    addParams2Session(currBioDic,TrialAttribute,request,session_id,params)
+
+    return(timeline, thisStim[0].id)
+
+def addParams2Session(currBioDic,TrialAttribute,request,session_id,params):
+    #add the bio info to the session data to later write out in response table
+    #add name of the form we want (which feature question are we answering)
+    #we should also add the trial info stuff 
+
+    #need to serialize this info, but first reduce it to the actual names
+    saveThisBioDic = {}
+    for iftr in currBioDic:
+        saveThisBioDic[iftr] = currBioDic[iftr].name
+
+    #import pdb; pdb.set_trace()
+    # Get the current session and apend info
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    expsessinfo['currTrialAttribute'] = TrialAttribute.name
+    expsessinfo['misc_info'] = json.dumps(saveThisBioDic)
+    expsessinfo['currPostBioQ'] = params['bioFeature_names'][random.randrange(0,len(params['bioFeature_names']))]
+
+    request.session.modified = True 
+
+def select_face1back_stim(request,*args,**kwargs):
+    #GOING TO STOP DEV ON THIS FOR NOW. original plan in grant was question about 
+    #attractivness, so just go with that instead of doing the n-back for now. 
+    #selects face to present with the 1-back post-stim question (is this the face...)
+    #check to see the last face that was presented
+    #check to see if this is the first/second time it has been presented
+    #First: randomly choose whether it'll be a a foil/target face presented
+    #Second: choose opposite trial type (e.g., if first was target, present foil)
+    #when selecting foil face: make sure it's not a face that has been presented w/in +-5? trials
+
+    timeline = []
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our experiment session info
+    expsessinfo = request.session['experiment_%d'%(session.experiment.id)]
+
+    # Get our subject
+    subject = session.subject
+
+    # Get our list of stimuli that this subject has already encountered
+    # might need TO DO THIS DIFF. for practice trials...
+    presented_stim_ids = Response.objects.filter(experiment=session.experiment, subject_id=subject, stimulus__isnull=False).values_list('stimulus',flat=True).distinct()
+    presented_stims = Stimulus.objects.filter(id__in=presented_stim_ids)
+
+    # Get the last presented stimulus to this subject in this experiment
+    if presented_stims:
+        previous_stim = presented_stims.get(id=presented_stim_ids.last())
+        #note this will sometimes return more than 1
+    else:
+        previous_stim = None
+        #if presented_stims is empty, it was a practice trial
+        # Get the appropraite Trial attribute
+        TrialAttribute = Attribute.objects.get(name='trial_practice')
+        # Find the stim name in the attr X attr entry
+        pracTrialaxa = AttributeXAttribute.objects.filter(parent=TrialAttribute, mapping_name=subject.subject_id)
+        previous_prac_stim = Stimulus.objects.get(name=pracTrialaxa.values_list('mapping_value_text',flat=True)[0])
+        import pdb; pdb.set_trace()
+
+    # Check to see if this is the first or second time it has been presented
+    if not previous_stim & previous_prac_stim:
+        firstTime = True
+    elif len(previous_stim)==1:
+        firstTime = True
+    elif len(previous_stim)>1:
+        firstTime = False
+
+    # 
+    # this will be diff. for non example.
+    if firstTime:
+        #First: randomly choose whether it'll be a a foil/target face presented
+        presentTarget = random.choice([True, False])
+    else:
+        #Second: choose opposite trial type (e.g., if first was target, present foil)
+        #figure out whether the first was a target or foil 
+        prevTarget = True
+        if prevTarget:
+            presentTarget = False
+        else:
+            presentTarget = True
+
+    if presentTarget:
+        #present the target (same pic)
+        stimulus = previous_stim
+    else:
+        #present a foil
+        #if it's not a practice trial, need to get the previously presented foil faces
+        # ~
+        #if it's a practice trial, get the female face
+        try:
+            #practice_stims = Stimulus.objects.get(id=params['practice_face_stim_ids'])
+            practice_stims = Stimulus.objects.filter(id__in=params['practice_face_stim_ids'])
+        except:
+            print(f'Unable to locate practice faces with id ')
+
+        try:
+            sexAttributes = Attribute.objects.get(name='male')
+        except:
+            print(f'Unable to locate attribute with name: male')
+
+        thisStim = practice_stims.filter(stimulusxattribute__attribute__id=sexAttributes.id)
+
+
+    #
+    # Now, set up the jsPsych trial
+    #
+    trial = {
+        'type': 'categorize-image',
+        'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
+        'stimulus_height': None,
+        'stimulus_width': None,
+        'prompt': 'Is this a picture of the person you just met? Press ''y'' or ''n''',
+        'choices': [78,89],
+        'key_answer': 89,
+        'stimulus_duration': params['encoding_1back_question_duration_ms'],
+        'trial_duration': params['encoding_1back_question_duration_ms'],
+        'timeout_message': 'Please response faster!'
+    }
+
+    # Push the trial to the timeline
+    timeline.append(trial)
+
+    # pdb.set_trace()
+
+    return(timeline, stimulus.id)
+
+#function takes in face stim and assembles a bio
+def assembleThisBio(subject,thisStim,NotAPracticeTrial,params,prev_subs):
+    bio = params['bio_template'][0]
+
+    currBioDic = {'picture': thisStim} #use this dict later to log in db
+    for iftr in params['bioFeature_names']:
+        # get all the possible attributes 
+        possibleAttributes = Attribute.objects.filter(attribute_class=iftr)
+
+        #figure out gender of the chosen relation and limit names based on that
+        if iftr in ['relation_name']:
+            #the gender attribute id (parent) is linked to this in attr attr 
+            #do we need to limit it to the current subect? Actually, I don't think so!
+            #import pdb; pdb.set_trace()
+            relationAxA = AttributeXAttribute.objects.filter(mapping_name='',child=currBioDic['relation'])#mapping_name=subject.subject_id
+            #relationAxA = Attribute.objects.get(name=currBioDic['relation'].name)
+            #relationAxA.parent #this is the gender
+
+            #get all names with this gender
+            namesAxA = AttributeXAttribute.objects.filter(parent=relationAxA[0].parent,child__attribute_class='relation_name')
+            #namesAxA = AttributeXAttribute.objects.filter(parent=relationAxA.id,child__attribute_class='relation_name')
+            #import pdb; pdb.set_trace()
+            
+            if relationAxA[0].parent.name in ['male','female']:
+                #don't need to add additional filtering for neutral case
+                #filter names for gender
+                possibleAttributes = possibleAttributes.filter(id__in=namesAxA.values_list('child',flat=True))
+
+        #figure out gender AND ethnicity of the chosen face and limit names based on that
+        if iftr in ['face_name']:
+            #the gender attribute id (parent) is linked to this in attr attr 
+            sexAttrXstim = StimulusXAttribute.objects.get(stimulus = thisStim, attribute__attribute_class = 'sex')
+            ethAttrXstim = StimulusXAttribute.objects.get(stimulus = thisStim, attribute__attribute_class = 'ethnicity')
+            #thisAttrXstim.attribute_id #gender attribute
+
+            #get all names with this gender and ethnicity
+            names1 = AttributeXAttribute.objects.filter(parent__in=[sexAttrXstim.attribute],child__attribute_class='face_name').values_list('child',flat=True)
+            names2 = AttributeXAttribute.objects.filter(parent__in=[ethAttrXstim.attribute],child__attribute_class='face_name').values_list('child',flat=True)
+            possibleNames = set(names1) & set(names2)
+            possiblenames = [*possibleNames, ]
+            #import pdb; pdb.set_trace()
+            
+            #filter names for gender
+            possibleAttributes = Attribute.objects.filter(id__in=possiblenames)
+            #import pdb; pdb.set_trace()
+
+        if NotAPracticeTrial:
+            #going to randomize based on previous subjects assignments AND other trials. 
+            #need a function here !!!!!!
+            print(f'filtering bio assignments based on previous trials.')
+            
+            #search for all other attr x attr entries that have a child if with attribute_class=iftr (exclude the practie trialce)
+            otherEntriesAxA = AttributeXAttribute.objects.filter(mapping_name=subject.subject_id,child__attribute_class=iftr).exclude(parent='145').values_list('child',flat=True)
+            #import pdb; pdb.set_trace()
+            if otherEntriesAxA:
+                #filter out explemars that have already been assigned to a face (for this person)
+                possibleAttributes = possibleAttributes.exclude(id__in = otherEntriesAxA)
+            
+            #now figure out which feature exemplar (of the one's left) has been assigned  the least across participants
+            thisFacesPrevFeat = AttributeXAttribute.objects.filter(mapping_value_text=thisStim.name,mapping_name__in=prev_subs,child__attribute_class=iftr).exclude(parent='145').values_list('child',flat=True)
+            if thisFacesPrevFeat:
+                curr_feature_x_pres = []
+                #the results really lists each assignment twice (logged for Run 1 and 2 (seperate trial attr ids))
+                #filter out all except those that have been chosen the least amount of time
+                for ipftr in range(0,len(possibleAttributes)):
+                    if possibleAttributes[ipftr].id in thisFacesPrevFeat:
+                        #if the current face is in this Q, count the number of times
+                        curr_feature_x_pres.append([*thisFacesPrevFeat].count(possibleAttributes[ipftr].id))
+                    else:
+                        #it hasn't been presented on this trial yet, so add 0
+                        curr_feature_x_pres.append(0)
+
+                #import pdb; pdb.set_trace()
+                #this is idx from curr_feature_x_pres of the stims presented least often
+                final_feat_idxs = [i for i, x in enumerate(curr_feature_x_pres) if x == min(curr_feature_x_pres)]
+
+                #randomly select the face, 
+                choose_this_feat_idx = final_feat_idxs[random.randrange(0,len(final_feat_idxs))]
+                currAttribte = possibleAttributes[choose_this_feat_idx]
+            else:
+                #no previous pairrings
+                import pdb; pdb.set_trace() 
+                currAttribte = possibleAttributes[random.randrange(0,len(possibleAttributes))]
+
+        else:
+            print(f'Practice trial: previous bio assignments being ignored.')
+            currAttribte = possibleAttributes[random.randrange(0,len(possibleAttributes))]
+
+        currBioDic[iftr] = currAttribte #assign it for later entry in attrXattr
+
+        # fill in the bio
+        if iftr == 'job' and currBioDic[iftr].name[0] in ['a','e','i','o','u']:
+            #need to adjust 'a' or 'an'
+            bio = bio.replace('a [insert_'+iftr+']','an '+currBioDic[iftr].name)
+        else:
+            bio = bio.replace('[insert_'+iftr+']',currAttribte.name)
+
+    return currBioDic, bio
+
+# Create our attribute X attribute entries for a specific bio
+def logThisBio(subject,currBioDic,currTrialAttribute,params):
+    #enter each feature for a pic; parent attrb is the current trial type/number
+    for iftr in params['bioFeature_names']:
+        mappingName = subject.subject_id
+        mappingValText = currBioDic['picture'].name
+        childattr = currBioDic[iftr]
+        parentattr = currTrialAttribute
+
+        #import pdb; pdb.set_trace()   
+        print(f'creating entry for: ' +mappingName+' '+mappingValText+' '+childattr.name+' '+parentattr.name)     
+        try:
+            axa = AttributeXAttribute.objects.get_or_create(child=childattr, parent=parentattr,mapping_value_text = mappingValText, mapping_name=mappingName)
+        except:
+            print(f'failed to create attr X attr entry!')
+            axa = ''
+
+    return axa
+    
+# Return the bioDic and bio text if trial already exists in attr X attr table
+def doesThisBioExist(subject,currTrialAttribute,params):
+    currTrialEntry = AttributeXAttribute.objects.filter(parent=currTrialAttribute, 
+                    mapping_name=subject.subject_id)
+     
+    #build up the dictionary with all features
+    bio = params['bio_template'][0]
+
+    try:
+        #get the picture name
+        picName = currTrialEntry.values_list('mapping_value_text',flat=True)[0]
+
+        #get the picture stimulu
+        currBioDic = {'picture': Stimulus.objects.get(name=picName)}
+
+        for iftr in params['bioFeature_names']: 
+            currAttr = Attribute.objects.get(name=iftr)
+            thisTrialEntry = AttributeXAttribute.objects.filter(parent=currTrialAttribute,mapping_name=subject.subject_id,child__attribute_class=currAttr.name)
+            # now grab the attribute for that specific feature instance 
+            currBioDic[iftr] = Attribute.objects.get(id=thisTrialEntry.values_list('child',flat=True)[0])
+            # fill in the bio
+            if iftr == 'job' and currBioDic[iftr].name[0] in ['a','e','i','o','u']:
+                #need to adjust 'a' or 'an'
+                bio = bio.replace('a [insert_'+iftr+']','an '+currBioDic[iftr].name)
+            else:
+                bio = bio.replace('[insert_'+iftr+']',currBioDic[iftr].name)
+    except:
+        #doesn't exist
+        currBioDic = {}
+    
+    return currBioDic, bio
+
+def post_bio_q2_face_name(request,*args,**kwargs):
+    #should we present a question about the 'face_name'? 
+    #return True if we want it
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get the current trial info
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    #import pdb; pdb.set_trace()
+
+    if expsessinfo['currPostBioQ'] == 'face_name':
+        doit = True
+        expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
+        request.session.modified = True 
+    else:
+        doit = False
+
+    return(doit)
+
+def post_bio_q2_location(request,*args,**kwargs):
+    #should we present a question about the 'location'? 
+    #return True if we want it
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get the current trial info
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    #import pdb; pdb.set_trace()
+
+    if expsessinfo['currPostBioQ'] == 'location':
+        doit = True
+        expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
+        request.session.modified = True 
+    else:
+        doit = False
+
+    return(doit)
+
+def post_bio_q2_job(request,*args,**kwargs):
+    #should we present a question about the 'job'? 
+    #return True if we want it
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get the current trial info
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    #import pdb; pdb.set_trace()
+
+    if expsessinfo['currPostBioQ'] == 'job':
+        doit = True
+        expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
+        request.session.modified = True 
+    else:
+        doit = False
+
+    return(doit)
+
+def post_bio_q2_hobby(request,*args,**kwargs):
+    #should we present a question about the 'hobby'? 
+    #return True if we want it
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get the current trial info
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    #import pdb; pdb.set_trace()
+
+    if expsessinfo['currPostBioQ'] == 'hobby':
+        doit = True
+        expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
+        request.session.modified = True 
+    else:
+        doit = False
+
+    return(doit)
+
+def post_bio_q2_relation(request,*args,**kwargs):
+    #should we present a question about the 'relation'? 
+    #return True if we want it
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get the current trial info
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    #import pdb; pdb.set_trace()
+
+    if expsessinfo['currPostBioQ'] == 'relation':
+        doit = True
+        expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
+        request.session.modified = True 
+    else:
+        doit = False
+
+    return(doit)
+
+def post_bio_q2_relation_name(request,*args,**kwargs):
+    #should we present a question about the 'relation_name'? 
+    #return True if we want it
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get the current trial info
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    #import pdb; pdb.set_trace()
+
+    if expsessinfo['currPostBioQ'] == 'relation_name':
+        doit = True
+        expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
+        request.session.modified = True 
+    else:
+        doit = False
+
+    return(doit)
+
+
+
+
+
