@@ -159,18 +159,20 @@ def age_meets_criterion_and_lived_in_USA(request,*args,**kwargs):
     dob = Session.objects.get(id=kwargs['session_id']).subject.dob
 
     # Display this form if they're under 18 years of age
-    return (timezone.now().date()-dob).days < int(kwargs['min'])*365
+    is_old_enough = (timezone.now().date()-dob).days > int(kwargs['min'])*365
 
-    # Get the form we want
+    # Get the form we wants
     form_name='jingle_project_demographics'
     
     # Get the response corresponding to Question 2 from this form
     USA_response = Response.objects.filter(session=kwargs['session_id'],form__name=form_name, question__text__contains='born').last()
-    print(USA_response)
-    # Display this form if they moved to the USA at 6 years of age or older
-    return USA_response.response_enum < 4
-    #return ("6" in USA_response.enum_values or "10" in USA_response.enum_values)
-    
+
+    moved_to_usa_in_time = USA_response.response_enum <= 4
+
+    meets_both_criteria = is_old_enough and moved_to_usa_in_time
+
+    return not meets_both_criteria
+
 
 def age_meets_criterion(request,*args,**kwargs):
     #
