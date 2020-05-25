@@ -391,7 +391,7 @@ def select_study1(request,*args,**kwargs):
         contents = stimulus.location.open().read().decode('utf-8')
         trial = {
             'type': 'html-keyboard-response',
-            'stimulus': contents,
+            'stimulus':"<div style='font-size:36px; text-align:center;'><strong>contents</strong></div>",
             #'stimulus': '<p style="color: black; font-size: 48px; font-weight: bold;">contents</p>',
             #'stimulus':'<div style="font-size:32px;">contents</div>',
             'choices': 'none',
