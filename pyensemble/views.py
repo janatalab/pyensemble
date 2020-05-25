@@ -597,8 +597,12 @@ def serve_form(request, experiment_id=None):
         #
         # Reset our session stimulus_id variable if appropriate
         #
+        stimulus = None
         if not requires_stimulus:
             expsessinfo['stimulus_id'] = None
+        else:
+            if expsessinfo['stimulus_id']:
+                stimulus = Stimulus.objects.get(id=stimulus_id)
 
         #
         # Get our blank form
@@ -625,6 +629,7 @@ def serve_form(request, experiment_id=None):
         'timeline': timeline,
         'timeline_json': json.dumps(timeline),
         'trialspec': trialspec,
+        'stimulus': stimulus,
        }
 
     # Determine our form template (based on the form_handler field)

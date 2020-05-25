@@ -1,0 +1,30 @@
+{% extends "pyensemble/presentation_base.html" %}
+{% load staticfiles %}
+
+{% load crispy_forms_tags %}
+
+{% block header %}
+    {% if form.header %}
+        <div class="form-header py-3 h5">
+            {{ form.header|safe }}
+        </div>
+    {% endif %}
+
+    {% if stimulus %}
+        <div class="row justify-content-center">
+            <img src="{{stimulus.location}}" class=""></img>
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block questions %}
+    {% crispy formset helper %}
+{% endblock %}
+
+{% block appscript %}
+    <script>
+        $(document).ready(function () {
+            $('#questions').removeClass('d-none');
+        });
+    </script>
+{% endblock %}
