@@ -14,7 +14,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 import django.forms as forms
 from django.utils import timezone
-from django.db.models import Q, Count, Min
+from django.db.models import Q, Count, Min, Max
 
 from django.contrib.auth.decorators import login_required
 
@@ -36,6 +36,11 @@ study_params = {
         'age_ranges':[(6,16),(17,30),(31,64),(65,120)],
         'logo_duration_ms': 15000,
         'slogan_duration_ms': 15000,
+    },
+    'jingle_stim_select_test': {
+        'age_ranges':[(6,16),(17,30),(31,64),(65,120)],
+        'logo_duration_ms': 2000,
+        'slogan_duration_ms': 2000,
     }
 }
 
@@ -321,6 +326,8 @@ def select_study1(request,*args,**kwargs):
     experiment_responses = Count('response', filter=query_filter)
     possible_stims = possible_stims.annotate(num_responses=experiment_responses)
 
+    # pdb.set_trace()
+
     # Determine the existing media types
     media_types = StimulusXAttribute.objects.filter(stimulus__in=possible_stims,attribute__name='Media Type').values_list('attribute_value_text',flat=True).distinct()
 
@@ -357,6 +364,7 @@ def select_study1(request,*args,**kwargs):
     age_idx = available_ranges[random.randrange(0,len(available_ranges))]
 
     # Select from among the least played stimuli in the target category
+    # pdb.set_trace()
     select_from_stims = stims_x_agerange[age_idx].filter(
         stimulusxattribute__attribute__name='Media Type',
         stimulusxattribute__attribute_value_text=curr_media_type)
@@ -375,7 +383,9 @@ def select_study1(request,*args,**kwargs):
         if settings.DEBUG:
             pdb.set_trace()
 
-    stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
+        return None,  None
+    else:
+        stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
 
     #
     # Now, set up the jsPsych trial
