@@ -311,7 +311,13 @@ def select_study1(request,*args,**kwargs):
         possible_stims = possible_stims.exclude(stimulusxattribute__attribute_value_text=company)
 
     # Determine the number of times that each stimulus has been presented
-    experiment_responses = Count('response', filter=Q(response__experiment=session.experiment))
+    query_filter = Q(
+        response__experiment=session.experiment, 
+        response__form__name='Jingle Project Familiarity',
+        response__question__text__contains='familiar is this advertisement'
+        )
+
+    experiment_responses = Count('response', filter=query_filter)
     possible_stims = possible_stims.annotate(num_responses=experiment_responses)
 
     # Determine the existing media types
@@ -342,6 +348,7 @@ def select_study1(request,*args,**kwargs):
 
     # Randomly pick a media type
     media_idx = random.randrange(0,media_types.count())
+    curr_media_type = media_types[media_idx]
 
     # Randomly pick an age range from those that actually have stimuli
     num_available_in_range = [r.count() for r in stims_x_agerange]
@@ -351,7 +358,14 @@ def select_study1(request,*args,**kwargs):
     # Select from among the least played stimuli in the target category
     select_from_stims = stims_x_agerange[age_idx].filter(
         stimulusxattribute__attribute__name='Media Type',
-        stimulusxattribute__attribute_value_text=media_types[media_idx])
+        stimulusxattribute__attribute_value_text=curr_media_type)
+
+    # We've arrived at our stimulus
+    if not select_from_stims.count():
+        if settings.DEBUG:
+            print('Of the %d stimuli in age range %d, none have the requested media type: %s'%(stims_x_agerange[age_idx].count(),age_idx,curr_media_type))
+            pdb.set_trace()    
+
     num_min = select_from_stims.aggregate(Min('num_responses'))['num_responses__min']
     select_from_stims = select_from_stims.filter(num_responses=num_min)
 
