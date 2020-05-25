@@ -113,14 +113,14 @@ class QuestionPresentForm(forms.ModelForm):
             elif html_field_type == 'menu':
                 widget = forms.Select
 
-        elif re.match('^int',html_field_type):
+        elif re.match('numeric',html_field_type):
             widget = forms.NumberInput
 
         elif html_field_type == 'text':
             widget = forms.TextInput
 
         elif html_field_type == 'textarea':
-            widget = forms.TextArea
+            widget = forms.Textarea
 
         field_params['widget'] = widget
 
@@ -145,6 +145,8 @@ class QuestionPresentForm(forms.ModelForm):
 
         # Set the label of the input element to the question_text
         self.fields['option'].label = self.instance.text
+
+QuestionModelFormSet = forms.modelformset_factory(Question, form=QuestionPresentForm, extra=0, max_num=1)
 
 class QuestionModelFormSetHelper(FormHelper):
     def __init__(self, *args, **kwargs):
@@ -218,7 +220,6 @@ class TicketCreationForm(forms.Form):
     experiment_id = forms.IntegerField(widget=forms.HiddenInput())
 
     helper = FormHelper()
-    # helper.add_input(Submit('submit', 'Create Ticket(s)', css_class='btn-primary contentlist-item-link'))
     helper.form_method = 'POST'
     helper.form_action = 'create_ticket'
     helper.form_id = 'ticketCreateForm'

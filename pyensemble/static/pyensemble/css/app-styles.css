@@ -1,6 +1,8 @@
 /*app-styles.css*/
 
-body { padding-top: 120px; }
+body > main { 
+    padding-top: 120px; 
+}
 
 .form-check-input {
     position: relative;
@@ -15,6 +17,10 @@ body { padding-top: 120px; }
 .custom-control-inline {
     margin-right: 0;
     display: block;
+}
+
+.control-label {
+    min-width: 70px;
 }
 
 .custom-radio {
@@ -46,7 +52,7 @@ input[type=number] {
   -moz-appearance: textfield;
 }
 
-.experiment-info input,textarea {
+.experiment-info>input .experiment-info>textarea {
     pointer-events: none;
     font-size: 0.8rem;
 }
