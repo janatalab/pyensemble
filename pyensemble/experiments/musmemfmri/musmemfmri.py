@@ -49,7 +49,7 @@ def import_stims(stimin):#removed request arg. stimdir=stimdir
     print(mediadirs)
     for media_type in mediadirs:
         # Get an attribute corresponding to this media type
-        attribute, _ = Attribute.objects.get_or_create(name='Media Type', attribute_class='stimulus')
+        attribute, ehn = Attribute.objects.get_or_create(name='Media Type', attribute_class='stimulus')
         
         #import pdb; pdb.set_trace()
         print(f'Working on {media_type}s ...')
