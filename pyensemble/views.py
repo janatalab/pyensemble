@@ -494,7 +494,7 @@ def serve_form(request, experiment_id=None):
                     misc_info = expsessinfo.get('misc_info','')
 
                     if expsessinfo['stimulus_id']:
-                        stimulus = Stimulus.objects.get(pk=expsessinfo['stimulus_id'])
+                        stimulus = Stimulus.objects.get(pk=expsessinfo['stimulus_id']) #pk
                     else:
                         stimulus = None
 

@@ -70,6 +70,6 @@ urlpatterns = [
     path('', include(app_patterns)),
 ]
 
-if settings.DEBUG:
+if settings.DEBUG:#settings.DEBUG removed this see (just local) https://stackoverflow.com/questions/5517950/django-media-url-and-media-root
     urlpatterns += static(settings.MEDIA_URL,
                           document_root=settings.MEDIA_ROOT)

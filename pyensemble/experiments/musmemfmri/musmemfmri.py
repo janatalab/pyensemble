@@ -333,7 +333,9 @@ def assign_face_stim(request,*args,**kwargs):
         print(str(triallAttrIDsRun2[itrial]))
         #import pdb; pdb.set_trace()  
 
-    return('','')
+    timeline = [{'nothing':'nothing'}] #pass dummy along
+
+    return(timeline,'')
 
 def present_rest_message(request,*args,**kwargs):
     #DOESN"T WORK !
@@ -359,11 +361,13 @@ def present_rest_message(request,*args,**kwargs):
     # grab the lst two char (numbers) in the attr. name
     if lastTrialAttribute=='NULL':
         tmpTrialNum = 10 #means we are in recall task.
+        # how many trials total? (40)
+        currprog = (tmpTrialNum/20)*100
     else:
         tmpTrialNum = int(lastTrialAttribute[-2:])
+        # how many trials total? (40)
+        currprog = (tmpTrialNum/40)*100
 
-    # how many trials total? (40)
-    currprog = (tmpTrialNum/40)*100
     # increment them by 1 and put back into the string
     currpromt = 'Great work so far! You have completed %02d%% of the task.'%(currprog)
 
@@ -584,6 +588,39 @@ def select_practice_stim(request,*args,**kwargs):
 
     return(timeline, thisStim[0].id)
 
+def practice_stim_feedback(request,*args,**kwargs):
+    # did they get the practice trial correct? 
+    # if so return False, otherwise return True so that we see form telling them 
+    # to try again. 
+    form_names = ['post_bio_q2_face_name','post_bio_q2_location','post_bio_q2_job',
+                    'post_bio_q2_hobby','post_bio_q2_relation','post_bio_q2_relation_name']
+    
+    # Get the appropraite Trial attribute from the current session
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=kwargs['session_id']).experiment.id))
+    lastTrialAttribute = expsessinfo['currTrialAttribute']
+
+    #grab the last response to the practice stim 
+    last_response = Response.objects.filter(session=kwargs['session_id'],form__name__in=form_name, stimulus=stimulus_id).last()
+
+    #gsort to get most resent incase there are multiple 
+
+    currentPartAnswerString = 'test'
+
+    #figure out which feature we asked about 
+    currentFeature - expsessinfo['currPostBioQ']
+
+    #now grab the correct answers
+    ThisBioDic = json.load(expsessinfo['misc_info'])
+    currentCorrectAnswerString = ThisBioDic['currentFeature']
+
+    #now do some fuzzy matching to see if it's correct
+    
+    
+
+    needMorePractice = False
+
+    return(needMorePractice)
+
 def addParams2Session(currBioDic,TrialAttribute,request,session_id,params):
     #add the bio info to the session data to later write out in response table
     #add name of the form we want (which feature question are we answering)
@@ -617,7 +654,9 @@ def clear_trial_sess_info(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
     request.session.modified = True 
 
-    return('','')
+    timeline = [{'nothing':'nothing'}] #pass dummy along
+
+    return(timeline,'')
 
 def assign_recall_order(request,*args,**kwargs):
     #i guess we may as well counterbalance based on the order this sub got 
@@ -703,8 +742,9 @@ def assign_recall_order(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
     request.session.modified = True 
 
-    return('','')
+    timeline = [{'nothing':'nothing'}] #pass dummy along
 
+    return(timeline,'')
 
 def select_recall_stim(request,*args,**kwargs):
     # randomly select face to probe
@@ -1029,7 +1069,7 @@ def post_bio_q2_face_name(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     if expsessinfo['currPostBioQ'] == 'face_name':
-        doit = False
+        doit = True
         expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
         request.session.modified = True 
     else:
@@ -1049,7 +1089,7 @@ def post_bio_q2_location(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     if expsessinfo['currPostBioQ'] == 'location':
-        doit = False
+        doit = True
         expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
         request.session.modified = True 
     else:
@@ -1069,7 +1109,7 @@ def post_bio_q2_job(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     if expsessinfo['currPostBioQ'] == 'job':
-        doit = False
+        doit = True
         expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
         request.session.modified = True 
     else:
@@ -1089,7 +1129,7 @@ def post_bio_q2_hobby(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     if expsessinfo['currPostBioQ'] == 'hobby':
-        doit = False
+        doit = True
         expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
         request.session.modified = True 
     else:
@@ -1109,7 +1149,7 @@ def post_bio_q2_relation(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     if expsessinfo['currPostBioQ'] == 'relation':
-        doit = False
+        doit = True
         expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
         request.session.modified = True 
     else:
@@ -1129,7 +1169,7 @@ def post_bio_q2_relation_name(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     if expsessinfo['currPostBioQ'] == 'relation_name':
-        doit = False
+        doit = True
         expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
         request.session.modified = True 
     else:
