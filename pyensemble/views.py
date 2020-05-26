@@ -417,6 +417,7 @@ def serve_form(request, experiment_id=None):
     # Initialize other context
     trialspec = {}
     timeline = []
+    stimulus = [] #BK ADDED THIS INIT HERE after Petr added  stimulus to context
 
     if request.method == 'POST':
         #
@@ -601,7 +602,8 @@ def serve_form(request, experiment_id=None):
         if not requires_stimulus:
             expsessinfo['stimulus_id'] = None
         else:
-            if expsessinfo['stimulus_id']:
+            stimulus_id = expsessinfo.get('stimulus_id',None)
+            if stimulus_id:
                 stimulus = Stimulus.objects.get(id=stimulus_id)
 
         #
@@ -618,7 +620,8 @@ def serve_form(request, experiment_id=None):
         'questions_after_media_finished': True,
         'skip': skip_trial,
         })
-
+    #so when i get tot his point present the ready2go, it's still trying to add stim_id to the context
+    #but it didn't assign a stim or 'none' the last time around...
     # Create our context to pass to the template
     context = {
         'form': form,

@@ -20,12 +20,12 @@ stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
 study_params = {
     'musmemfmri_bio_pilot': {
         'ignore_subs': ['01test0101','addmorehere','01mtt89012'],
-        'breakAfterTheseTrials': ['trial10'],
+        'breakAfterTheseTrials': ['trial10','trial20','trial30'],
         'practice_face_stim_ids': [840, 841],
         'face_stim_ids': [range(820,820+20)],
-        'encoding_bio_duration_ms': 16000,#16000
+        'encoding_bio_duration_ms': 3000,#16000
         'encoding_1back_question_duration_ms': 8000,
-        'encoding_feature_question_duration_ms': 8000,
+        'encoding_rest_duration_ms': 8000,
         'encoding_trials_1-20': range(146,146+20),
         'encoding_trials_21-40': range(166,166+20),
         'bioFeature_names': ['face_name','location','job','hobby','relation','relation_name'],
@@ -179,7 +179,7 @@ def import_attributesXattribute(stimin):
             axa = AttributeXAttribute.objects.get_or_create(child=childattr, parent=parentattr, mapping_name='',)
             #import pdb; pdb.set_trace()
 
-def assign_face_stim(srequest,*args,**kwargs):
+def assign_face_stim(request,*args,**kwargs):
     #This function assembles the bios and assigns them to trials
     #in the attr X attr table
 
@@ -270,7 +270,7 @@ def assign_face_stim(srequest,*args,**kwargs):
         print(str(triallAttrIDsRun1[itrial]))
         #import pdb; pdb.set_trace() 
         
-    import pdb; pdb.set_trace()    
+    #import pdb; pdb.set_trace()    
     curr_face_stims = face_stims #need to remove faces once's we've assigned one
     triallAttrIDsRun2 = params['encoding_trials_21-40']
     for itrial in range(0,len(triallAttrIDsRun2)):
@@ -335,9 +335,11 @@ def assign_face_stim(srequest,*args,**kwargs):
 
     return('','')
 
-def time4rest(request,*args,**kwargs):
-    #update this, needs to return True when it's time for a rest form to be presented
-    #should be based on the trial param in the session info
+def present_rest_message(request,*args,**kwargs):
+    #DOESN"T WORK !
+    # present a string describing progress through task 
+    timeline = []
+
     # Extract our session ID
     session_id = kwargs['session_id']
 
@@ -354,10 +356,79 @@ def time4rest(request,*args,**kwargs):
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
     lastTrialAttribute = expsessinfo['currTrialAttribute']
 
-    import pdb; pdb.set_trace()
+    # grab the lst two char (numbers) in the attr. name
+    if lastTrialAttribute=='NULL':
+        tmpTrialNum = 10 #means we are in recall task.
+    else:
+        tmpTrialNum = int(lastTrialAttribute[-2:])
+
+    # how many trials total? (40)
+    currprog = (tmpTrialNum/40)*100
+    # increment them by 1 and put back into the string
+    currpromt = 'Great work so far! You have completed %02d%% of the task.'%(currprog)
+
+
+    # trial = {
+    #         'type': 'instructions',
+    #         'pages': currpromt,
+    #         'stimulus_duration': params['encoding_bio_duration_ms'],
+    #         'trial_duration': params['encoding_bio_duration_ms']
+    #     }
+
+    trial = {
+            'type': 'image-keyboard-response',
+            'stimulus': '',
+            'stimulus_height': None,
+            'stimulus_width': None,
+            'choices': 'none',
+            'stimulus_duration': params['encoding_rest_duration_ms'],
+            'trial_duration': params['encoding_rest_duration_ms'],
+            'prompt': currpromt
+        }
+    #import pdb; pdb.set_trace()
+    # Push the trial to the timeline
+    timeline.append(trial)
+    #import pdb; pdb.set_trace() #test if it ges here if time4rest is false (doesn't)
+
+    return(timeline, '')
+
+def time4rest(request,*args,**kwargs):
+    #return True when it's time for a rest form to be presented
+    #should be based on the trial param in the session info
+    #also clears the misc info after each trial 
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our subject
+    subject = session.subject
+
+    # Get the appropraite Trial attribute from the current session
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    lastTrialAttribute = expsessinfo['currTrialAttribute']
+
+    #get trial counter for final recall task (trial IDs randomized)
+    try:
+        breaknum = expsessinfo['curr_recall_trial']
+    except:
+        breaknum = 999
+    
+    #clear misc_info etc. 
+    expsessinfo['misc_info'] = ''
+    request.session.modified = True 
+
+
+    #import pdb; pdb.set_trace()
     # if it's practice_trial, go ahead and present trial01
-    if lastTrialAttribute.name in params['breakAfterTheseTrials']:
+    if lastTrialAttribute in params['breakAfterTheseTrials']:
         #take a break! 
+        time2rest = True
+    elif breaknum in ['10']:
         time2rest = True
     else:
         time2rest = False
@@ -390,18 +461,18 @@ def select_stim(request,*args,**kwargs):
 
     expsessinfo['misc_info'] = 'NULL' #reset it for sanity 
 
-    import pdb; pdb.set_trace()
+    
     # if it's practice_trial, go ahead and present trial01
-    if lastTrialAttribute.name == 'trial_practice':
+    if lastTrialAttribute == 'trial_practice':
         currTrialAttribute = Attribute.objects.get(name='trial01')
 
     else:
         # grab the lst two char (numbers) in the attr. name
-        tmpTrialNum = int(lastTrialAttribute.name[-2:])
+        tmpTrialNum = int(lastTrialAttribute[-2:])
         # increment them by 1 and put back into the string
         tmpTrialNum = tmpTrialNum + 1
         # grab the attribute for the new trial 
-        currTrialAttribute = Attribute.objects.get(name='trial%2.0d'%tmpTrialNum)
+        currTrialAttribute = Attribute.objects.get(name='trial%02d'%tmpTrialNum)
 
 
     # Check to see if we already assigned a bio for this trial 
@@ -426,13 +497,15 @@ def select_stim(request,*args,**kwargs):
             'trial_duration': params['encoding_bio_duration_ms'],
             'prompt': currBio
         }
-
+    #import pdb; pdb.set_trace()
     # Push the trial to the timeline
     timeline.append(trial)
 
     # NOTE THAT THIS DOESN"T RECORD A STIMULUS IN THE RESPONSE TABLE
     #but if we have the trial attributes assigned we can use those.
     addParams2Session(currBioDic,currTrialAttribute,request,session_id,params)
+
+    #import pdb; pdb.set_trace()
 
     return(timeline, thisStim.id) 
 
@@ -518,6 +591,7 @@ def addParams2Session(currBioDic,TrialAttribute,request,session_id,params):
 
     #need to serialize this info, but first reduce it to the actual names
     saveThisBioDic = {}
+    saveThisBioDic['trial_attribute_name'] = TrialAttribute.name
     for iftr in currBioDic:
         saveThisBioDic[iftr] = currBioDic[iftr].name
 
@@ -527,8 +601,158 @@ def addParams2Session(currBioDic,TrialAttribute,request,session_id,params):
     expsessinfo['currTrialAttribute'] = TrialAttribute.name
     expsessinfo['misc_info'] = json.dumps(saveThisBioDic)
     expsessinfo['currPostBioQ'] = params['bioFeature_names'][random.randrange(0,len(params['bioFeature_names']))]
-
+    #import pdb; pdb.set_trace()
     request.session.modified = True 
+
+def clear_trial_sess_info(request,*args,**kwargs):
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    #clear misc_info etc. 
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    expsessinfo['currTrialAttribute'] = 'NULL'
+    expsessinfo['misc_info'] = ''
+    expsessinfo['currPostBioQ'] = ''
+    #import pdb; pdb.set_trace()
+    #import pdb; pdb.set_trace()
+    request.session.modified = True 
+
+    return('','')
+
+def assign_recall_order(request,*args,**kwargs):
+    #i guess we may as well counterbalance based on the order this sub got 
+    #on run 1 and 2 (choosing least frequent location)
+    #in the end we want a list with the trial.name in order [trial09 trial02 trial20 ...]
+    #keep this in session, and we will iterate through in select_recall_stim()
+    
+    NotAPracticeTrial = True #set this flag
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our subject
+    subject = session.subject
+
+    # Grab the face stims
+    try:
+        #practice_stims = Stimulus.objects.get(id=params['practice_face_stim_ids'])
+        face_stims = Stimulus.objects.filter(id__in=params['face_stim_ids'][0])
+    except:
+        print(f'Cannot find face stims')
+        
+    recall_trial_order = [] #init this list to store in exp sess info later on
+    #OK, so let's just try and just get em assigned once, so it's easier to test the db
+    curr_face_stims = face_stims #need to remove faces once's we've assigned one
+    triallAttrIDsRun1 = params['encoding_trials_1-20']
+    triallAttrIDsRun2 = params['encoding_trials_21-40']
+    for itrial in range(0,len(triallAttrIDsRun1)):
+
+        currentTrial = Attribute.objects.get(id=str(triallAttrIDsRun1[itrial]))
+        currentTrial_r2 = Attribute.objects.get(id=str(triallAttrIDsRun2[itrial]))
+
+        # grab the bio for this trial 
+        currBioDic, currBio = doesThisBioExist(subject,currentTrial,params)
+        
+        if currBioDic:
+            curr_stims_x_pres = [] #tally number of times face was assigned to this trial
+            print(f'Loading old bio')
+            #for each trial, find the face least often assigned across previous subs and
+            #choose that one
+            #grab all names of all stims presented on this trial (includes)
+            #going to treat r2 as instaces of 1-20
+            thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentTrial,mapping_name=subject.subject_id,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
+            thisTrialPrevFaces_r2 = AttributeXAttribute.objects.filter(parent=currentTrial_r2,mapping_name=subject.subject_id,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
+            
+            thisTrialPrevFaces = [*thisTrialPrevFaces]+[*thisTrialPrevFaces_r2]
+            for iface in range(0,len(curr_face_stims)):
+                if curr_face_stims[iface].name in thisTrialPrevFaces:
+                    #if the current face is in this Q, count the number of times
+                    curr_stims_x_pres.append([*thisTrialPrevFaces].count(curr_face_stims[iface].name))
+                else:
+                    #it hasn't been presented on this trial yet, so add 0
+                    curr_stims_x_pres.append(0)
+
+            #this is idx from curr_stims_x_pres of the stims presented least often
+            final_face_idxs = [i for i, x in enumerate(curr_stims_x_pres) if x == min(curr_stims_x_pres)]
+            #import pdb; pdb.set_trace() #make sure below code works!
+            #randomly select the face, 
+            choose_this_face_idx = final_face_idxs[random.randrange(0,len(final_face_idxs))]
+            currFaceStim = curr_face_stims[choose_this_face_idx]
+            #
+            #need to ensure it doesn't get picked in a subsequent step
+            curr_face_stims = curr_face_stims.exclude(name=curr_face_stims[choose_this_face_idx].name)
+
+            #grab the trial number for this face and append to list 
+            thisFacesPrevTrial = AttributeXAttribute.objects.filter(mapping_value_text=currFaceStim.name,mapping_name=subject.subject_id,child__attribute_class='relation_name')
+            #import pdb; pdb.set_trace() 
+            recall_trial_order.append(thisFacesPrevTrial[0].parent.name) #should return 2, first 1 should be earlier trial attribute we want 
+            
+        else:
+            #can't find it?!
+            print(f'WANRING: cannot find biodic')
+
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    expsessinfo['recall_trial_order'] = recall_trial_order
+    expsessinfo['curr_recall_trial'] = '0'
+    #import pdb; pdb.set_trace()
+    request.session.modified = True 
+
+    return('','')
+
+
+def select_recall_stim(request,*args,**kwargs):
+    # randomly select face to probe
+    timeline = [{'nothing':'nothing'}] #pass dummy along
+     # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our subject
+    subject = session.subject
+
+    #import pdb; pdb.set_trace()
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    recall_trial_order = expsessinfo['recall_trial_order'] 
+    curr_recall_trial = Attribute.objects.get(name=recall_trial_order[int(expsessinfo['curr_recall_trial'])])
+
+    #get the face stim.id and the bio for this trial 
+    thisFaceName = AttributeXAttribute.objects.filter(parent=curr_recall_trial,mapping_name=subject.subject_id,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
+    thisFace = Stimulus.objects.get(name=thisFaceName[0])
+    #update misc_info with bio and increase the curr_recall_trial var
+    tmpTrialNum = int(expsessinfo['curr_recall_trial'])
+    # increment them by 1 and put back into the string
+    tmpTrialNum = tmpTrialNum + 1
+    # grab the attribute for the new trial 
+    expsessinfo['curr_recall_trial'] = '%d'%tmpTrialNum
+
+    currBioDic, currBio = doesThisBioExist(subject,curr_recall_trial,params)
+    if currBioDic:
+        #need to serialize this info, but first reduce it to the actual names
+        saveThisBioDic = {}
+        saveThisBioDic['trial_attribute_name'] = curr_recall_trial.name
+        for iftr in currBioDic:
+            saveThisBioDic[iftr] = currBioDic[iftr].name
+        expsessinfo['misc_info'] = json.dumps(saveThisBioDic)
+    else:
+        print(f'WARNING: could not find trial')
+
+    #import pdb; pdb.set_trace() as
+    request.session.modified = True 
+
+
+    #stim should be the picture (face) we want 
+    return(timeline,thisFace.id)
 
 def select_face1back_stim(request,*args,**kwargs):
     #GOING TO STOP DEV ON THIS FOR NOW. original plan in grant was question about 
@@ -805,7 +1029,7 @@ def post_bio_q2_face_name(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     if expsessinfo['currPostBioQ'] == 'face_name':
-        doit = True
+        doit = False
         expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
         request.session.modified = True 
     else:
@@ -825,7 +1049,7 @@ def post_bio_q2_location(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     if expsessinfo['currPostBioQ'] == 'location':
-        doit = True
+        doit = False
         expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
         request.session.modified = True 
     else:
@@ -845,7 +1069,7 @@ def post_bio_q2_job(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     if expsessinfo['currPostBioQ'] == 'job':
-        doit = True
+        doit = False
         expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
         request.session.modified = True 
     else:
@@ -865,7 +1089,7 @@ def post_bio_q2_hobby(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     if expsessinfo['currPostBioQ'] == 'hobby':
-        doit = True
+        doit = False
         expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
         request.session.modified = True 
     else:
@@ -885,7 +1109,7 @@ def post_bio_q2_relation(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     if expsessinfo['currPostBioQ'] == 'relation':
-        doit = True
+        doit = False
         expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
         request.session.modified = True 
     else:
@@ -905,7 +1129,7 @@ def post_bio_q2_relation_name(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     if expsessinfo['currPostBioQ'] == 'relation_name':
-        doit = True
+        doit = False
         expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
         request.session.modified = True 
     else:
