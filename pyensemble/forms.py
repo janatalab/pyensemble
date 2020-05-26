@@ -90,8 +90,14 @@ class QuestionPresentForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super(QuestionPresentForm, self).__init__(*args, **kwargs)
 
+        # Set the label of the input element to the question_text
+        # self.fields['option'].label = self.instance.text
+
         use_crispy = True
-        field_params = {'required': True}
+        field_params = {
+            'label': self.instance.text,
+            'required': True,
+            }
 
         # Set up the input field as a function of the HTML type
         html_field_type = self.instance.html_field_type
@@ -124,27 +130,32 @@ class QuestionPresentForm(forms.ModelForm):
 
         field_params['widget'] = widget
 
-        self.fields['option'] = forms.ChoiceField(**field_params)
+        if html_field_type in ['radiogroup','menu']:
+            self.fields['option'] = forms.ChoiceField(**field_params)
+        elif html_field_type == 'checkbox':
+            self.fields['option'] = forms.MultipleChoiceField(**field_params)
+        elif html_field_type == 'numeric':
+            self.fields['option'] = forms.IntegerField(**field_params)
+        else:
+            self.fields['option'] = forms.CharField(**field_params)
 
-        if use_crispy:
-            # Access to crispy forms
-            self.helper = FormHelper()
-            self.helper.field_class='row justify-content-center'
-            self.form_tag = False
+        # if use_crispy:
+        #     # Access to crispy forms
+        #     self.helper = FormHelper()
+        #     self.helper.field_class='row justify-content-center'
+        #     self.form_tag = False
 
-            if html_field_type == 'radiogroup':
-                self.helper.layout = Layout(
-                    InlineRadios('option',template="pyensemble/crispy_overrides/radioselect_inline.html"),
-                    )
-            elif html_field_type == 'checkbox':
-                self.helper.layout = Layout(
-                    InlineCheckboxes('option',template="pyensemble/crispy_overrides/checkboxselectmultiple_inline.html"),
-                    )
+        #     if html_field_type == 'radiogroup':
+        #         self.helper.layout = Layout(
+        #             InlineRadios('option',template="pyensemble/crispy_overrides/radioselect_inline.html"),
+        #             )
+        #     elif html_field_type == 'checkbox':
+        #         self.helper.layout = Layout(
+        #             InlineCheckboxes('option',template="pyensemble/crispy_overrides/checkboxselectmultiple_inline.html"),
+        #             )
 
-            self.helper.render_required_fields = True                
+        #     self.helper.render_required_fields = True                
 
-        # Set the label of the input element to the question_text
-        self.fields['option'].label = self.instance.text
 
 QuestionModelFormSet = forms.modelformset_factory(Question, form=QuestionPresentForm, extra=0, max_num=1)
 
