@@ -469,14 +469,23 @@ def serve_form(request, experiment_id=None):
                 #
                 responses = []
                 for idx,question in enumerate(formset.forms):
+            
                     # Pre-process certain fields
-                    response_enum= question.cleaned_data.get('option','')
-                    if response_enum:
-                        response_enum = int(response_enum)
+                    response = question.cleaned_data.get('option','')
+
+                    if question.instance.html_field_type in ['radiogroup','menu']:
+                        response_enum = int(response)
+                        response_text = ''
+                    elif question.instance.html_field_type=='checkbox':
+                        # This is a HACK and needs to be fixed
+                        # checkbox should be enum
+                        # enums need to be stored in power of two format (like Ensemble), so that we can have multiple checkbox responses selected
+                        response_text = ','.join(response)
+                        response_enum = None
                     else:
+                        response_text = response
                         response_enum = None
 
-                    response_text=question.cleaned_data.get('response_text','')
                     declined=question.cleaned_data.get('decline',False)
 
                     # Pull in any miscellaneous info that has been set by the experiment 
@@ -495,7 +504,7 @@ def serve_form(request, experiment_id=None):
                         form=currform.form,
                         form_order=form_idx,
                         stimulus=stimulus,
-                        question=question.cleaned_data['id'],
+                        question=question.instance,
                         form_question_num=idx,
                         question_iteration=1, # this needs to be modified to reflect original Ensemble intent
                         response_order=expsessinfo['response_order'],
