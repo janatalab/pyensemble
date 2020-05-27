@@ -121,7 +121,7 @@ class FormListView(LoginRequiredMixin,ListView):
 class FormCreateView(LoginRequiredMixin,CreateView):
     model = Form
     form_class = FormForm
-    template_name = 'pyensemble/form_update.html'
+    template_name = 'pyensemble/form_create.html'
     
     def get_success_url(self):
         return reverse_lazy('form_update', kwargs={'pk': self.object.pk})
