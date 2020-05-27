@@ -23,7 +23,7 @@ study_params = {
         'breakAfterTheseTrials': ['trial10','trial20','trial30'],
         'practice_face_stim_ids': [840, 841],
         'face_stim_ids': [range(820,820+20)],
-        'encoding_bio_duration_ms': 3000,#16000
+        'encoding_bio_duration_ms': 16000,#16000
         'encoding_1back_question_duration_ms': 8000,
         'encoding_rest_duration_ms': 8000,
         'encoding_trials_1-20': range(146,146+20),
@@ -983,7 +983,7 @@ def assembleThisBio(subject,thisStim,NotAPracticeTrial,params,prev_subs):
                 currAttribte = possibleAttributes[choose_this_feat_idx]
             else:
                 #no previous pairrings
-                import pdb; pdb.set_trace() 
+                #import pdb; pdb.set_trace() 
                 currAttribte = possibleAttributes[random.randrange(0,len(possibleAttributes))]
 
         else:

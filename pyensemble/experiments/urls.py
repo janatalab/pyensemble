@@ -13,3 +13,4 @@ urlpatterns = [
     path('jingles/', include(jingle_urls, namespace='jingles')),
     path('musmemfmri/', include(musmemfmri_urls, namespace='musmemfmri')),
 ]
+

@@ -12,7 +12,7 @@
 
     {% if stimulus %}
         <div class="row justify-content-center">
-            <img src="{{ MEDIA_ROOT }} {{stimulus.location}} " />
+            <img src="{{MEDIA_URL}}{{stimulus.location}}"/>
         </div>
     {% endif %}
 {% endblock %}
