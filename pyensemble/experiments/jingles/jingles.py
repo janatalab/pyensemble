@@ -36,11 +36,13 @@ study_params = {
         'age_ranges':[(6,16),(17,30),(31,64),(65,120)],
         'logo_duration_ms': 15000,
         'slogan_duration_ms': 15000,
+        'jingle_duration_ms': 15000,
     },
     'jingle_stim_select_test': {
         'age_ranges':[(6,16),(17,30),(31,64),(65,120)],
         'logo_duration_ms': 2000,
         'slogan_duration_ms': 2000,
+        'jingle_duration_ms': 2000,
     }
 }
 
@@ -399,9 +401,11 @@ def select_study1(request,*args,**kwargs):
     if media_type == 'jingle':
         trial = {
             'type': 'audio-keyboard-response',
-            'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
+            'prompt': '<p>(Please listen to the following advertisement)</p>',
             'choices': 'none',
-            'trial_ends_after_audio': True,
+            'stimulus_duration': params['jingle_duration_ms'],
+            'trial duration': params['jingle_durations_ms'],
+            #'trial_ends_after_audio': True,
         }
     elif media_type == 'logo':
         trial = {
@@ -419,7 +423,6 @@ def select_study1(request,*args,**kwargs):
         trial = {
             'type': 'html-keyboard-response',
             'stimulus': "<p style=font-size: 30px; margin-top:200px;>"+contents+"</p>",
-            #'stimulus':'<div style="font-size:32px;">contents</div>',
             'choices': 'none',
             'stimulus_duration': params['slogan_duration_ms'],
             'trial_duration': params['slogan_duration_ms']
@@ -430,6 +433,5 @@ def select_study1(request,*args,**kwargs):
     # Push the trial to the timeline
     timeline.append(trial)
 
-    pdb.set_trace()
 
     return timeline, stimulus.id
