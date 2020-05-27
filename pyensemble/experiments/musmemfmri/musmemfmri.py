@@ -3,7 +3,7 @@ import pdb
 import os, csv
 import random
 import json
-#import helpfuncs as helpfuncs
+from fuzzywuzzy import fuzz
 
 from django.conf import settings
 from django.db.models import Q, Count, Min
@@ -255,7 +255,7 @@ def assign_face_stim(request,*args,**kwargs):
 
             # Grab and assemble a random bio (for a male); 
             currBioDic, currBio = assembleThisBio(subject,currFaceStim,currentTrial,params,prev_subs)
-            import pdb; pdb.set_trace() 
+            #import pdb; pdb.set_trace() 
             # Save the particular bio config so we know what it was later on!
             tmp = logThisBio(subject,currBioDic,currentTrial,params)
         else:
@@ -263,11 +263,10 @@ def assign_face_stim(request,*args,**kwargs):
             #need to ensure it doesn't get picked in a subsequent step
             curr_face_stims = curr_face_stims.exclude(name=currBioDic['picture'].name)
 
-        print('currBio')
-        print(currBio)
-        #print(currBioDic)
-        print(itrial)
-        print(str(triallAttrIDsRun1[itrial]))
+        #print('currBio')
+        #print(currBio)
+        #print(itrial)
+        #print(str(triallAttrIDsRun1[itrial]))
         #import pdb; pdb.set_trace() 
         
     #import pdb; pdb.set_trace()    
@@ -318,7 +317,7 @@ def assign_face_stim(request,*args,**kwargs):
             oldTrialThisFace = AttributeXAttribute.objects.filter(mapping_name=subject.subject_id,mapping_value_text=curr_face.name,child__attribute_class='relation_name')
             currBioDic, currBio = doesThisBioExist(subject,oldTrialThisFace[0].parent,params)
 
-            import pdb; pdb.set_trace()
+            #import pdb; pdb.set_trace()
             # Save the particular bio config so we know what it was later on!
             tmp = logThisBio(subject,currBioDic,currentTrial,params)
         else:
@@ -326,11 +325,10 @@ def assign_face_stim(request,*args,**kwargs):
             #need to ensure it doesn't get picked in a subsequent step
             curr_face_stims = curr_face_stims.exclude(name=currBioDic['picture'].name)
 
-        print('currBioDic2')
-        print(currBio)
-        #print(currBioDic)
-        print(itrial)
-        print(str(triallAttrIDsRun2[itrial]))
+        #print('currBioDic2')
+        #print(currBio)
+        #print(itrial)
+        #print(str(triallAttrIDsRun2[itrial]))
         #import pdb; pdb.set_trace()  
 
     timeline = [{'nothing':'nothing'}] #pass dummy along
@@ -371,14 +369,6 @@ def present_rest_message(request,*args,**kwargs):
     # increment them by 1 and put back into the string
     currpromt = 'Great work so far! You have completed %02d%% of the task.'%(currprog)
 
-
-    # trial = {
-    #         'type': 'instructions',
-    #         'pages': currpromt,
-    #         'stimulus_duration': params['encoding_bio_duration_ms'],
-    #         'trial_duration': params['encoding_bio_duration_ms']
-    #     }
-
     trial = {
             'type': 'image-keyboard-response',
             'stimulus': '',
@@ -389,7 +379,7 @@ def present_rest_message(request,*args,**kwargs):
             'trial_duration': params['encoding_rest_duration_ms'],
             'prompt': currpromt
         }
-    #import pdb; pdb.set_trace()
+
     # Push the trial to the timeline
     timeline.append(trial)
     #import pdb; pdb.set_trace() #test if it ges here if time4rest is false (doesn't)
@@ -424,6 +414,7 @@ def time4rest(request,*args,**kwargs):
     
     #clear misc_info etc. 
     expsessinfo['misc_info'] = ''
+    expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
     request.session.modified = True 
 
 
@@ -559,7 +550,7 @@ def select_practice_stim(request,*args,**kwargs):
     # Check to see if we already assigned a bio for this trial 
     currBioDic, practice_bio = doesThisBioExist(subject,TrialAttribute,params)
     if not currBioDic:
-        import pdb; pdb.set_trace()
+        #import pdb; pdb.set_trace()
         # Grab and assemble a random bio (for a male); use the name Jim; 
         currBioDic, practice_bio = assembleThisBio(subject,thisStim[0],NotAPracticeTrial,params,[])
         # Save the particular bio config so we know what it was later on!
@@ -594,30 +585,34 @@ def practice_stim_feedback(request,*args,**kwargs):
     # to try again. 
     form_names = ['post_bio_q2_face_name','post_bio_q2_location','post_bio_q2_job',
                     'post_bio_q2_hobby','post_bio_q2_relation','post_bio_q2_relation_name']
-    
+
     # Get the appropraite Trial attribute from the current session
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=kwargs['session_id']).experiment.id))
     lastTrialAttribute = expsessinfo['currTrialAttribute']
 
     #grab the last response to the practice stim 
-    last_response = Response.objects.filter(session=kwargs['session_id'],form__name__in=form_name, stimulus=stimulus_id).last()
+    last_response = Response.objects.filter(session=kwargs['session_id'],form__name__in=form_names, stimulus_id=expsessinfo['stimulus_id']).last()
 
     #gsort to get most resent incase there are multiple 
 
-    currentPartAnswerString = 'test'
+    currentPartAnswerString = last_response.response_text
 
     #figure out which feature we asked about 
-    currentFeature - expsessinfo['currPostBioQ']
+    currentFeature = expsessinfo['currPostBioQ']
 
     #now grab the correct answers
-    ThisBioDic = json.load(expsessinfo['misc_info'])
-    currentCorrectAnswerString = ThisBioDic['currentFeature']
+    ThisBioDic = json.loads(expsessinfo['misc_info'])
+    currentCorrectAnswerString = ThisBioDic[currentFeature]
 
     #now do some fuzzy matching to see if it's correct
-    
-    
+    matchScore = fuzz.ratio('resn', 'fresno')
+    matchScore = fuzz.ratio(currentPartAnswerString.lower(), currentCorrectAnswerString.lower())
 
-    needMorePractice = False
+    if matchScore >= 85:
+        #count it as correct. and advance
+        needMorePractice = False
+    else:
+        needMorePractice = True
 
     return(needMorePractice)
 
@@ -1070,8 +1065,6 @@ def post_bio_q2_face_name(request,*args,**kwargs):
 
     if expsessinfo['currPostBioQ'] == 'face_name':
         doit = True
-        expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
-        request.session.modified = True 
     else:
         doit = False
 
@@ -1090,8 +1083,6 @@ def post_bio_q2_location(request,*args,**kwargs):
 
     if expsessinfo['currPostBioQ'] == 'location':
         doit = True
-        expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
-        request.session.modified = True 
     else:
         doit = False
 
@@ -1110,8 +1101,6 @@ def post_bio_q2_job(request,*args,**kwargs):
 
     if expsessinfo['currPostBioQ'] == 'job':
         doit = True
-        expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
-        request.session.modified = True 
     else:
         doit = False
 
@@ -1130,8 +1119,6 @@ def post_bio_q2_hobby(request,*args,**kwargs):
 
     if expsessinfo['currPostBioQ'] == 'hobby':
         doit = True
-        expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
-        request.session.modified = True 
     else:
         doit = False
 
@@ -1150,8 +1137,6 @@ def post_bio_q2_relation(request,*args,**kwargs):
 
     if expsessinfo['currPostBioQ'] == 'relation':
         doit = True
-        expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
-        request.session.modified = True 
     else:
         doit = False
 
@@ -1170,8 +1155,6 @@ def post_bio_q2_relation_name(request,*args,**kwargs):
 
     if expsessinfo['currPostBioQ'] == 'relation_name':
         doit = True
-        expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
-        request.session.modified = True 
     else:
         doit = False
 
