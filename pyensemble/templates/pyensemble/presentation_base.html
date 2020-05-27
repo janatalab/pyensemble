@@ -7,14 +7,14 @@
 
 {% block header %}
     {% if form.header %}
-        <div class="form-header py-3 h5">
+        <div class="form-header py-3">
             {{ form.header|safe }}
         </div>
     {% endif %}
 {% endblock %}
 
 {% block main %}
-<div id="presentation" class="row align-items-center pb-3">
+<div id="presentation" class="row align-items-center py-3">
     <div id="trialrunner" class="col-12 d-none">
         {% block trialrunner %}
         {% endblock %}

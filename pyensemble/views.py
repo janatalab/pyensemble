@@ -121,7 +121,7 @@ class FormListView(LoginRequiredMixin,ListView):
 class FormCreateView(LoginRequiredMixin,CreateView):
     model = Form
     form_class = FormForm
-    template_name = 'pyensemble/form_update.html'
+    template_name = 'pyensemble/form_create.html'
     
     def get_success_url(self):
         return reverse_lazy('form_update', kwargs={'pk': self.object.pk})
@@ -400,14 +400,7 @@ def serve_form(request, experiment_id=None):
     form.footer = form.footer.replace('\\','')
 
     # Check to see whether we are dealing with a special form that requires different handling. This is largely to try to maintain backward compatibility with the legacy PHP version of Ensemble
-    form_handler = currform.form_handler
-    handler_name = os.path.splitext(form_handler)[0]
-
-    if handler_name == 'form_start_session':
-        # We've already done the initialization, so set our index to the next form
-        expsessinfo['curr_form_idx'] += 1
-        request.session.modified = True
-        return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
+    handler_name = os.path.splitext(currform.form_handler)[0]
 
     # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
     helper = QuestionModelFormSetHelper()
@@ -463,6 +456,30 @@ def serve_form(request, experiment_id=None):
                 session = Session.objects.get(pk=expsessinfo['session_id'])
                 session.subject = subject
                 session.save()
+
+            elif handler_name == 'form_consent':
+                question = formset.forms[0]
+                response = int(question.cleaned_data.get('option',''))
+
+                # pdb.set_trace()
+                choices = question.instance.choices()
+                if choices[response][1] == 'DISAGREE':
+                    return render(request,'pyensemble/message.html',{
+                        'msg': 'You must agree to provided informed consent if you wish to continue with this experiment!<br> Please click <a href="%s">here</a> if you disagreed in error.<br> Thank you for considering taking part in this experiment.'%(reverse('serve_form',args=(experiment_id,))),
+                        'add_home_url':False,
+                        })
+
+                # Update our visit count
+                num_visits = expsessinfo['visit_count'].get(form_idx,0)
+                num_visits +=1
+                expsessinfo['visit_count'][form_idx] = num_visits
+
+                # Determine our next form index
+                expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
+                request.session.modified=True
+
+                # Move to the next form by calling ourselves
+                return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
             else:
                 #
