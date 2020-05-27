@@ -386,6 +386,7 @@ def select_study1(request,*args,**kwargs):
         return None,  None
     else:
         stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
+        print(stimulus)
 
     #
     # Now, set up the jsPsych trial
@@ -416,9 +417,10 @@ def select_study1(request,*args,**kwargs):
         # Possibly need to fetch the text from the file and place it into the stimulus string
         contents = stimulus.location.open().read().decode('utf-8')
         trial = {
-            'type': 'html-keyboard-response',
+            'type': 'html-button-response',
             #'stimulus': ['<p style="text-align:center; font-size:32px;">'+contents+'</p>'],
-            'stimulus': contents,
+            'stimulus': '<p style="color:black; font-size: 72 px; font-weight: bold; vertical-align: middle;">contents</p>',
+            #'stimulus': '<p style="color:black; font-size: 72 px; font-weight: bold;">contents</p>',
             #'stimulus':'<div style="font-size:32px;">contents</div>',
             'choices': 'none',
             'stimulus_duration': params['slogan_duration_ms'],
