@@ -1,0 +1,24 @@
+{% extends "pyensemble/editor_detail.html" %}
+{% load crispy_forms_tags %}
+
+{% block detailContentTitle %}
+    {% if form.instance.pk %}
+        {{form.instance.name}}
+    {% else %}
+        New Form
+    {% endif %}
+{% endblock %}
+
+{% block additionalDetailContentNavItems %}
+    <li class="nav-item">
+        <a class="nav-link" href="#formQuestions">Questions</a>
+    </li>
+{% endblock %}
+
+{% block detailContent %}
+    <input type="hidden" id="parent_id" value="{{form.instance.pk}}">
+    {% crispy form %}
+
+    {% include "pyensemble/modals/add_item_modal.html" with item_type='question' %}
+
+{% endblock %}
