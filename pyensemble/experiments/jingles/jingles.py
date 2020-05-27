@@ -417,10 +417,8 @@ def select_study1(request,*args,**kwargs):
         # Possibly need to fetch the text from the file and place it into the stimulus string
         contents = stimulus.location.open().read().decode('utf-8')
         trial = {
-            'type': 'html-button-response',
-            #'stimulus': ['<p style="text-align:center; font-size:32px;">'+contents+'</p>'],
-            'stimulus': '<p style="color:black; font-size: 72 px; font-weight: bold; vertical-align: middle;">contents</p>',
-            #'stimulus': '<p style="color:black; font-size: 72 px; font-weight: bold;">contents</p>',
+            'type': 'html-keyboard-response',
+            'stimulus': "<p style=font-size: 30px; margin-top:200px;>"+contents+"</p>",
             #'stimulus':'<div style="font-size:32px;">contents</div>',
             'choices': 'none',
             'stimulus_duration': params['slogan_duration_ms'],
@@ -432,6 +430,6 @@ def select_study1(request,*args,**kwargs):
     # Push the trial to the timeline
     timeline.append(trial)
 
-    # pdb.set_trace()
+    pdb.set_trace()
 
     return timeline, stimulus.id
