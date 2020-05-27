@@ -19,7 +19,7 @@ stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
 
 study_params = {
     'musmemfmri_bio_pilot': {
-        'ignore_subs': ['01test0101','addmorehere','01mtt89012'],
+        'ignore_subs': ['04ktb89211','01mtt89012'],
         'breakAfterTheseTrials': ['trial10','trial20','trial30'],
         'practice_face_stim_ids': [840, 841],
         'face_stim_ids': [range(820,820+20)],
@@ -923,12 +923,31 @@ def assembleThisBio(subject,thisStim,NotAPracticeTrial,params,prev_subs):
             #get all names with this gender
             namesAxA = AttributeXAttribute.objects.filter(parent=relationAxA[0].parent,child__attribute_class='relation_name')
             #namesAxA = AttributeXAttribute.objects.filter(parent=relationAxA.id,child__attribute_class='relation_name')
-            #import pdb; pdb.set_trace()
             
             if relationAxA[0].parent.name in ['male','female']:
                 #don't need to add additional filtering for neutral case
                 #filter names for gender
                 possibleAttributes = possibleAttributes.filter(id__in=namesAxA.values_list('child',flat=True))
+            elif relationAxA[0].parent.name in ['neutral']:
+                #make sure no more than 3 of a sex get assigned to neutral relation names, otherwise
+                #it will run out of, e.g., female names for female relations
+                # grab neutral relation ids
+                neutralRelationsAxA = AttributeXAttribute.objects.filter(parent=Attribute.objects.get(id=12),child__attribute_class='relation').values_list('child',flat=True)
+                # get the trial ids for previous neutral trials for this particpant
+                prevNeutralTrials = AttributeXAttribute.objects.filter(mapping_name=subject.subject_id,child__in=neutralRelationsAxA).exclude(parent='145').values_list('parent',flat=True)
+                # get the relation_name assigned to those trials 
+                prevNames = AttributeXAttribute.objects.filter(mapping_name=subject.subject_id,parent__in=prevNeutralTrials,child__attribute_class='relation_name').values_list('child',flat=True)
+
+                prevFemaleNames = AttributeXAttribute.objects.filter(parent=Attribute.objects.get(id=11),child__in=prevNames).values_list('child',flat=True)
+                prevMaleNames = AttributeXAttribute.objects.filter(parent=Attribute.objects.get(id=10),child__in=prevNames).values_list('child',flat=True)
+        
+                if len(prevFemaleNames) > 2:
+                    #filter out the female names
+                    possibleAttributes = possibleAttributes.exclude(id__in=prevFemaleNames)
+                elif len(prevMaleNames) > 2:
+                    #filter out the male names (don't assign anymore to neutral relation)
+                    possibleAttributes = possibleAttributes.exclude(id__in=prevMaleNames)
+                #no need to modify if it hasn't hit the limit on neurtral name assignment 
 
         #figure out gender AND ethnicity of the chosen face and limit names based on that
         if iftr in ['face_name']:
@@ -979,7 +998,12 @@ def assembleThisBio(subject,thisStim,NotAPracticeTrial,params,prev_subs):
                 final_feat_idxs = [i for i, x in enumerate(curr_feature_x_pres) if x == min(curr_feature_x_pres)]
 
                 #randomly select the face, 
+                
+                #got ane rror here, may be a case where the fitlering removes all stims?
+                #e.g., or if there is only 1 feature, does that lead the range call 0? 
+                #don't think so, probably because relation_gender neutral thing. 
                 choose_this_feat_idx = final_feat_idxs[random.randrange(0,len(final_feat_idxs))]
+
                 currAttribte = possibleAttributes[choose_this_feat_idx]
             else:
                 #no previous pairrings
