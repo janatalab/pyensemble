@@ -401,7 +401,7 @@ def select_study1(request,*args,**kwargs):
     if media_type == 'jingle':
         trial = {
             'type': 'audio-keyboard-response',
-            'prompt': '<p>(Please listen to the following advertisement)</p>',
+            'prompt':'<p style=font-size:30px; margin-top:200px;>(Please listen to the following advertisement)</p>',
             'choices': 'none',
             'stimulus_duration': params['jingle_duration_ms'],
             'trial duration': params['jingle_durations_ms'],
