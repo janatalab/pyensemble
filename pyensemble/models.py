@@ -309,8 +309,7 @@ class ExperimentXForm(models.Model):
         ('form_generic','form_generic'),
         ('form_stimulus_s','form_stimulus_s'),
         ('form_generic_s','form_generic_s'),
-        ('form_start_session','form_start_session'),
-        ('form_start_session','form_start_session'),
+        ('form_end_session','form_end_session'),
         ('form_subject_register','form_subject_register'),
         ('form_image_s','form_image_s'),
     ]
