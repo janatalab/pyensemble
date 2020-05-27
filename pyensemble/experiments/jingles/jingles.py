@@ -14,7 +14,7 @@ from django.http import HttpResponse
 from django.shortcuts import render
 import django.forms as forms
 from django.utils import timezone
-from django.db.models import Q, Count, Min
+from django.db.models import Q, Count, Min, Max
 
 from django.contrib.auth.decorators import login_required
 
@@ -34,8 +34,15 @@ stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
 study_params = {
     'jingle_project_study1': {
         'age_ranges':[(6,16),(17,30),(31,64),(65,120)],
-        'logo_duration_ms': 5000,
-        'slogan_duration_ms': 5000,
+        'logo_duration_ms': 15000,
+        'slogan_duration_ms': 15000,
+        'jingle_duration_ms': 15000,
+    },
+    'jingle_stim_select_test': {
+        'age_ranges':[(6,16),(17,30),(31,64),(65,120)],
+        'logo_duration_ms': 2000,
+        'slogan_duration_ms': 2000,
+        'jingle_duration_ms': 2000,
     }
 }
 
@@ -152,6 +159,27 @@ def import_attributes(request):
 def delete_exf(request,title):
     ExperimentXForm.objects.filter(experiment__title=title).delete()
     return render(request,'pyensemble/message.html',{'msg':f'Deleted experimentxform for {title}'})
+
+def age_meets_criterion_and_lived_in_USA(request,*args,**kwargs):
+    #
+    # Get the subject's dob from the session
+    dob = Session.objects.get(id=kwargs['session_id']).subject.dob
+
+    # Display this form if they're under 18 years of age
+    is_old_enough = (timezone.now().date()-dob).days > int(kwargs['min'])*365
+
+    # Get the form we wants
+    form_name='jingle_project_demographics'
+    
+    # Get the response corresponding to Question 2 from this form
+    USA_response = Response.objects.filter(session=kwargs['session_id'],form__name=form_name, question__text__contains='born').last()
+
+    moved_to_usa_in_time = USA_response.response_enum <= 4
+
+    meets_both_criteria = is_old_enough and moved_to_usa_in_time
+
+    return not meets_both_criteria
+
 
 def age_meets_criterion(request,*args,**kwargs):
     #
@@ -291,8 +319,16 @@ def select_study1(request,*args,**kwargs):
         possible_stims = possible_stims.exclude(stimulusxattribute__attribute_value_text=company)
 
     # Determine the number of times that each stimulus has been presented
-    experiment_responses = Count('response', filter=Q(response__experiment=session.experiment))
+    query_filter = Q(
+        response__experiment=session.experiment, 
+        response__form__name='Jingle Project Familiarity',
+        response__question__text__contains='familiar is this advertisement'
+        )
+
+    experiment_responses = Count('response', filter=query_filter)
     possible_stims = possible_stims.annotate(num_responses=experiment_responses)
+
+    # pdb.set_trace()
 
     # Determine the existing media types
     media_types = StimulusXAttribute.objects.filter(stimulus__in=possible_stims,attribute__name='Media Type').values_list('attribute_value_text',flat=True).distinct()
@@ -322,6 +358,7 @@ def select_study1(request,*args,**kwargs):
 
     # Randomly pick a media type
     media_idx = random.randrange(0,media_types.count())
+    curr_media_type = media_types[media_idx]
 
     # Randomly pick an age range from those that actually have stimuli
     num_available_in_range = [r.count() for r in stims_x_agerange]
@@ -329,9 +366,17 @@ def select_study1(request,*args,**kwargs):
     age_idx = available_ranges[random.randrange(0,len(available_ranges))]
 
     # Select from among the least played stimuli in the target category
+    # pdb.set_trace()
     select_from_stims = stims_x_agerange[age_idx].filter(
         stimulusxattribute__attribute__name='Media Type',
-        stimulusxattribute__attribute_value_text=media_types[media_idx])
+        stimulusxattribute__attribute_value_text=curr_media_type)
+
+    # We've arrived at our stimulus
+    if not select_from_stims.count():
+        if settings.DEBUG:
+            print('Of the %d stimuli in age range %d, none have the requested media type: %s'%(stims_x_agerange[age_idx].count(),age_idx,curr_media_type))
+            pdb.set_trace()    
+
     num_min = select_from_stims.aggregate(Min('num_responses'))['num_responses__min']
     select_from_stims = select_from_stims.filter(num_responses=num_min)
 
@@ -340,12 +385,15 @@ def select_study1(request,*args,**kwargs):
         if settings.DEBUG:
             pdb.set_trace()
 
-    stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
+        return None,  None
+    else:
+        stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
+        print(stimulus)
 
     #
     # Now, set up the jsPsych trial
     #
-
+    
     # Determine the stimulus type
     media_type = media_types[media_idx]
 
@@ -353,9 +401,11 @@ def select_study1(request,*args,**kwargs):
     if media_type == 'jingle':
         trial = {
             'type': 'audio-keyboard-response',
-            'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
+            'prompt': '<p>(Please listen to the following advertisement)</p>',
             'choices': 'none',
-            'trial_ends_after_audio': True,
+            'stimulus_duration': params['jingle_duration_ms'],
+            'trial duration': params['jingle_durations_ms'],
+            #'trial_ends_after_audio': True,
         }
     elif media_type == 'logo':
         trial = {
@@ -372,7 +422,7 @@ def select_study1(request,*args,**kwargs):
         contents = stimulus.location.open().read().decode('utf-8')
         trial = {
             'type': 'html-keyboard-response',
-            'stimulus': contents,
+            'stimulus': "<p style=font-size: 30px; margin-top:200px;>"+contents+"</p>",
             'choices': 'none',
             'stimulus_duration': params['slogan_duration_ms'],
             'trial_duration': params['slogan_duration_ms']
@@ -383,8 +433,5 @@ def select_study1(request,*args,**kwargs):
     # Push the trial to the timeline
     timeline.append(trial)
 
-    # pdb.set_trace()
 
     return timeline, stimulus.id
-
-
