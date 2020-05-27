@@ -4,11 +4,13 @@
     <main role="main" class="container-fluid">
         <div class="row justify-content-center">
             <div class="alert alert-primary" role="alert">
-                {{msg}}
+                {{msg | safe}}
             </div>
         </div>
-        <div>
-            <a href="{% url 'editor' %}">Home</a>
-        </div>
+        {% if add_home_url %}
+            <div>
+                <a href="{% url 'editor' %}">Home</a>
+            </div>
+        {% endif %}
     </main>
 {% endblock %}

@@ -463,6 +463,30 @@ def serve_form(request, experiment_id=None):
                 session.subject = subject
                 session.save()
 
+            elif handler_name == 'form_consent':
+                question = formset.forms[0]
+                response = int(question.cleaned_data.get('option',''))
+
+                # pdb.set_trace()
+                choices = question.instance.choices()
+                if choices[response][1] == 'DISAGREE':
+                    return render(request,'pyensemble/message.html',{
+                        'msg': 'You must agree to provided informed consent if you wish to continue with this experiment!<br> Please click <a href="%s">here</a> if you disagreed in error.<br> Thank you for considering taking part in this experiment.'%(reverse('serve_form',args=(experiment_id,))),
+                        'add_home_url':False,
+                        })
+
+                # Update our visit count
+                num_visits = expsessinfo['visit_count'].get(form_idx,0)
+                num_visits +=1
+                expsessinfo['visit_count'][form_idx] = num_visits
+
+                # Determine our next form index
+                expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
+                request.session.modified=True
+
+                # Move to the next form by calling ourselves
+                return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
+
             else:
                 #
                 # Save responses to the Response table
