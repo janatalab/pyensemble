@@ -227,11 +227,12 @@ def imagined_jingle(request,*args,**kwargs):
     # Get the form we want
     form = Form.objects.get(name='heard_jingle')
     last_response = Response.objects.filter(session=kwargs['session_id'], stimulus=stimulus_id, form=form, form_question_num=0).last()
+    #pdb.set_trace()
 
     if not last_response:
         return False
 
-    return last_response.response_enum>0
+    return int(last_response.response_text)>0
 
 def select_study1(request,*args,**kwargs):
     # Construct a jsPsych timeline
@@ -401,10 +402,11 @@ def select_study1(request,*args,**kwargs):
     if media_type == 'jingle':
         trial = {
             'type': 'audio-keyboard-response',
+            'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
             'prompt':'<p style=font-size:30px; margin-top:200px;>(Please listen to the following advertisement)</p>',
             'choices': 'none',
             'stimulus_duration': params['jingle_duration_ms'],
-            'trial duration': params['jingle_durations_ms'],
+            'trial_duration': params['jingle_duration_ms'],
             #'trial_ends_after_audio': True,
         }
     elif media_type == 'logo':
@@ -415,17 +417,19 @@ def select_study1(request,*args,**kwargs):
             'stimulus_width': None,
             'choices': 'none',
             'stimulus_duration': params['logo_duration_ms'],
-            'trial_duration': params['logo_duration_ms']
+            'trial_duration': params['logo_duration_ms'],
         }
     elif media_type == 'slogan':
         # Possibly need to fetch the text from the file and place it into the stimulus string
         contents = stimulus.location.open().read().decode('utf-8')
         trial = {
             'type': 'html-keyboard-response',
-            'stimulus': "<p style=font-size: 30px; margin-top:200px;>"+contents+"</p>",
+#            'stimulus': "<div class='container'><div class='row'><div class='col align-self-center' style='font-size: 30px'>"+contents+"</div></div></div>",
+#            'stimulus': '<p style="font-size: 30px; margin-top=200px">'+contents+'</p>',
+            'stimulus': contents,
             'choices': 'none',
             'stimulus_duration': params['slogan_duration_ms'],
-            'trial_duration': params['slogan_duration_ms']
+            'trial_duration': params['slogan_duration_ms'],
         }
     else:
         raise ValueError(f'Cannot specify trial for {media_type}')
