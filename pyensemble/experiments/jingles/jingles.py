@@ -384,6 +384,7 @@ def select_study1(request,*args,**kwargs):
     # We've arrived at our stimulus
     if not select_from_stims.count():
         if settings.DEBUG:
+            print('No more stims')
             pdb.set_trace()
 
         return None,  None
@@ -403,7 +404,7 @@ def select_study1(request,*args,**kwargs):
         trial = {
             'type': 'audio-keyboard-response',
             'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
-            'prompt':'<p style=font-size:30px; margin-top:200px;>(Please listen to the following advertisement)</p>',
+            'prompt':'<p style=font-size:30px;margin-top:200px;>(Please listen to the following advertisement)</p>',
             'choices': 'none',
             'stimulus_duration': params['jingle_duration_ms'],
             'trial_duration': params['jingle_duration_ms'],
@@ -424,13 +425,15 @@ def select_study1(request,*args,**kwargs):
         contents = stimulus.location.open().read().decode('utf-8')
         trial = {
             'type': 'html-keyboard-response',
-#            'stimulus': "<div class='container'><div class='row'><div class='col align-self-center' style='font-size: 30px'>"+contents+"</div></div></div>",
-#            'stimulus': '<p style="font-size: 30px; margin-top=200px">'+contents+'</p>',
-            'stimulus': contents,
+           # 'stimulus': "<div class='container'><div class='row'><div class='col align-self-center' style='font-size: 30px'>"+contents+"</div></div></div>",
+           'stimulus': "<p style=font-size:30px;margin-top:200px>"+contents+"</p>",
+            # 'stimulus': contents,
             'choices': 'none',
             'stimulus_duration': params['slogan_duration_ms'],
             'trial_duration': params['slogan_duration_ms'],
         }
+        if settings.DEBUG:
+            print('Created a slogan trial: %s'%(trial['stimulus']))
     else:
         raise ValueError(f'Cannot specify trial for {media_type}')
 
