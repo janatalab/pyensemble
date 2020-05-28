@@ -482,6 +482,9 @@ def select_stim(request,*args,**kwargs):
     #
     # Now, set up the jsPsych trial
     #
+    import pdb; pdb.set_trace()
+    #try to add some html markup to get the bio to not spread so far
+    currBio_html = '<div style=\\"margin-top:00%; margin-left:30%; margin-right:30%; display:inline-block; vertical-align:top;\\">'+currBio+'</div>'
     trial = {
             'type': 'image-keyboard-response',
             'stimulus': os.path.join(settings.MEDIA_URL,thisStim.location.url),
@@ -490,7 +493,7 @@ def select_stim(request,*args,**kwargs):
             'choices': 'none',
             'stimulus_duration': params['encoding_bio_duration_ms'],
             'trial_duration': params['encoding_bio_duration_ms'],
-            'prompt': currBio
+            'prompt': currBio_html
         }
     #import pdb; pdb.set_trace()
     # Push the trial to the timeline
@@ -559,6 +562,7 @@ def select_practice_stim(request,*args,**kwargs):
     #
     # Now, set up the jsPsych trial
     #
+    currBio_html = '<div style=\\"margin-top:00%; margin-left:30%; margin-right:30%; display:inline-block; vertical-align:top;\\">'+practice_bio+'</div>'
     trial = {
             'type': 'image-keyboard-response',
             'stimulus': os.path.join(settings.MEDIA_URL,thisStim[0].location.url),
@@ -567,7 +571,7 @@ def select_practice_stim(request,*args,**kwargs):
             'choices': 'none',
             'stimulus_duration': params['encoding_bio_duration_ms'],
             'trial_duration': params['encoding_bio_duration_ms'],
-            'prompt': practice_bio
+            'prompt': currBio_html
         }
 
     # Push the trial to the timeline
