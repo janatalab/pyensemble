@@ -155,61 +155,57 @@ def import_attributes(request):
 
     return render(request, template, context)
 
+pdb.set_trace()
+
 @login_required
 def update_attributes(request):
-    if request.method == 'POST':
-        form = ImportForm(request.POST, request.FILES)
-                         
-        if form.is_valid():
-            csv_file = request.files['file']
-            csv_file = TextIOWrapper(csv_file, encoding='utf-8')
-            reader = csv.reader(csv_file, delimiter=',')
-        
-            # Get the column headers
-            columns = next(reader)
+   with open('JingleDatabase.csv','rt', encoding='utf-8') as f:
+        reader = csv.reader(f)
+        #csv_file = TextIOWrapper(csv_file, encoding='utf-8')
+        #reader = csv.reader(csv_file, delimiter=',')
+    
+        # Get the column headers
+        columns = next(reader)
 
-            # Get a dictionary of column indexes
-            cid = {col:idx for idx, col in enumerate(columns)}
+        # Get a dictionary of column indexes
+        #cid = {col:idx for idx, col in enumerate(columns)}
 
-            # Specify our column to attribute mapping
-            colattmap = {
-                'Company': 'Company',
-                'Item': 'Product',
-                'Product_Category': 'Product Category',
-                'First_Played': 'First Played',
-                'Last_Played': 'Last Played',
-                'Region_Played': 'Region',
-                'Modality': 'Modality',
-            }
-            numeric = ['First_Played','Last_Played']
+        # Specify our column to attribute mapping
+        colattmap = {
+                        'Company': 'Company',
+                        'Item': 'Product',
+                        'Product_Category': 'Product Category',
+                        'First_Played': 'First Played',
+                        'Last_Played': 'Last Played',
+                        'Region_Played': 'Region',
+                        'Modality': 'Modality',
+                    }
+        numeric = ['First_Played','Last_Played']
 
-            # Iterate over the list of stims to update
-            #ideally, this should be more flexible rather than dicatating stim id's here
-            stims_to_change = ['151_Miller_logo2', '36_DrPepper_tagline9', '52_KellogsFrostedFlakes_tagline6', '631_MrPotatoHead_logo2', '797_Tide_tagline5', '90_Beachnutgum_logo7', '90_Beachnutgum_tagline7', '98_Kool-Aid_comm3', '98_Kool-Aid_tagline4', 'Converse_tagline', 'GirlTalk_comm', 'GreenGiant_comm3', 'Hormel_comm', 'Hormel_tagline5', 'Hormel_tagline6', 'Jif_tagline_02', 'Oxydol_comm']
+        # Iterate over the list of stims to update
+        # ideally, this should be more flexible rather than dicatating stim id's here
+        stims_to_change = ['151_Miller_logo2', '36_DrPepper_tagline9', '52_KellogsFrostedFlakes_tagline6', '631_MrPotatoHead_logo2', '797_Tide_tagline5', '90_Beachnutgum_logo7', '90_Beachnutgum_tagline7', '98_Kool-Aid_comm3', '98_Kool-Aid_tagline4', 'Converse_tagline', 'GirlTalk_comm', 'GreenGiant_comm3', 'Hormel_comm', 'Hormel_tagline5', 'Hormel_tagline6', 'Jif_tagline_02', 'Oxydol_comm']
 
-            for stim in stims_to_change:
-                # Find the row in our csv containing values for this stimulus
-                row = csv_file[csv_file.Stimulus_ID == stim]
-
-                # Iterate over our attributes
+        for row in reader: 
+            if (row.Stimulus_ID) in stims_to_change:
+                # Iterate over our attributes one by one
                 for col in colattmap:
-
-                    # Get the attribute value we're going to write
+                    # Get the attribute value we're going to overwrite
+                    attr = colattmap[col]
                     value = row[col].values[0]
                     if col in numeric:
-                        value_text = ''
                         value_float = float(value) if value and value != '?' else None
+                        # Replace this attribute in the stim x attribute table
+                        pdb.set_trace()
+                        sxa, created = StimulusXAttribute.objects.get_or_create(stimulus=stim, attribute=attr, attribute_value_double=value_float)
+                        print("updated stim:", stim, "attribute:", attr, "value:", value_float)
+
                     else:
                         value_text = value
-                        value_float = None
-
-                    # Replace this attribute in the stim x attribute table
-                    sxa, created = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attribute, attribute_value_text=value_text, attribute_value_double=value_float)
-
-                    #you can only use this return statement if you're defining a function
-                    return render(request,'pyensemble/message.html',{'msg':'Successfully imported the attribute file'})
-                    pdb.set_trace()
-
+                        pdb.set_trace()
+                        # Replace this attribute in the stim x attribute table
+                        sxa, created = StimulusXAttribute.objects.get_or_create(stimulus=stim, attribute=attr, attribute_value_text=value_text)
+                        print("updated stim:", stim, "attribute:", attr, "value:", value_text)
 
 @login_required
 def delete_exf(request,title):
