@@ -26,7 +26,8 @@
     <script>
         $(document).ready(function () {
             $('#trialrunner').removeClass('d-none');
-            start_trial(JSON.parse('{{timeline_json | safe}}'));
+            var timeline_json={{ timeline_json|safe }};
+            start_trial(timeline_json);
         });
     </script>
 {% endblock %}
