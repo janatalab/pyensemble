@@ -25,6 +25,7 @@ from pyensemble.models import Session, Attribute, Stimulus, StimulusXAttribute, 
 
 from pyensemble.importers.forms import ImportForm
 
+import json
 import pdb
 
 # Specify the stimulus directory relative to the stimulus root
@@ -425,15 +426,12 @@ def select_study1(request,*args,**kwargs):
         contents = stimulus.location.open().read().decode('utf-8')
         trial = {
             'type': 'html-keyboard-response',
-           # 'stimulus': "<div class='container'><div class='row'><div class='col align-self-center' style='font-size: 30px'>"+contents+"</div></div></div>",
-           'stimulus': "<p style=font-size:30px;margin-top:200px>"+contents+"</p>",
-            # 'stimulus': contents,
+            'stimulus': '<p style="font-size:30px;margin-top:200px">'+contents+'</p>',
             'choices': 'none',
             'stimulus_duration': params['slogan_duration_ms'],
             'trial_duration': params['slogan_duration_ms'],
         }
-        if settings.DEBUG:
-            print('Created a slogan trial: %s'%(trial['stimulus']))
+
     else:
         raise ValueError(f'Cannot specify trial for {media_type}')
 
