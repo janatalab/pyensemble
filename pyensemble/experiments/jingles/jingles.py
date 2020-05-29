@@ -25,7 +25,6 @@ from pyensemble.models import Session, Attribute, Stimulus, StimulusXAttribute, 
 
 from pyensemble.importers.forms import ImportForm
 
-import json
 import pdb
 
 # Specify the stimulus directory relative to the stimulus root
@@ -431,7 +430,6 @@ def select_study1(request,*args,**kwargs):
             'stimulus_duration': params['slogan_duration_ms'],
             'trial_duration': params['slogan_duration_ms'],
         }
-
     else:
         raise ValueError(f'Cannot specify trial for {media_type}')
 
