@@ -27,7 +27,8 @@ from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm
 from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm
 
 from .tasks import get_expsess_key, fetch_subject_id
-from pyensemble.utils.parsers import parse_function_spec
+
+from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 from pyensemble import experiments 
 
 from crispy_forms.layout import Submit
@@ -71,7 +72,7 @@ class ExperimentUpdateView(LoginRequiredMixin,UpdateView):
 
         # Get the form for our ticket creation modal
         context['ticket_form'] = TicketCreationForm(initial={'experiment_id':context['experiment'].id})        
-        # pdb.set_trace()
+
         return context
 
     def form_valid(self, form):
@@ -139,7 +140,6 @@ class FormUpdateView(LoginRequiredMixin,UpdateView):
         else:
             context['formset'] = FormQuestionFormset(instance=self.object, queryset=self.object.formxquestion_set.order_by('form_question_num'))
         
-        # pdb.set_trace()
         return context
 
     def form_valid(self, form):
@@ -164,15 +164,12 @@ class FormUpdateView(LoginRequiredMixin,UpdateView):
 
 class FormPresentView(LoginRequiredMixin,UpdateView):
     model = Form
-    # form_class = FormForm
     fields=()
-    # exclude = ('header','footer','version','category','header_audio_path','footer_audio_path','questions','experiments')
     template_name = 'pyensemble/handlers/form_generic.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # pdb.set_trace()
         context['form']=context['object']
         context['formset']=QuestionModelFormSet(queryset=context['object'].questions.all().order_by('formxquestion__form_question_num'))
 
@@ -181,7 +178,6 @@ class FormPresentView(LoginRequiredMixin,UpdateView):
 
         context['helper'] = helper
 
-        # pdb.set_trace()
         return context
 
 
@@ -209,21 +205,20 @@ class QuestionListView(LoginRequiredMixin,ListView):
     model = Question
     context_object_name = 'question_list'
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+    # def get_context_data(self, **kwargs):
+    #     context = super().get_context_data(**kwargs)
 
-        return context
+    #     return context
 
 class QuestionCreateView(LoginRequiredMixin,CreateView):
     model = Question
     form_class = QuestionCreateForm
     template_name = 'pyensemble/question_create.html'
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+    # def get_context_data(self, **kwargs):
+    #     context = super().get_context_data(**kwargs)
 
-        # pdb.set_trace()
-        return context
+    #     return context
 
     def form_valid(self, form):
         context = self.get_context_data()
@@ -251,7 +246,6 @@ class QuestionUpdateView(LoginRequiredMixin,UpdateView):
         context = super().get_context_data(**kwargs)
         context['form'].helper.form_action = reverse('question_update', kwargs={'pk': self.object.pk})
 
-        # pdb.set_trace()
         return context
 
     def form_valid(self, form):
@@ -268,13 +262,11 @@ class QuestionPresentView(LoginRequiredMixin,UpdateView):
     model = Question
     form_class = QuestionPresentForm
     template_name = 'pyensemble/question_present.html'
-    # context_object_name = 'question'
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
+    # def get_context_data(self, **kwargs):
+    #     context = super().get_context_data(**kwargs)
 
-        # pdb.set_trace()
-        return context
+    #     return context
 
 #
 # Views for enumerated response options
@@ -297,13 +289,6 @@ class EnumCreateView(LoginRequiredMixin,CreateView):
 
         except:
             return HttpResponseBadRequest('The enum already exists')
-
-    # def post(self,request,*args,**kwargs):
-    #     try:
-    #         super().post(request, *args, **kwargs)
-
-    #     except IntegrityError:
-    #         return HttpResponseBadRequest('The enum already exists')
 
     def get_success_url(self):
         return reverse_lazy('editor')
@@ -462,7 +447,7 @@ def serve_form(request, experiment_id=None):
 
                 # pdb.set_trace()
                 choices = question.instance.choices()
-                if choices[response][1] == 'DISAGREE':
+                if choices[response][1].lower() != 'agree':
                     return render(request,'pyensemble/message.html',{
                         'msg': 'You must agree to provided informed consent if you wish to continue with this experiment!<br> Please click <a href="%s">here</a> if you disagreed in error.<br> Thank you for considering taking part in this experiment.'%(reverse('serve_form',args=(experiment_id,))),
                         'add_home_url':False,
@@ -576,29 +561,13 @@ def serve_form(request, experiment_id=None):
 
             # Use regexp to get the function name that we're calling
             funcdict = parse_function_spec(currform.stimulus_script)
-
-            # Check whether we specified by a module and a method
-            parsed_funcname = funcdict['func_name'].split('.')
-            module = parsed_funcname[0]
-
-            if len(parsed_funcname)==1:
-                method = 'select'
-            elif len(parsed_funcname)==2:
-                method = parsed_funcname[1]
-            else:
-                raise ValueError('Method-nesting too deep')
-
-            # Get the module handle from pyensemble.experiments
-            select_module = getattr(experiments,module)
-
-            # Get the method handle
-            select_func = getattr(select_module,method)
-
-            # Pass along our experiment_id
             funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
 
-            # Call the select function with the parameters to get the trial specification
-            timeline, stimulus_id  = select_func(request, *funcdict['args'],**funcdict['kwargs'])
+            # Get our selection function
+            method = fetch_experiment_method(funcdict['func_name'])
+
+            # Call the select function with the parameters to get the trial timeline specification
+            timeline, stimulus_id  = method(request, *funcdict['args'],**funcdict['kwargs'])
 
             expsessinfo['stimulus_id'] = stimulus_id
         else:
@@ -646,7 +615,6 @@ def serve_form(request, experiment_id=None):
         'form': form,
         'formset': formset,
         'form_show_errors': True,
-        # 'exf': currform,
         'helper': helper,
         'timeline': timeline,
         'timeline_json': json.dumps(timeline),

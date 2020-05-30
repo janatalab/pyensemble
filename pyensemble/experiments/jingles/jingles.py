@@ -36,6 +36,11 @@ study_params = {
         'age_ranges':[(6,16),(17,30),(31,64),(65,120)],
         'logo_duration_ms': 5000,
         'slogan_duration_ms': 5000,
+    },
+    'jingle_stim_select_test': {
+        'age_ranges':[(6,16),(17,30),(31,64),(65,120)],
+        'logo_duration_ms': 1000,
+        'slogan_duration_ms': 1000,
     }
 }
 

@@ -1,5 +1,6 @@
 # parsers.py
 import re
+from importlib import import_module
 
 def parse_function_spec(function_str):
     # Extracts the function/module name and list of arguments that are passed to that function.
@@ -36,3 +37,15 @@ def parse_function_spec(function_str):
 
     specdict.update({'args':args,'kwargs':kwargs})
     return specdict
+
+def fetch_experiment_method(method_path):
+    # Check whether we specified by a module and a method
+    modules = method_path.split('.')
+
+    # The actual method is at the end
+    method = modules.pop()
+
+    module = import_module('pyensemble.experiments.'+'.'.join(modules))
+
+    return getattr(module,method)
+   

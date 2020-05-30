@@ -11,7 +11,7 @@ from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailFiel
 
 from django.utils import timezone
 
-from pyensemble.utils.parsers import parse_function_spec
+from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 
 import pdb
 
@@ -449,24 +449,6 @@ class ExperimentXForm(models.Model):
             # Parse the function call specification
             funcdict = parse_function_spec(self.condition_script)
 
-            # Call the requested function. Assume it is in the experiments package
-            parsed_funcname = funcdict['func_name'].split('.')
-            module_name = parsed_funcname[0]
-
-            if len(parsed_funcname)==1:
-                method_name = 'evaluate_condition'
-            elif len(parsed_funcname)==2:
-                method_name = parsed_funcname[1]
-            else:
-                pdb.set_trace()
-                raise ValueError('Method-nesting too deep')
-
-            # Get the module handle from pyensemble.experiments
-            module = getattr(experiments,module_name)
-
-            # Get the method handle
-            method = getattr(module,method_name)
-
             # Perform any argument variable substitution
             for idx,arg in enumerate(funcdict['args']):
                 if arg == 'stimulus_id':
@@ -474,6 +456,8 @@ class ExperimentXForm(models.Model):
 
             # Pass along our session_id
             funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
+
+            method = fetch_experiment_method(funcdict['func_name'])
 
             # Call the select function with the parameters to get the trial specification
             met_conditions = method(request, *funcdict['args'],**funcdict['kwargs'])
