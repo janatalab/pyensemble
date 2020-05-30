@@ -174,7 +174,7 @@ class FormPresentView(LoginRequiredMixin,UpdateView):
 
         # pdb.set_trace()
         context['form']=context['object']
-        context['formset']=QuestionModelFormSet(queryset=context['object'].questions.all())
+        context['formset']=QuestionModelFormSet(queryset=context['object'].questions.all().order_by('formxquestion__form_question_num'))
 
         helper = QuestionModelFormSetHelper()
         helper.template = 'pyensemble/partly_crispy/question_formset.html'
@@ -633,7 +633,7 @@ def serve_form(request, experiment_id=None):
             form = RegisterSubjectForm()
             formset = None
         else:
-            formset = QuestionModelFormSet(queryset=form.questions.all())
+            formset = QuestionModelFormSet(queryset=form.questions.all().order_by('formxquestion__form_question_num'))
 
     # Determine any other trial control parameters that are part of the JavaScript injection
     trialspec.update({
