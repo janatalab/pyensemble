@@ -661,6 +661,9 @@ def serve_form(request, experiment_id=None):
         'stimulus': stimulus,
        }
 
+    if settings.DEBUG:
+        print(context['timeline_json'])
+
     # Determine our form template (based on the form_handler field)
     form_template = os.path.join('pyensemble/handlers/', f'{handler_name}.html')
 
