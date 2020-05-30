@@ -1,4 +1,5 @@
-# musmemfmri.py
+# musmemfmri_bio.py
+from .bio_params import bio_params as bp
 import pdb
 import os, csv
 import random
@@ -17,24 +18,7 @@ from pyensemble.models import Subject, Response, Session, Stimulus, Experiment, 
 rootdir = 'musmemfmristims'
 stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
 
-study_params = {
-    'musmemfmri_bio_pilot': {
-        'ignore_subs': ['04ktb89211','01mtt89012'],
-        'breakAfterTheseTrials': ['trial10','trial20','trial30'],
-        'practice_face_stim_ids': [840, 841],
-        'face_stim_ids': [range(820,820+20)],
-        'encoding_bio_duration_ms': 16000,#16000
-        'encoding_bio_feedback_duration_ms': 8000,
-        'encoding_1back_question_duration_ms': 8000,
-        'encoding_rest_duration_ms': 10000,
-        'encoding_trials_1-20': range(146,146+20),
-        'encoding_trials_21-40': range(166,166+20),
-        'bioFeature_names': ['face_name','location','job','hobby','relation','relation_name'],
-        'bio_template': ['Hi, my name is [insert_face_name]. ' +
-                'I live in [insert_location] and work as a [insert_job]. ' +
-                'I enjoy [insert_hobby] in my spare time with my [insert_relation] [insert_relation_name].']
-    }
-}
+study_params = bio_params()
 
 # Imports stimuli for Angela Nazarian's jingle study
 #@login_required
