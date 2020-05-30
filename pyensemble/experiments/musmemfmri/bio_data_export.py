@@ -29,6 +29,22 @@ halfWayForm = study_params['halfWayForm']
 endForm = study_params['endForm']
 
 
+def participantStatus(expName,starDate,endDate)
+
+try:
+    expName
+except:
+    print(f'WANRING: you must specify an experiment name!')
+try:
+    starDate
+except:
+    starDate = ''#get all 
+try:
+    endDate
+except:
+    endDate = ''#get all 
+
+
 
 def addParams2Session(currBioDic,TrialAttribute,request,session_id,params):
     #add the bio info to the session data to later write out in response table
