@@ -24,8 +24,9 @@ study_params = {
         'practice_face_stim_ids': [840, 841],
         'face_stim_ids': [range(820,820+20)],
         'encoding_bio_duration_ms': 16000,#16000
+        'encoding_bio_feedback_duration_ms': 8000,
         'encoding_1back_question_duration_ms': 8000,
-        'encoding_rest_duration_ms': 8000,
+        'encoding_rest_duration_ms': 10000,
         'encoding_trials_1-20': range(146,146+20),
         'encoding_trials_21-40': range(166,166+20),
         'bioFeature_names': ['face_name','location','job','hobby','relation','relation_name'],
@@ -482,9 +483,9 @@ def select_stim(request,*args,**kwargs):
     #
     # Now, set up the jsPsych trial
     #
-    import pdb; pdb.set_trace()
+    #import pdb; pdb.set_trace()
     #try to add some html markup to get the bio to not spread so far
-    currBio_html = '<div style=\\"margin-top:00%; margin-left:30%; margin-right:30%; display:inline-block; vertical-align:top;\\">'+currBio+'</div>'
+    currBio_html = '<div style="margin-top:00%; margin-left:30%; margin-right:30%; display:inline-block; vertical-align:top;">'+currBio+'</div>'
     trial = {
             'type': 'image-keyboard-response',
             'stimulus': os.path.join(settings.MEDIA_URL,thisStim.location.url),
@@ -502,6 +503,93 @@ def select_stim(request,*args,**kwargs):
     # NOTE THAT THIS DOESN"T RECORD A STIMULUS IN THE RESPONSE TABLE
     #but if we have the trial attributes assigned we can use those.
     addParams2Session(currBioDic,currTrialAttribute,request,session_id,params)
+
+    #import pdb; pdb.set_trace()
+
+    return(timeline, thisStim.id) 
+
+def stim_feedback(request,*args,**kwargs):
+    # did they get the  trial correct? (for main encoding task)
+    # if so return False, otherwise return True so that we see form telling them 
+    # to try again. 
+    timeline = []
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our subject
+    subject = session.subject
+
+    form_names = ['post_bio_q2_face_name','post_bio_q2_location','post_bio_q2_job',
+                    'post_bio_q2_hobby','post_bio_q2_relation','post_bio_q2_relation_name']
+
+    # Get the appropraite Trial attribute from the current session
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=kwargs['session_id']).experiment.id))
+    lastTrialAttribute = expsessinfo['currTrialAttribute']
+
+    #grab the last response to the practice stim 
+    last_response = Response.objects.filter(session=kwargs['session_id'],form__name__in=form_names, stimulus_id=expsessinfo['stimulus_id']).last()
+
+    #gsort to get most resent incase there are multiple 
+
+    currentPartAnswerString = last_response.response_text
+
+    #figure out which feature we asked about 
+    currentFeature = expsessinfo['currPostBioQ']
+
+    #now grab the correct answers
+    ThisBioDic = json.loads(expsessinfo['misc_info'])
+    currentCorrectAnswerString = ThisBioDic[currentFeature]
+
+    #now do some fuzzy matching to see if it's correct
+    matchScore = fuzz.ratio(currentPartAnswerString.lower(), currentCorrectAnswerString.lower())
+
+    if matchScore >= 85:
+        needMorePractice = 'your answer is correct!'
+        results = 'correct'
+    elif matchScore >= 50:
+        needMorePractice = 'close enough, but watch your spelling!'
+        results = 'verify'
+    else:
+        needMorePractice = 'your answer is incorrect!'
+        results = 'incorrect'
+
+    #import pdb; pdb.set_trace()
+    # Grab the face and bio again to present with feedback
+    currBioDic, currBio = doesThisBioExist(subject,Attribute.objects.get(name=lastTrialAttribute),params)
+    if not currBioDic:
+        print(f'SOMETHING IS WRONG. CANNOT FIND TRIAL')
+        import pdb; pdb.set_trace()
+        # Something went wrong, bio should already exist 
+
+    thisStim = currBioDic['picture']
+    #
+    # Now, set up the jsPsych trial
+    #
+    currBio_html = '<div style="margin-top:00%; margin-left:30%; margin-right:30%; display:inline-block; vertical-align:top;"><p><b>'+needMorePractice+'</b></p><p>'+currBio+'</p></div>'
+    trial = {
+            'type': 'image-keyboard-response',
+            'stimulus': os.path.join(settings.MEDIA_URL,thisStim.location.url),
+            'stimulus_height': None,
+            'stimulus_width': None,
+            'choices': 'none',
+            'stimulus_duration': params['encoding_bio_feedback_duration_ms'],
+            'trial_duration': params['encoding_bio_feedback_duration_ms'],
+            'prompt': currBio_html
+        }
+    #import pdb; pdb.set_trace()
+    # Push the trial to the timeline
+    timeline.append(trial)
+
+    currBioDic['feedback'] = results #doesn't actually add anything because the form_stimulus_s doesn't add anything 2 DB 
+    addParams2Session(currBioDic,Attribute.objects.get(name=lastTrialAttribute),request,session_id,params)
+    # do want to update misc_info though! 
 
     #import pdb; pdb.set_trace()
 
@@ -562,7 +650,7 @@ def select_practice_stim(request,*args,**kwargs):
     #
     # Now, set up the jsPsych trial
     #
-    currBio_html = '<div style=\\"margin-top:00%; margin-left:30%; margin-right:30%; display:inline-block; vertical-align:top;\\">'+practice_bio+'</div>'
+    currBio_html = '<div style="margin-top:00%; margin-left:30%; margin-right:30%; display:inline-block; vertical-align:top;">'+practice_bio+'</div>'
     trial = {
             'type': 'image-keyboard-response',
             'stimulus': os.path.join(settings.MEDIA_URL,thisStim[0].location.url),
@@ -609,7 +697,6 @@ def practice_stim_feedback(request,*args,**kwargs):
     currentCorrectAnswerString = ThisBioDic[currentFeature]
 
     #now do some fuzzy matching to see if it's correct
-    matchScore = fuzz.ratio('resn', 'fresno')
     matchScore = fuzz.ratio(currentPartAnswerString.lower(), currentCorrectAnswerString.lower())
 
     if matchScore >= 85:
@@ -629,9 +716,13 @@ def addParams2Session(currBioDic,TrialAttribute,request,session_id,params):
     saveThisBioDic = {}
     saveThisBioDic['trial_attribute_name'] = TrialAttribute.name
     for iftr in currBioDic:
-        saveThisBioDic[iftr] = currBioDic[iftr].name
+        try:
+            saveThisBioDic[iftr] = currBioDic[iftr].name
+        except:
+            saveThisBioDic[iftr] = currBioDic[iftr] #not a DB object
 
-    #import pdb; pdb.set_trace()
+
+    import pdb; pdb.set_trace()
     # Get the current session and apend info
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
     expsessinfo['currTrialAttribute'] = TrialAttribute.name
