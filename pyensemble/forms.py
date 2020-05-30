@@ -139,23 +139,6 @@ class QuestionPresentForm(forms.ModelForm):
         else:
             self.fields['option'] = forms.CharField(**field_params)
 
-        # if use_crispy:
-        #     # Access to crispy forms
-        #     self.helper = FormHelper()
-        #     self.helper.field_class='row justify-content-center'
-        #     self.form_tag = False
-
-        #     if html_field_type == 'radiogroup':
-        #         self.helper.layout = Layout(
-        #             InlineRadios('option',template="pyensemble/crispy_overrides/radioselect_inline.html"),
-        #             )
-        #     elif html_field_type == 'checkbox':
-        #         self.helper.layout = Layout(
-        #             InlineCheckboxes('option',template="pyensemble/crispy_overrides/checkboxselectmultiple_inline.html"),
-        #             )
-
-        #     self.helper.render_required_fields = True                
-
 
 QuestionModelFormSet = forms.modelformset_factory(Question, form=QuestionPresentForm, extra=0, max_num=1)
 

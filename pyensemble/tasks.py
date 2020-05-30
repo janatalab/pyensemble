@@ -1,8 +1,6 @@
 # tasks.py
 import hashlib
 
-from pyensemble.models import Subject
-
 import pdb
 
 def get_expsess_key(experiment_id):
@@ -14,6 +12,8 @@ def hash_text(text):
     return m.digest()
 
 def fetch_subject_id(subject, scheme='nhdl'):
+    from pyensemble.models import Subject
+
     subject_id=None
     exists = False
     last = subject['name_last'].lower()
