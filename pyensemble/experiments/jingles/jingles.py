@@ -37,12 +37,15 @@ study_params = {
         'logo_duration_ms': 15000,
         'slogan_duration_ms': 15000,
         'jingle_duration_ms': 15000,
+        'stims_to_change' : ['151_Miller_logo2', '36_DrPepper_tagline9', '52_KellogsFrostedFlakes_tagline6', '631_MrPotatoHead_logo2', '797_Tide_tagline5', '90_Beachnutgum_logo7', '90_Beachnutgum_tagline7', '98_Kool-Aid_comm3', '98_Kool-Aid_tagline4', 'Converse_tagline', 'GirlTalk_comm', 'GreenGiant_comm3', 'Hormel_comm', 'Hormel_tagline5', 'Hormel_tagline6', 'Jif_tagline_02', 'Oxydol_comm'],
+
     },
     'jingle_stim_select_test': {
         'age_ranges':[(6,16),(17,30),(31,64),(65,120)],
         'logo_duration_ms': 2000,
         'slogan_duration_ms': 2000,
         'jingle_duration_ms': 2000,
+        'stims_to_change' : ['151_Miller_logo2', '36_DrPepper_tagline9', '52_KellogsFrostedFlakes_tagline6', '631_MrPotatoHead_logo2', '797_Tide_tagline5', '90_Beachnutgum_logo7', '90_Beachnutgum_tagline7', '98_Kool-Aid_comm3', '98_Kool-Aid_tagline4', 'Converse_tagline', 'GirlTalk_comm', 'GreenGiant_comm3', 'Hormel_comm', 'Hormel_tagline5', 'Hormel_tagline6', 'Jif_tagline_02', 'Oxydol_comm'],
     }
 }
 
@@ -155,20 +158,20 @@ def import_attributes(request):
 
     return render(request, template, context)
 
-pdb.set_trace()
 
-@login_required
-def update_attributes(request):
-   with open('JingleDatabase.csv','rt', encoding='utf-8') as f:
-        reader = csv.reader(f)
-        #csv_file = TextIOWrapper(csv_file, encoding='utf-8')
-        #reader = csv.reader(csv_file, delimiter=',')
-    
+def update_attributes(path):
+    #with open('JingleDatabase.csv', newline='') as csv_file:
+    with open(path, newline='') as csv_file:
+        reader = csv.reader(csv_file, delimiter=',')
+        #print(reader)
+        
         # Get the column headers
         columns = next(reader)
+        #print(columns)
 
         # Get a dictionary of column indexes
-        #cid = {col:idx for idx, col in enumerate(columns)}
+        cid = {col:idx for idx, col in enumerate(columns)}
+        #print(cid)
 
         # Specify our column to attribute mapping
         colattmap = {
@@ -180,38 +183,49 @@ def update_attributes(request):
                         'Region_Played': 'Region',
                         'Modality': 'Modality',
                     }
-        numeric = ['First_Played','Last_Played']
+        #print(colattmap)
+        numeric = ['First_Played','Last_Played'] 
 
         # Iterate over the list of stims to update
-        # ideally, this should be more flexible rather than dicatating stim id's here
-        stims_to_change = ['151_Miller_logo2', '36_DrPepper_tagline9', '52_KellogsFrostedFlakes_tagline6', '631_MrPotatoHead_logo2', '797_Tide_tagline5', '90_Beachnutgum_logo7', '90_Beachnutgum_tagline7', '98_Kool-Aid_comm3', '98_Kool-Aid_tagline4', 'Converse_tagline', 'GirlTalk_comm', 'GreenGiant_comm3', 'Hormel_comm', 'Hormel_tagline5', 'Hormel_tagline6', 'Jif_tagline_02', 'Oxydol_comm']
-
         for row in reader: 
-            if (row.Stimulus_ID) in stims_to_change:
-                # Iterate over our attributes one by one
-                for col in colattmap:
+            stimname = row[cid['Stimulus_ID']]
+            #print(stimname)
+            #update attribute values for existing stims that need to be edited    
+            if stimname in study_params['jingle_stim_select_test']['stims_to_change']:
+
+            # Iterate over our attributes 
+                for i in range(len(colattmap)):
+                    #attr = list(colattmap.values())[i]
+                    # Fetch our attribute
+                    col = list(colattmap.keys())[i]
+                    #col = ("'"+col+"'")
+                    #print(type(col))
+                    # Get the attribute name in the sxa table
+                    #attribute, created = Attribute.objects.get_or_create(name=colattmap[col])
+                    attribute = list(colattmap.values())[i]
+                    #attribute = ("'"+attribute+"'")
                     # Get the attribute value we're going to overwrite
-                    attr = colattmap[col]
-                    value = row[col].values[0]
+                    value = row[cid[col]]
+                    print(type(value))
+
                     if col in numeric:
-                        value_float = float(value) if value and value != '?' else None
-                        # Replace this attribute in the stim x attribute table
-                        pdb.set_trace()
-                        sxa, created = StimulusXAttribute.objects.get_or_create(stimulus=stim, attribute=attr, attribute_value_double=value_float)
-                        print("updated stim:", stim, "attribute:", attr, "value:", value_float)
+                         value_float = float(value) if value and value != '?' else None
+                    #print(stimname, col, value, type(value))
+                         # Replace this attribute in the stim x attribute table
+                         sxa, created = StimulusXAttribute.objects.get(stimulus=stimname, attribute=attribute, attribute_value_double=value_float)
+                         print("updated stim:", stimname, "attribute:", attribute, "value:", value_float)
 
                     else:
-                        value_text = value
-                        pdb.set_trace()
-                        # Replace this attribute in the stim x attribute table
-                        sxa, created = StimulusXAttribute.objects.get_or_create(stimulus=stim, attribute=attr, attribute_value_text=value_text)
-                        print("updated stim:", stim, "attribute:", attr, "value:", value_text)
+                         value_text = value
+                         # Replace this attribute in the stim x attribute table
+                         sxa, created = StimulusXAttribute.objects.get(stimulus=stimname, attribute=attribute, attribute_value_text=value_text)
+                         print("updated stim:", stimname, "attribute:", attribute, "value:", value_text)
+
 
 @login_required
 def delete_exf(request,title):
     ExperimentXForm.objects.filter(experiment__title=title).delete()
    # return render(request,'pyensemble/message.html',{'msg':'Deleted experimentxform for', title})
-
     return render(request,'pyensemble/message.html',{'msg':'Deleted experimentxform'})
 
 def age_meets_criterion_and_lived_in_USA(request,*args,**kwargs):
@@ -234,13 +248,15 @@ def age_meets_criterion_and_lived_in_USA(request,*args,**kwargs):
 
     return not meets_both_criteria
 
+    pdb.set_trace()
+
 
 def age_meets_criterion(request,*args,**kwargs):
-    #
-    # Need to expand this to account for various min,max,eq possibilities
-    #
-    # Also, this is a generic function that should be moved to a generic location. Perhaps conditions.py, though this then causes a problem with the assumption that modules exist in experiments.
-    #
+#
+# Need to expand this to account for various min,max,eq possibilities
+#
+# Also, this is a generic function that should be moved to a generic location. Perhaps conditions.py, though this then causes a problem with the assumption that modules exist in experiments.
+#
 
     # Get the subject from the session
     dob = Session.objects.get(id=kwargs['session_id']).subject.dob
@@ -494,5 +510,6 @@ def select_study1(request,*args,**kwargs):
     # Push the trial to the timeline
     timeline.append(trial)
 
+    pdb.set_trace()
 
     return timeline, stimulus.id
