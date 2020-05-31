@@ -104,10 +104,11 @@ class Form(models.Model):
     # Add visited and can_visit properties
 
 class Experiment(models.Model):
-    start_date = models.DateField(blank=True, null=True)
     title = models.CharField(unique=True, max_length=50)
     description = models.TextField(blank=True)
     irb_id = models.CharField(max_length=30, blank=True)
+    sona_url = models.CharField(max_length=200, blank=True)
+    start_date = models.DateField(blank=True, null=True)
     end_date = models.DateField(blank=True, null=True)
     language = models.CharField(max_length=30,default='en')
     play_question_audio = models.BooleanField(default=False)
