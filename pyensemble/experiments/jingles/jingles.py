@@ -31,21 +31,20 @@ import pdb
 rootdir = 'jinglestims'
 stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
 
+stims_to_change = ['151_Miller_logo2', '36_DrPepper_tagline9', '52_KellogsFrostedFlakes_tagline6', '631_MrPotatoHead_logo2', '797_Tide_tagline5', '90_Beachnutgum_logo7', '90_Beachnutgum_tagline7', '98_Kool-Aid_comm3', '98_Kool-Aid_tagline4', 'Converse_tagline', 'GirlTalk_comm', 'GreenGiant_comm3', 'Hormel_comm', 'Hormel_tagline5', 'Hormel_tagline6', 'Jif_tagline_02', 'Oxydol_comm']
+
 study_params = {
     'jingle_project_study1': {
         'age_ranges':[(6,16),(17,30),(31,64),(65,120)],
         'logo_duration_ms': 15000,
         'slogan_duration_ms': 15000,
         'jingle_duration_ms': 15000,
-        'stims_to_change' : ['151_Miller_logo2', '36_DrPepper_tagline9', '52_KellogsFrostedFlakes_tagline6', '631_MrPotatoHead_logo2', '797_Tide_tagline5', '90_Beachnutgum_logo7', '90_Beachnutgum_tagline7', '98_Kool-Aid_comm3', '98_Kool-Aid_tagline4', 'Converse_tagline', 'GirlTalk_comm', 'GreenGiant_comm3', 'Hormel_comm', 'Hormel_tagline5', 'Hormel_tagline6', 'Jif_tagline_02', 'Oxydol_comm'],
-
     },
     'jingle_stim_select_test': {
         'age_ranges':[(6,16),(17,30),(31,64),(65,120)],
         'logo_duration_ms': 2000,
         'slogan_duration_ms': 2000,
         'jingle_duration_ms': 2000,
-        'stims_to_change' : ['151_Miller_logo2', '36_DrPepper_tagline9', '52_KellogsFrostedFlakes_tagline6', '631_MrPotatoHead_logo2', '797_Tide_tagline5', '90_Beachnutgum_logo7', '90_Beachnutgum_tagline7', '98_Kool-Aid_comm3', '98_Kool-Aid_tagline4', 'Converse_tagline', 'GirlTalk_comm', 'GreenGiant_comm3', 'Hormel_comm', 'Hormel_tagline5', 'Hormel_tagline6', 'Jif_tagline_02', 'Oxydol_comm'],
     }
 }
 
