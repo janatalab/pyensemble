@@ -646,9 +646,7 @@ def serve_form(request, experiment_id=None):
 
         # Redirect to the SONA site to grant credit if we have a code
         if sona_code:
-            context['sona_url'] = '%s&survey_code=%s'%(
-                Experiment.objects.get(id=experiment_id).sona_url,
-                sona_code)
+            context['sona_url'] = Experiment.objects.get(id=experiment_id).sona_url.replace('XXXX',sona_code)
 
     # Make sure to save any changes to our session cache
     request.session.modified=True
