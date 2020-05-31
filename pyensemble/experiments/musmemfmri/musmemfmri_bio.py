@@ -536,8 +536,8 @@ def stim_feedback(request,*args,**kwargs):
     if matchScore >= 85:
         needMorePractice = 'your answer is correct!'
         results = 'correct'
-    elif matchScore >= 50:
-        needMorePractice = 'close enough, but watch your spelling!'
+    elif matchScore >= 70:
+        needMorePractice = 'close, but watch your spelling!'
         results = 'verify'
     else:
         needMorePractice = 'your answer is incorrect!'
