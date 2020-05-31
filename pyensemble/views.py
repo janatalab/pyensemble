@@ -397,7 +397,7 @@ def serve_form(request, experiment_id=None):
     # Initialize other context
     trialspec = {}
     timeline = []
-    stimulus = [] #BK ADDED THIS INIT HERE after Petr added  stimulus to context
+    stimulus = None
 
     if request.method == 'POST':
         #
@@ -498,7 +498,7 @@ def serve_form(request, experiment_id=None):
                     misc_info = expsessinfo.get('misc_info','')
 
                     if expsessinfo['stimulus_id']:
-                        stimulus = Stimulus.objects.get(pk=expsessinfo['stimulus_id']) #pk
+                        stimulus = Stimulus.objects.get(pk=expsessinfo['stimulus_id'])
                     else:
                         stimulus = None
 
@@ -586,8 +586,6 @@ def serve_form(request, experiment_id=None):
             else:
                 expsessinfo['curr_form_idx']+=1
 
-            #pdb.set_trace()
-
             # Go to that next form
             request.session.modified=True
             return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
@@ -617,8 +615,7 @@ def serve_form(request, experiment_id=None):
         'questions_after_media_finished': True,
         'skip': skip_trial,
         })
-    #so when i get tot his point present the ready2go, it's still trying to add stim_id to the context
-    #but it didn't assign a stim or 'none' the last time around...
+
     # Create our context to pass to the template
     context = {
         'form': form,
@@ -664,7 +661,6 @@ def serve_form(request, experiment_id=None):
 def create_ticket(request):
     # Creates a ticket for an experiment.
     # Type can be master (multi-use) or user (single-use)
-    # pdb.set_trace()
 
     # Get our request data
     ticket_request = TicketCreationForm(request.POST)
