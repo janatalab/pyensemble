@@ -21,7 +21,9 @@ def bio_params():
             'bioFeature_names': ['face_name','location','job','hobby','relation','relation_name'],
             'bio_template': ['Hi, my name is [insert_face_name]. ' +
                     'I live in [insert_location] and work as a [insert_job]. ' +
-                    'I enjoy [insert_hobby] in my spare time with my [insert_relation] [insert_relation_name].']
+                    'I enjoy [insert_hobby] in my spare time with my [insert_relation] [insert_relation_name].'],
+            'form_names': ['post_bio_q2_face_name','post_bio_q2_location','post_bio_q2_job',
+                    'post_bio_q2_hobby','post_bio_q2_relation','post_bio_q2_relation_name'],
         },
         'musmemfmri_bio_pilotV2': {
             'experiment_id': '???',
