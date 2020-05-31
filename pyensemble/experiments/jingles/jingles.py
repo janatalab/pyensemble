@@ -157,20 +157,15 @@ def import_attributes(request):
 
     return render(request, template, context)
 
+def update_attributes(attribute_file='./JingleDatabase.csv'):
+    with open(attribute_file) as csv_file:
+        reader = csv.reader(csv_file)
 
-def update_attributes(path):
-    #with open('JingleDatabase.csv', newline='') as csv_file:
-    with open(path, newline='') as csv_file:
-        reader = csv.reader(csv_file, delimiter=',')
-        #print(reader)
-        
         # Get the column headers
         columns = next(reader)
-        #print(columns)
 
         # Get a dictionary of column indexes
         cid = {col:idx for idx, col in enumerate(columns)}
-        #print(cid)
 
         # Specify our column to attribute mapping
         colattmap = {
@@ -182,44 +177,44 @@ def update_attributes(path):
                         'Region_Played': 'Region',
                         'Modality': 'Modality',
                     }
-        #print(colattmap)
         numeric = ['First_Played','Last_Played'] 
 
         # Iterate over the list of stims to update
         for row in reader: 
             stimname = row[cid['Stimulus_ID']]
-            #print(stimname)
-            #update attribute values for existing stims that need to be edited    
-            if stimname in study_params['jingle_stim_select_test']['stims_to_change']:
 
-            # Iterate over our attributes 
-                for i in range(len(colattmap)):
-                    #attr = list(colattmap.values())[i]
-                    # Fetch our attribute
-                    col = list(colattmap.keys())[i]
-                    #col = ("'"+col+"'")
-                    #print(type(col))
-                    # Get the attribute name in the sxa table
-                    #attribute, created = Attribute.objects.get_or_create(name=colattmap[col])
-                    attribute = list(colattmap.values())[i]
-                    #attribute = ("'"+attribute+"'")
-                    # Get the attribute value we're going to overwrite
-                    value = row[cid[col]]
-                    print(type(value))
+            # Check whether this is a stimulus whose entry we need to modify
+            if stimname not in stims_to_change:
+                continue
 
-                    if col in numeric:
-                         value_float = float(value) if value and value != '?' else None
-                    #print(stimname, col, value, type(value))
-                         # Replace this attribute in the stim x attribute table
-                         sxa, created = StimulusXAttribute.objects.get(stimulus=stimname, attribute=attribute, attribute_value_double=value_float)
-                         print("updated stim:", stimname, "attribute:", attribute, "value:", value_float)
+            print('Updating attribute values for: %s'%(stimname,))
 
-                    else:
-                         value_text = value
-                         # Replace this attribute in the stim x attribute table
-                         sxa, created = StimulusXAttribute.objects.get(stimulus=stimname, attribute=attribute, attribute_value_text=value_text)
-                         print("updated stim:", stimname, "attribute:", attribute, "value:", value_text)
+            # Iterate over our attributes
+            for col in colattmap.keys():
+                # Fetch our attribute object
+                attribute = Attribute.objects.get(name=colattmap[col])
 
+                # Get the attribute value we're going to overwrite
+                value = row[cid[col]]
+
+                if col in numeric:
+                    value_float = float(value) if value and value != '?' else None
+                    value_text = ''
+                else:
+                    value_text = value
+                    value_float = None
+
+                # Fetch the currect StimulusXAttribute entry
+                print('\tFetching attribute: %s'%(attribute.name))
+                sxa = StimulusXAttribute.objects.get(stimulus__name=stimname, attribute=attribute)
+
+                # Store our current mapping values
+                sxa.attribute_value_double = value_float
+                sxa.attribute_value_text = value_text
+
+                # Save the object
+                print("\tSaving attribute values: double=%s, text='%s'"%(value_float,value_text))
+                sxa.save()
 
 @login_required
 def delete_exf(request,title):
