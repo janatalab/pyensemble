@@ -510,8 +510,7 @@ def bio_stim_feedback(request,*args,**kwargs):
     # Get our subject
     subject = session.subject
 
-    form_names = ['post_bio_q2_face_name','post_bio_q2_location','post_bio_q2_job',
-                    'post_bio_q2_hobby','post_bio_q2_relation','post_bio_q2_relation_name']
+    form_names = params[form_names]
 
     # Get the appropraite Trial attribute from the current session
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=kwargs['session_id']).experiment.id))

@@ -1,4 +1,7 @@
 # bio_data_export.py.py
+
+from .bio_params import bio_params as bp
+
 import pdb
 import os, csv
 import random
@@ -15,93 +18,80 @@ from pyensemble.models import Subject, Response, Session, Stimulus, Experiment, 
 rootdir = 'musmemfmristims'
 stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
 
-whichExperiment = 'musmemfmri_bio_pilot'
-startDate = '' #grab subjects after this date
-endDate = '' #grab subjects before this date
 
-# Get our parameters
-study_params = bio_params() 
-params = study_params[whichExperiment]
-
-
-halfWayForm = study_params['halfWayForm']
-
-endForm = study_params['endForm']
-
-
-def participantStatus(expName,starDate,endDate)
-
-try:
-    expName
-except:
-    print(f'WANRING: you must specify an experiment name!')
-try:
-    starDate
-except:
-    starDate = ''#get all 
-try:
-    endDate
-except:
-    endDate = ''#get all 
-
-
-
-def addParams2Session(currBioDic,TrialAttribute,request,session_id,params):
-    #add the bio info to the session data to later write out in response table
-    #add name of the form we want (which feature question are we answering)
-    #we should also add the trial info stuff 
-
-    #need to serialize this info, but first reduce it to the actual names
-    saveThisBioDic = {}
-    saveThisBioDic['trial_attribute_name'] = TrialAttribute.name
-    for iftr in currBioDic:
-        try:
-            saveThisBioDic[iftr] = currBioDic[iftr].name
-        except:
-            saveThisBioDic[iftr] = currBioDic[iftr] #not a DB object
-
-
-    import pdb; pdb.set_trace()
-    # Get the current session and apend info
-    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
-    expsessinfo['currTrialAttribute'] = TrialAttribute.name
-    expsessinfo['misc_info'] = json.dumps(saveThisBioDic)
-    expsessinfo['currPostBioQ'] = params['bioFeature_names'][random.randrange(0,len(params['bioFeature_names']))]
-    #import pdb; pdb.set_trace()
-    request.session.modified = True 
-
-    
-# Return the bioDic and bio text if trial already exists in attr X attr table
-def doesThisBioExist(subject,currTrialAttribute,params):
-    currTrialEntry = AttributeXAttribute.objects.filter(parent=currTrialAttribute, 
-                    mapping_name=subject.subject_id)
-     
-    #build up the dictionary with all features
-    bio = params['bio_template'][0]
+def bio_participantStatus(expName,starDate,endDate):
+    # Grab data from this experiment from subjects who participated between specified dates
+    # if dates are specified, grab all reponses from the experiment 
+    # filters out subjects that are also not being included in the counterbalancing (see params)
 
     try:
-        #get the picture name
-        picName = currTrialEntry.values_list('mapping_value_text',flat=True)[0]
-
-        #get the picture stimulu
-        currBioDic = {'picture': Stimulus.objects.get(name=picName)}
-
-        for iftr in params['bioFeature_names']: 
-            currAttr = Attribute.objects.get(name=iftr)
-            thisTrialEntry = AttributeXAttribute.objects.filter(parent=currTrialAttribute,mapping_name=subject.subject_id,child__attribute_class=currAttr.name)
-            # now grab the attribute for that specific feature instance 
-            currBioDic[iftr] = Attribute.objects.get(id=thisTrialEntry.values_list('child',flat=True)[0])
-            # fill in the bio
-            if iftr == 'job' and currBioDic[iftr].name[0] in ['a','e','i','o','u']:
-                #need to adjust 'a' or 'an'
-                bio = bio.replace('a [insert_'+iftr+']','an '+currBioDic[iftr].name)
-            else:
-                bio = bio.replace('[insert_'+iftr+']',currBioDic[iftr].name)
+        expName
+        # Get our parameters
+        study_params = bio_params() 
+        params = study_params[whichExperiment] #'musmemfmri_bio_pilot'
     except:
-        #doesn't exist
-        currBioDic = {}
-    
-    return currBioDic, bio
+        print(f'WANRING: you must specify an experiment name!')
+    try:
+        starDate
+    except:
+        starDate = ''#get all 
+    try:
+        endDate
+    except:
+        endDate = ''#get all 
+
+    pdb.set_trace() 
+    #grab all previous subs who have been entered in attr X attr 
+    triallAttrIDs = params['encoding_trials_1-20']+params['encoding_trials_21-40']
+    triallAttrIDs = list(map(str, triallAttrIDs))
+    all_prev_subids = AttributeXAttribute.objects.filter(parent_id_in=triallAttrIDs).values_list('mapping_value_text',flat=True)
+    all_prev_subs = Subject.objects.filter(subject_id__in=all_prev_subids)
+    prev_subs_initd = all_prev_subs.exclude(subject_id__in=params['ignore_subs']) #filter out subs we aren't including (in counterbalancing)
+
+    #grab all the subs with responses between the start/end poitns ##NOT GOING TO WORK
+    all_time_subids = Response.objects.filter(experiment_id=session.experiment.id,date_time=startTime).values_list('subject_id',flat=True).distinct()
+    prev_subs_start = prev_subs_initd.filter(subject_id__in=all_time_subids) #now filter so only have these stims
+    #put subjects in order of time. (first to most recent)
+
+    print(f'Subject Name\\tHas Trials\\tExpo Time\\tSurvey Time\\tRecallT Time\\tComments\n')
+    #loop through each subject and calculate the things we are interested in 
+    for isub in prev_subs_start:
+        #currSub = prev_subs_start[]
+
+        # look at responses for the exposure task (form 7 as attractiveness question, should be 40)
+        expoResponses = Response.objects.filter(experiment_id=session.experiment.id,subject_id=isub,form__id='7')
+        nExpoResps = len(expoResponses)
+        #get the first and last presented form (either form_order or date_time)
+        #calculate time spent on the task. 
+        expoTime = ''
+
+        #did this sub make it through the survey task? (start time at form 14; ending 23)
+        survey_start_resp = Response.objects.filter(experiment_id=session.experiment.id,subject_id=isub,form='14')
+        survey_end_resp = Response.objects.filter(experiment_id=session.experiment.id,subject_id=isub,form='23')
+        surveyTie = ''
+
+        #did this sub make it through the recall task (form 27 is the image recall questions, should be 20)
+        recallResponses = Response.objects.filter(experiment_id=session.experiment.id,subject_id=isub,form__id='27')
+        nRecallResps = len(recallResponses)
+        #get the first and last presented form (either form_order or date_time)
+        #calculate time spent on the task. 
+        recalltime = ''
+
+        #did this sub leave a comment (form 60 question ? )
+        recallResponses = Response.objects.filter(experiment_id=session.experiment.id,subject_id=isub,form__id='60')
+        textResp = recallResponses
+
+        print(f'')
+
+    #return: 
+    #subjects name (so we can assign credit)
+    #subjects date of doing practice trial 
+    #time to complete expo task, otherwise empty
+    #time to complete surveys 
+    #time to complete expo
+    #answer for free-text any comments response. 
+
+
 
 
 
