@@ -585,8 +585,6 @@ def serve_form(request, experiment_id=None):
             else:
                 expsessinfo['curr_form_idx']+=1
 
-            pdb.set_trace()
-
             # Go to that next form
             request.session.modified=True
             return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
