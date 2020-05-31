@@ -346,7 +346,9 @@ def run_experiment(request, experiment_id=None):
             'break_loop': False,
             'last_in_loop': {},
             'visit_count': {},
-            'running': True})
+            'running': True,
+            'sona': request.GET.get('sona',None)
+            })
 
     # Set the experiment session info
     request.session[expsess_key] = expsessinfo
@@ -636,8 +638,17 @@ def serve_form(request, experiment_id=None):
         session.end_datetime = timezone.now()
         session.save()
 
+        # Check whether we have a SONA redirect to handle
+        sona_code = expsessinfo['sona']
+
         # Remove our cached session info
         request.session.pop(expsess_key,None)
+
+        # Redirect to the SONA site to grant credit if we have a code
+        if sona_code:
+            context['sona_url'] = '%s&survey_code=%s'%(
+                Experiment.objects.get(id=experiment_id).sona_url,
+                sona_code)
 
     # Make sure to save any changes to our session cache
     request.session.modified=True
