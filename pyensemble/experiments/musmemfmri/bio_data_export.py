@@ -59,7 +59,7 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
 
     print(f'Last Name, First Name\tDate Reg\tExpo Time\tSurvey Time\tRecall Time\tComments\n')
     fieldnames = ['Last Name', 'First Name', 'Date Reg', 'Expo Time','Survey Time','Recall Time','Comments']
-    with open(os.path.join(params['data_dump_path'],expName+"_status_"+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+".txt"),mode='w') as outDatCSV:
+    with open(os.path.join(params['data_dump_path'],expName+"_status_"+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+".csv"),mode='w') as outDatCSV:
 
     #outFile.write('Last Name, First Name\tDate Reg\tExpo Time\tSurvey Time\tRecall Time\tComments\n')
         writer = csv.writer(outDatCSV, quoting=csv.QUOTE_MINIMAL)
@@ -109,10 +109,10 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
                 textResp = '-'
             #pdb.set_trace() 
 
-            writer.writerow(isub.name_last,isub.name_first,str(isub.date_entered),mexpoTime+,msurveyTime,mrecalltime,textResp)
+            writer.writerow([isub.name_last,isub.name_first,str(isub.date_entered),mexpoTime,msurveyTime,mrecalltime,textResp])
             print(isub.name_last+', '+isub.name_first+'\t'+str(isub.date_entered)+'\t'+mexpoTime+'\t'+msurveyTime+'\t'+mrecalltime+'\t'+textResp+'\n')
                 #'Has Trials\tExpo Time\tSurvey Time\tRecallT Time\tComments\n')
-     outDatCSV.close()
+    outDatCSV.close()
 
 
 def bio_dumpData(expName,startMonthDay,endMonthDay):
@@ -190,6 +190,7 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
             # be better to match the trials to verify
             for itrial in range(0,len(attracResponses)):
                 resptime = str(attracResponses[itrial].date_time.month)+'/'+str(attracResponses[itrial].date_time.day)+'/'+str(attracResponses[itrial].date_time.year)+'_'+str(attracResponses[itrial].date_time.hour)+':'+str(attracResponses[itrial].date_time.minute)
+                #NEED TO ADD SOMETHING HERE THAT GETS SYNONYMS AND ANTONYMS (e.g., father/dad; mom/son?)
                 #now do some fuzzy matching to see if it's correct
                 matchScore = fuzz.ratio(recallResponses[itrial].response_text.lower(), recallResponses[itrial].correct_answer.lower())
                 if matchScore >= 90:
@@ -217,7 +218,7 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
     ## grab the recall data () 
     #subject_id, experiment_id, date_time, resposne_order, face_id, (name_resp, name_CA), perc_recall, verify?
     with open(os.path.join(params['data_dump_path'],expName+"_recall_"+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+".csv"), mode='w') as outDatCSV:
-        fieldnames = ['subject_id','experiment_id','date_time','resptime','response_order','stimulus_id',
+        fieldnames = ['subject_id','experiment_id','resptime','response_order','stimulus_id',
                         'face_name_resp','face_name_resp_CA','face_name_hit','location_resp','location_resp_CA','location_hit','job_resp','job_resp_CA','job_hit',
                         'hobby_resp','hobby_resp_CA','hobby_hit','relation_resp','relation_resp_CA','relation_hit','relation_name_resp','relation_name_resp_CA','relation_name_hit',
                         'perc_recall','verify']
@@ -300,6 +301,7 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
                             else:
                                 hobby_hit = '0'
                         elif whichQuestion==130:
+                            #NEED TO ADD SOMETHING HERE THAT GETS SYNONYMS AND ANTONYMS (e.g., father/dad; mom/son?)
                             matchScore = fuzz.ratio(iresp.response_text.lower(), json.loads(iresp.misc_info)['relation'].lower())
                             curr_relation_resp = iresp.response_text
                             curr_relation_resp_CA = json.loads(iresp.misc_info)['relation']
@@ -343,6 +345,29 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
 
     #################
     ## grab the feedback data ()
+    with open(os.path.join(params['data_dump_path'],expName+"_feedback_"+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+".csv"), mode='w') as outDatCSV:
+        fieldnames = ['subject_id','experiment_id','resptime','studyContext','paidAttention',
+        'performedMyBest','performedIntegrity','personImagery','personSpont','personExp','feedback']
+        writer = csv.writer(outDatCSV, quoting=csv.QUOTE_MINIMAL)
+        writer.writerow(fieldnames)
+
+        #loop through each subject and calculate the things we are interested in 
+        for isub in prev_subs_finished:
+            timeInfo = paidAttention = Response.objects.filter(subject_id=isub, form__name='bio_pilot_participant_feedback', question__text__contains='I paid attention throughout the experiment')
+            studyContext = Response.objects.filter(subject_id=isub, form__name='bio_pilot_participant_feedback', question__text__contains='Please describe the environment in which you participated in the study').values_list('response_text',flat=True)[0]
+            paidAttention = Response.objects.filter(subject_id=isub, form__name='bio_pilot_participant_feedback', question__text__contains='I paid attention throughout the experiment').values_list('response_enum',flat=True)[0]
+            performedMyBest = Response.objects.filter(subject_id=isub, form__name='bio_pilot_participant_feedback', question__text__contains='I performed the experiment to the best of my ability and believe').values_list('response_enum',flat=True)[0]
+            performedIntegrity = Response.objects.filter(subject_id=isub, form__name='bio_pilot_participant_feedback', question__text__contains='I performed the experiment with integrity').values_list('response_enum',flat=True)[0]
+            personImagery = Response.objects.filter(subject_id=isub, form__name='bio_pilot_participant_feedback', question__text__contains='While you were filling out the surveys, about how much of the time were you thinking about the people you just met').values_list('response_enum',flat=True)[0]
+            personSpont = Response.objects.filter(subject_id=isub, form__name='bio_pilot_participant_feedback', question__text__contains='During the survey period, how spontaneous were your thoughts about the people you just met').values_list('response_enum',flat=True)[0]
+            personExp = Response.objects.filter(subject_id=isub, form__name='bio_pilot_participant_feedback', question__text__contains='Can you describe your experience in a few sentences').values_list('response_text',flat=True)[0]
+            feedback = Response.objects.filter(subject_id=isub, form__name='bio_pilot_participant_feedback', question__text__contains='like us to know about the experiment?').values_list('response_text',flat=True)[0]
+
+            resptime = str(timeInfo[0].date_time.month)+'/'+str(timeInfo[0].date_time.day)+'/'+str(timeInfo[0].date_time.year)+'_'+str(timeInfo[0].date_time.hour)+':'+str(timeInfo[0].date_time.minute)
+
+            writer.writerow([isub.subject_id,str(currResps[0].experiment_id),resptime,studyContext,paidAttention,
+                         performedMyBest,performedIntegrity,personImagery,personSpont,personExp,feedback])
+    outDatCSV.close()
 
 
 
