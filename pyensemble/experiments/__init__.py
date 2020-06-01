@@ -8,7 +8,5 @@
 # TODO: Have this init file auto-import any package that is placed in this location
 
 # Whenever an experiment-specific package is added, include it in this list
-__all__ = ['jingles','musmemfmri']
+__all__ = ['debug','jingles','musmemfmri']
 
-# from pyensemble.experiments import jingles
-# from pyensemble.experiments import musmemfmri
