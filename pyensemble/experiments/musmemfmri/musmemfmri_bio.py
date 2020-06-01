@@ -910,13 +910,17 @@ def assembleThisBio(subject,thisStim,NotAPracticeTrial,params,prev_subs):
 
                 prevFemaleNames = AttributeXAttribute.objects.filter(parent=Attribute.objects.get(id=11),child__in=prevNames).values_list('child',flat=True)
                 prevMaleNames = AttributeXAttribute.objects.filter(parent=Attribute.objects.get(id=10),child__in=prevNames).values_list('child',flat=True)
-        
+                #OK< SO DON"T WANT TO JUST FILTER OUT PREVIOUS ASSIGNED NAMES< ALL NAMES OF THAT GENDER!!!
                 if len(prevFemaleNames) > 2:
+                    #get all the femal names
+                    allFemaleNames = AttributeXAttribute.objects.filter(parent=Attribute.objects.get(id=11),child__attribute_class='relation_name').values_list('child',flat=True)
                     #filter out the female names
-                    possibleAttributes = possibleAttributes.exclude(id__in=prevFemaleNames)
+                    possibleAttributes = possibleAttributes.exclude(id__in=allFemaleNames)
                 elif len(prevMaleNames) > 2:
+                    #get all the male names
+                    allMaleNames = AttributeXAttribute.objects.filter(parent=Attribute.objects.get(id=10),child__attribute_class='relation_name').values_list('child',flat=True)
                     #filter out the male names (don't assign anymore to neutral relation)
-                    possibleAttributes = possibleAttributes.exclude(id__in=prevMaleNames)
+                    possibleAttributes = possibleAttributes.exclude(id__in=allMaleNames)
                 #no need to modify if it hasn't hit the limit on neurtral name assignment 
 
         #figure out gender AND ethnicity of the chosen face and limit names based on that
@@ -972,7 +976,10 @@ def assembleThisBio(subject,thisStim,NotAPracticeTrial,params,prev_subs):
                 #got ane rror here, may be a case where the fitlering removes all stims?
                 #e.g., or if there is only 1 feature, does that lead the range call 0? 
                 #don't think so, probably because relation_gender neutral thing. 
-                choose_this_feat_idx = final_feat_idxs[random.randrange(0,len(final_feat_idxs))]
+                try:
+                    choose_this_feat_idx = final_feat_idxs[random.randrange(0,len(final_feat_idxs))]
+                except:
+                    pdb.set_trace() 
 
                 currAttribte = possibleAttributes[choose_this_feat_idx]
             else:
