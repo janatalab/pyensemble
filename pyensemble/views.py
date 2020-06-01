@@ -397,6 +397,7 @@ def serve_form(request, experiment_id=None):
     # Initialize other context
     trialspec = {}
     timeline = []
+    stimulus = None
 
     if request.method == 'POST':
         #
@@ -592,8 +593,13 @@ def serve_form(request, experiment_id=None):
         #
         # Reset our session stimulus_id variable if appropriate
         #
+        stimulus = None
         if not requires_stimulus:
             expsessinfo['stimulus_id'] = None
+        else:
+            stimulus_id = expsessinfo.get('stimulus_id',None)
+            if stimulus_id:
+                stimulus = Stimulus.objects.get(id=stimulus_id)
 
         #
         # Get our blank form
@@ -619,6 +625,7 @@ def serve_form(request, experiment_id=None):
         'timeline': timeline,
         'timeline_json': json.dumps(timeline),
         'trialspec': trialspec,
+        'stimulus': stimulus,
        }
 
     if settings.DEBUG:
@@ -654,7 +661,6 @@ def serve_form(request, experiment_id=None):
 def create_ticket(request):
     # Creates a ticket for an experiment.
     # Type can be master (multi-use) or user (single-use)
-    # pdb.set_trace()
 
     # Get our request data
     ticket_request = TicketCreationForm(request.POST)
