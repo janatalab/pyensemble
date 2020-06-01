@@ -57,58 +57,62 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
     #put subjects in order of time. (first to most recent) date_entered
     prev_subs_start = prev_subs_start.filter().order_by('date_entered')
 
-    outFile = open(os.path.join(params['data_dump_path'],expName+"_status_"+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+".txt"),"a") 
-    outFile.write('Last Name, First Name\tDate Reg\tExpo Time\tSurvey Time\tRecall Time\tComments\n')
     print(f'Last Name, First Name\tDate Reg\tExpo Time\tSurvey Time\tRecall Time\tComments\n')
+    fieldnames = ['Last Name', 'First Name', 'Date Reg', 'Expo Time','Survey Time','Recall Time','Comments']
+    with open(os.path.join(params['data_dump_path'],expName+"_status_"+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+".txt"),mode='w') as outDatCSV:
+
+    #outFile.write('Last Name, First Name\tDate Reg\tExpo Time\tSurvey Time\tRecall Time\tComments\n')
+        writer = csv.writer(outDatCSV, quoting=csv.QUOTE_MINIMAL)
+        writer.writerow(fieldnames)
     
-    #loop through each subject and calculate the things we are interested in 
-    for isub in prev_subs_start:
-        #pdb.set_trace() 
-        # look at responses for the exposure task (form 7 as attractiveness question, should be at least 40; culd be more dep on practice trials)
-        expoResponses = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form__id='7')
-        nExpoResps = len(expoResponses)
-        #get the first and last presented form (either form_order or date_time)
-        #calculate time spent on the task. 
-        try:
-            sortExpoResponses = expoResponses.filter().order_by('date_time') #- for descending order
-            expoTime = sortExpoResponses[len(sortExpoResponses)-1].date_time - sortExpoResponses[0].date_time
-            mexpoTime = str((expoTime.total_seconds() % 3600) // 60)
-        except:
-            mexpoTime = '-'
+        #loop through each subject and calculate the things we are interested in 
+        for isub in prev_subs_start:
+            #pdb.set_trace() 
+            # look at responses for the exposure task (form 7 as attractiveness question, should be at least 40; culd be more dep on practice trials)
+            expoResponses = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form__id='7')
+            nExpoResps = len(expoResponses)
+            #get the first and last presented form (either form_order or date_time)
+            #calculate time spent on the task. 
+            try:
+                sortExpoResponses = expoResponses.filter().order_by('date_time') #- for descending order
+                expoTime = sortExpoResponses[len(sortExpoResponses)-1].date_time - sortExpoResponses[0].date_time
+                mexpoTime = str((expoTime.total_seconds() % 3600) // 60)
+            except:
+                mexpoTime = '-'
 
-        #did this sub make it through the survey task? (start time at form 14; ending 23)
-        survey_start_resp = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form='14',question='3')
-        survey_end_resp = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form='23',question='127')
-        try:
-            surveyTime = survey_end_resp[0].date_time - survey_start_resp[0].date_time
-            msurveyTime = str((surveyTime.total_seconds() % 3600) // 60)
-        except:
-            msurveyTime = '-'
-        
-        #did this sub make it through the recall task (form 27 is the image recall questions, should be 20)
-        recallResponses = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form='27',question='128')
-        nRecallResps = len(recallResponses)
-        #get the first and last presented form (either form_order or date_time)
-        #calculate time spent on the task. 
-        try:
-            sortrecallResponses = recallResponses.filter().order_by('date_time') #- for descending order
-            recalltime = sortrecallResponses[len(sortrecallResponses)-1].date_time - sortrecallResponses[0].date_time
-            mrecalltime = str((recalltime.total_seconds() % 3600) // 60)
-        except:
-            mrecalltime = '-'
-        
-        #did this sub leave a comment (form 60 question ? )
-        recallResponses = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form='60',question='317')
-        try:
-            textResp = recallResponses[0].response_text
-        except:
-            textResp = '-'
-        #pdb.set_trace() 
+            #did this sub make it through the survey task? (start time at form 14; ending 23)
+            survey_start_resp = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form='14',question='3')
+            survey_end_resp = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form='23',question='127')
+            try:
+                surveyTime = survey_end_resp[0].date_time - survey_start_resp[0].date_time
+                msurveyTime = str((surveyTime.total_seconds() % 3600) // 60)
+            except:
+                msurveyTime = '-'
+            
+            #did this sub make it through the recall task (form 27 is the image recall questions, should be 20)
+            recallResponses = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form='27',question='128')
+            nRecallResps = len(recallResponses)
+            #get the first and last presented form (either form_order or date_time)
+            #calculate time spent on the task. 
+            try:
+                sortrecallResponses = recallResponses.filter().order_by('date_time') #- for descending order
+                recalltime = sortrecallResponses[len(sortrecallResponses)-1].date_time - sortrecallResponses[0].date_time
+                mrecalltime = str((recalltime.total_seconds() % 3600) // 60)
+            except:
+                mrecalltime = '-'
+            
+            #did this sub leave a comment (form 60 question ? )
+            recallResponses = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form='60',question='317')
+            try:
+                textResp = recallResponses[0].response_text
+            except:
+                textResp = '-'
+            #pdb.set_trace() 
 
-        outFile.write(isub.name_last+', '+isub.name_first+'\t'+str(isub.date_entered)+'\t'+mexpoTime+'\t'+msurveyTime+'\t'+mrecalltime+'\t'+textResp+'\n')
-        print(isub.name_last+', '+isub.name_first+'\t'+str(isub.date_entered)+'\t'+mexpoTime+'\t'+msurveyTime+'\t'+mrecalltime+'\t'+textResp+'\n')
-            #'Has Trials\tExpo Time\tSurvey Time\tRecallT Time\tComments\n')
-    outFile.close()
+            writer.writerow(isub.name_last,isub.name_first,str(isub.date_entered),mexpoTime+,msurveyTime,mrecalltime,textResp)
+            print(isub.name_last+', '+isub.name_first+'\t'+str(isub.date_entered)+'\t'+mexpoTime+'\t'+msurveyTime+'\t'+mrecalltime+'\t'+textResp+'\n')
+                #'Has Trials\tExpo Time\tSurvey Time\tRecallT Time\tComments\n')
+     outDatCSV.close()
 
 
 def bio_dumpData(expName,startMonthDay,endMonthDay):
