@@ -2,8 +2,12 @@
 
 from bio_params import bio_params as bp
 
+import pandas as pd
+import seaborn as sb
+from matplotlib.backends.backend_pdf import PdfPages
+
 import pdb
-import os, csv
+import os, csv, glob
 import random
 import json
 
@@ -57,11 +61,10 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
     #put subjects in order of time. (first to most recent) date_entered
     prev_subs_start = prev_subs_start.filter().order_by('date_entered')
 
+    #add subid, age, sex, ethnicity, gender !!!
     print(f'Last Name, First Name\tDate Reg\tExpo Time\tSurvey Time\tRecall Time\tComments\n')
     fieldnames = ['Last Name', 'First Name', 'Date Reg', 'Expo Time','Survey Time','Recall Time','Comments']
     with open(os.path.join(params['data_dump_path'],expName+"_status_"+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+".csv"),mode='w') as outDatCSV:
-
-    #outFile.write('Last Name, First Name\tDate Reg\tExpo Time\tSurvey Time\tRecall Time\tComments\n')
         writer = csv.writer(outDatCSV, quoting=csv.QUOTE_MINIMAL)
         writer.writerow(fieldnames)
     
@@ -113,7 +116,6 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
             print(isub.name_last+', '+isub.name_first+'\t'+str(isub.date_entered)+'\t'+mexpoTime+'\t'+msurveyTime+'\t'+mrecalltime+'\t'+textResp+'\n')
                 #'Has Trials\tExpo Time\tSurvey Time\tRecallT Time\tComments\n')
     outDatCSV.close()
-
 
 def bio_dumpData(expName,startMonthDay,endMonthDay):
     # Grab data from this experiment from subjects who participated between specified dates
@@ -181,8 +183,15 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
                     #this sucks but just loop
                     for ipname in params['bioFeature_names']:
                         if ipname in whichQuestion:
-                            recallResponses[iresp].correct_answer = json.loads(recallResponses[iresp].misc_info)[ipname]
-                 
+                            if ipname in ['relation']:
+                                #pdb.set_trace()
+                                if json.loads(recallResponses[iresp].misc_info)[ipname] in params['alt_feature_answers'].keys():
+                                    recallResponses[iresp].correct_answer = [json.loads(recallResponses[iresp].misc_info)[ipname],params['alt_feature_answers'][json.loads(recallResponses[iresp].misc_info)[ipname]]]
+                                else:
+                                    recallResponses[iresp].correct_answer = json.loads(recallResponses[iresp].misc_info)[ipname]
+                            else:
+                                recallResponses[iresp].correct_answer = json.loads(recallResponses[iresp].misc_info)[ipname]
+                     
             else:
                 print(f'WARNING: mismatched number of expo trials for sub:'+isub.subject_if)
 
@@ -192,7 +201,16 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
                 resptime = str(attracResponses[itrial].date_time.month)+'/'+str(attracResponses[itrial].date_time.day)+'/'+str(attracResponses[itrial].date_time.year)+'_'+str(attracResponses[itrial].date_time.hour)+':'+str(attracResponses[itrial].date_time.minute)
                 #NEED TO ADD SOMETHING HERE THAT GETS SYNONYMS AND ANTONYMS (e.g., father/dad; mom/son?)
                 #now do some fuzzy matching to see if it's correct
-                matchScore = fuzz.ratio(recallResponses[itrial].response_text.lower(), recallResponses[itrial].correct_answer.lower())
+                if len(recallResponses[itrial].correct_answer)==2: 
+                    matchScore1 = fuzz.ratio(recallResponses[itrial].response_text.lower(), recallResponses[itrial].correct_answer[0].lower())
+                    matchScore2 = fuzz.ratio(recallResponses[itrial].response_text.lower(), recallResponses[itrial].correct_answer[1].lower())
+                    if matchScore1 >= matchScore2:
+                        matchScore = matchScore1
+                    else:
+                        matchScore = matchScore2
+                else:
+                    #pdb.set_trace()
+                    matchScore = fuzz.ratio(recallResponses[itrial].response_text.lower(), recallResponses[itrial].correct_answer.lower())
                 if matchScore >= 90:
                     hit = '1'
                     verify = '-'
@@ -218,7 +236,7 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
     ## grab the recall data () 
     #subject_id, experiment_id, date_time, resposne_order, face_id, (name_resp, name_CA), perc_recall, verify?
     with open(os.path.join(params['data_dump_path'],expName+"_recall_"+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+".csv"), mode='w') as outDatCSV:
-        fieldnames = ['subject_id','experiment_id','resptime','response_order','stimulus_id',
+        fieldnames = ['subject_id','experiment_id','resptime','response_order','trial','stimulus_id',
                         'face_name_resp','face_name_resp_CA','face_name_hit','location_resp','location_resp_CA','location_hit','job_resp','job_resp_CA','job_hit',
                         'hobby_resp','hobby_resp_CA','hobby_hit','relation_resp','relation_resp_CA','relation_hit','relation_name_resp','relation_name_resp_CA','relation_name_hit',
                         'perc_recall','verify']
@@ -241,6 +259,7 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
                     #need to combine each set into 1 row
                     #pdb.set_trace()
                     #filter based on thihe stim associated with this trial 
+                    currTrialName = Attribute.objects.get(id=itrial)
                     currFaceName = AttributeXAttribute.objects.filter(parent_id=itrial,mapping_name=isub.subject_id).values_list('mapping_value_text',flat=True).distinct()
                     currResps = recallResponses.filter(stimulus_id__name=currFaceName[0])
                     resptime = str(currResps[0].date_time.month)+'/'+str(currResps[0].date_time.day)+'/'+str(currResps[0].date_time.year)+'_'+str(currResps[0].date_time.hour)+':'+str(currResps[0].date_time.minute)
@@ -300,9 +319,21 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
                                 hobby_hit = '1'
                             else:
                                 hobby_hit = '0'
-                        elif whichQuestion==130:
+                        elif whichQuestion==130:#130 now 
                             #NEED TO ADD SOMETHING HERE THAT GETS SYNONYMS AND ANTONYMS (e.g., father/dad; mom/son?)
-                            matchScore = fuzz.ratio(iresp.response_text.lower(), json.loads(iresp.misc_info)['relation'].lower())
+                            try: 
+                                params['alt_feature_answers'][json.loads(iresp.misc_info)['relation']]
+                                #pdb.set_trace()
+                                #run match on the other options and use the higher match
+                                matchScore1 = fuzz.ratio(iresp.response_text.lower(), json.loads(iresp.misc_info)['relation'].lower())
+                                matchScore2 = fuzz.ratio(iresp.response_text.lower(), params['alt_feature_answers'][json.loads(iresp.misc_info)['relation']].lower())
+                                if matchScore1 >= matchScore2:
+                                    matchScore = matchScore1
+                                else:
+                                    matchScore = matchScore2
+                            except:
+                                matchScore = fuzz.ratio(iresp.response_text.lower(), json.loads(iresp.misc_info)['relation'].lower())
+
                             curr_relation_resp = iresp.response_text
                             curr_relation_resp_CA = json.loads(iresp.misc_info)['relation']
                             if matchScore >= 90:
@@ -329,11 +360,12 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
                                 relation_name_hit = '0'
                     recallPercent = currRecallScore/len(currResps)
                     if len(currResps)!=6:
+                        pdb.set_trace()
                         print(f'WARNING: missing some responses for sub: '+isub.subject_id)
                     #pdb.set_trace()
 
                     writer.writerow([currResps[0].subject_id, str(currResps[0].experiment_id),resptime,
-                        str(currResps[0].response_order), str(currResps[0].stimulus_id),curr_face_name_resp,curr_face_name_resp_CA,face_name_hit,
+                        str(currResps[0].response_order), currTrialName.name, str(currResps[0].stimulus_id),curr_face_name_resp,curr_face_name_resp_CA,face_name_hit,
                         curr_location_resp,curr_location_resp_CA,location_hit,curr_job_resp,curr_job_resp_CA,job_hit,
                         curr_hobby_resp,curr_hobby_resp_CA,hobby_hit,curr_relation_resp,curr_relation_resp_CA,relation_hit,
                         curr_relation_name_resp,curr_relation_name_resp_CA,relation_name_hit,str(recallPercent),str(verify)])
@@ -369,9 +401,106 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
                          performedMyBest,performedIntegrity,personImagery,personSpont,personExp,feedback])
     outDatCSV.close()
 
+def bio_performancePlots(expName):
+    #musmemfmri_bio_pilot
+    #use csvs created in bio_dumpData, make some plots to help us assess performance
+    # PLOTS:
+    # overall exposure score (include subject-data points)
+    # overall recall score (include subject-data points)
+    #
+    # attractiveness X face (recog)
+    # recall score X face 
+    # recall score X trial 
+    # recall score X feature 
+    #
+    # counterbalance plots
+    # face X trial (recog); face X trial (response_order, recall); 
+    # face X name (recog); face X location; face X job; face X hobby; face X relation; face X relation_name
 
+    study_params = bp() 
+    params = study_params[expName] #'musmemfmri_bio_pilot'
 
+    #load in the latest recog data
+    list_of_files = glob.glob(os.path.join(params['data_dump_path'],expName+'_expo_'+'*.csv'))
+    latest_file = max(list_of_files, key=os.path.getctime)
+    recogDat = pd.read_csv(latest_file)
 
+    #load in the latest recall data
+    list_of_files = glob.glob(os.path.join(params['data_dump_path'],expName+'_recall_'+'*.csv'))
+    latest_file = max(list_of_files, key=os.path.getctime)
+    recallDat = pd.read_csv(latest_file)
+
+    #calculate total number of subjects 
+    nsubs = len(recogDat.subject_id.unique())
+    #pdb.set_trace()
+
+    with PdfPages(os.path.join(params['data_dump_path'],('plotAll_'+'nSubs%02d'%nsubs)+'_'+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+'.pdf')) as pdf_pages:
+
+        #######################################################
+        # overall exposure score (include subject-data points)
+        subRecogScores = recogDat.groupby('subject_id')['hit'].mean()  #get sub level score
+        subRecogScores = subRecogScores.to_frame().reset_index()
+        subRecogScores = subRecogScores.rename(columns= {'hit': 'score'})
+        subRecogScores['task'] = 'recog'#add col for value type
+
+        # overall exposure score (include subject-data points)
+        subRecallScores = recallDat.groupby('subject_id')['perc_recall'].mean()  #get sub level score
+        subRecallScores = subRecallScores.to_frame().reset_index()
+        subRecallScores = subRecallScores.rename(columns= {'perc_recall': 'score'})
+        subRecallScores['task'] = 'recall'#add col for value type
+
+        # combine into one plot
+        subScores = subRecogScores.append(subRecallScores)
+
+        #pdb.set_trace()
+        plot1 = sb.catplot(x="score",y="task",kind='box',data=subScores)
+        #plot1.savefig(os.path.join(params['data_dump_path'],'plot1.png'))
+        pdf_pages.savefig(plot1.fig)
+
+        #######################################################
+        # attractiveness X face (recog)
+        plot2 = sb.catplot(x="stimulus_id",y="attractivness",kind='box',data=recogDat)
+        plot2.set_xticklabels(rotation=45,horizontalalignment='right')
+        #plot2.savefig(os.path.join(params['data_dump_path'],'plot2.png'))
+        pdf_pages.savefig(plot2.fig)
+
+        #######################################################
+        # recall score X face 
+        plot3 = sb.catplot(x="stimulus_id",y="perc_recall",kind='box',data=recallDat)
+        plot3.set_xticklabels(rotation=45,horizontalalignment='right')
+        #plot3.savefig(os.path.join(params['data_dump_path'],'plot3.png'))
+        pdf_pages.savefig(plot3.fig)
+
+        #######################################################
+        # recall score X trial
+        plot4 = sb.catplot(x="trial",y="perc_recall",kind='box',data=recallDat)
+        plot4.set_xticklabels(rotation=45,horizontalalignment='right')
+        #plot4.savefig(os.path.join(params['data_dump_path'],'plot4.png'))
+        pdf_pages.savefig(plot4.fig)
+
+        #######################################################
+        # recall score X feature 
+        #need to convert columns to rows. 
+        tmp = recallDat.reset_index()
+        recallDat_long = pd.melt(tmp, id_vars=['subject_id','trial'], value_vars=['face_name_hit', 'location_hit', 'job_hit','hobby_hit','relation_hit','relation_name_hit'])
+        featureSubRecallScores = recallDat_long.groupby(['subject_id','variable'])['value'].mean()  #get subXfeat level score
+        featureSubRecallScores = featureSubRecallScores.to_frame().reset_index()
+        featureSubRecallScores = featureSubRecallScores.rename(columns= {'variable': 'feature','value':'perc_recall'})
+        plot5 = sb.catplot(x="feature",y="perc_recall",kind='box',data=featureSubRecallScores)
+        plot5.set_xticklabels(rotation=45,horizontalalignment='right')
+        #plot5.savefig(os.path.join(params['data_dump_path'],'plot5.png'))
+        pdf_pages.savefig(plot5.fig)
+
+        #######################################################
+        # counterbalance plots IDEALLY< USE HEATMAPS? 
+        # face X trial (recog); face X trial (response_order, recall); 
+        #tmpCounts = recallDat.groupby(['stimulus_id','trial'])['perc_recall'].count()
+
+        #tmpCounts = tmpCounts.to_frame().reset_index()
+        #tmpCounts = tmpCounts.rename(columns= {'perc_recall': 'count'})
+        #plot6 = sb.catplot(x='trial',y='stimulus_id',kind='bar',data=tmpCounts)
+        #plot6 = sb.catplot(x='trial',kind='count',hue='stimulus_id',data=tmpCounts,orient="h")
+        #plot6.savefig(os.path.join(params['data_dump_path'],'plot6.png'))
 
 
 
