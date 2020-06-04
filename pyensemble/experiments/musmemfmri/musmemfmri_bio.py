@@ -445,7 +445,7 @@ def select_stim(request,*args,**kwargs):
     
     # if it's practice_trial, go ahead and present trial01
     if lastTrialAttribute == 'trial_practice':
-        currTrialAttribute = Attribute.objects.get(name='trial01')
+        currTrialAttribute = Attribute.objects.get(name='trial01',attribute_class='bio_trials')
 
     else:
         # grab the lst two char (numbers) in the attr. name
@@ -453,7 +453,7 @@ def select_stim(request,*args,**kwargs):
         # increment them by 1 and put back into the string
         tmpTrialNum = tmpTrialNum + 1
         # grab the attribute for the new trial 
-        currTrialAttribute = Attribute.objects.get(name='trial%02d'%tmpTrialNum)
+        currTrialAttribute = Attribute.objects.get(name='trial%02d'%tmpTrialNum,attribute_class='bio_trials')
 
 
     # Check to see if we already assigned a bio for this trial 

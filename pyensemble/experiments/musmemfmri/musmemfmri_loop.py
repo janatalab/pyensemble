@@ -188,7 +188,7 @@ def assign_loop_trials():#request,*args,**kwargs
                 #for each trial, find the face least often assigned across previous subs and
                 #choose that one
                 #grab all names of all stims presented on this trial (includes)
-                thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentTrial,parent_class='loop_trials',mapping_name__in=prev_subs).values_list('mapping_value_text',flat=True)
+                thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentTrial,parent__attribute_class='loop_trials',mapping_name__in=prev_subs).values_list('mapping_value_text',flat=True)
                 for iface in range(0,len(curr_loop_stims)):
                     if curr_loop_stims[iface].name in thisTrialPrevFaces:
                         #if the current face is in this Q, count the number of times
