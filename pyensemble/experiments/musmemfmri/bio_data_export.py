@@ -429,6 +429,8 @@ def bio_performancePlots(expName):
     # counterbalance plots
     # face X trial (recog); face X trial (response_order, recall); 
     # face X name (recog); face X location; face X job; face X hobby; face X relation; face X relation_name
+    #
+    # ADD THESE: Time X Task (boxplat)
 
     study_params = bp() 
     params = study_params[expName] #'musmemfmri_bio_pilot'

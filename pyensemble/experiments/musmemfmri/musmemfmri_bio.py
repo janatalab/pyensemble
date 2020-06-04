@@ -219,7 +219,8 @@ def assign_face_stim(request,*args,**kwargs):
             #for each trial, find the face least often assigned across previous subs and
             #choose that one
             #grab all names of all stims presented on this trial (includes)
-            thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentTrial,mapping_name__in=prev_subs,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
+            pdb.set_trace()
+            thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentTrial,parent__attribute_class='bio_trials',mapping_name__in=prev_subs,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
             for iface in range(0,len(curr_face_stims)):
                 if curr_face_stims[iface].name in thisTrialPrevFaces:
                     #if the current face is in this Q, count the number of times
