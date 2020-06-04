@@ -60,10 +60,10 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
     prev_subs_start = prev_subs_initd.filter(subject_id__in=all_time_subids) #now filter so only have these stims
     #put subjects in order of time. (first to most recent) date_entered
     prev_subs_start = prev_subs_start.filter().order_by('date_entered')
-
+    #pdb.set_trace()
     #add subid, age, sex, ethnicity, gender !!!
-    print(f'Last Name, First Name\tDate Reg\tExpo Time\tSurvey Time\tRecall Time\tComments\n')
-    fieldnames = ['Last Name', 'First Name', 'Date Reg', 'Expo Time','Survey Time','Recall Time','Comments']
+    print(f'Last Name, First Name\tDate Reg\tsubject_id\tExpo nTrials\tExpo Time\tSurvey Time\tRecall nTrials\tRecall Time\tTotal Time\tComments\n')
+    fieldnames = ['Last_Name', 'First_Name', 'Date_Reg', 'subject_id', 'Expo_nTrials','Expo_Time','Survey_Time','Recall_nTrials','Recall_Time','Total_Time','Comments']
     with open(os.path.join(params['data_dump_path'],expName+"_status_"+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+".csv"),mode='w') as outDatCSV:
         writer = csv.writer(outDatCSV, quoting=csv.QUOTE_MINIMAL)
         writer.writerow(fieldnames)
@@ -73,13 +73,15 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
             #pdb.set_trace() 
             # look at responses for the exposure task (form 7 as attractiveness question, should be at least 40; culd be more dep on practice trials)
             expoResponses = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form__id='7')
-            nExpoResps = len(expoResponses)
             #get the first and last presented form (either form_order or date_time)
             #calculate time spent on the task. 
+            nexpoTrials = str(len(expoResponses))
             try:
                 sortExpoResponses = expoResponses.filter().order_by('date_time') #- for descending order
                 expoTime = sortExpoResponses[len(sortExpoResponses)-1].date_time - sortExpoResponses[0].date_time
-                mexpoTime = str((expoTime.total_seconds() % 3600) // 60)
+                mexpoTime = (expoTime.total_seconds() % 3600) // 60
+                hexpoTime = expoTime.total_seconds() // 3600
+                mexpoTime = str(mexpoTime + hexpoTime*60)
             except:
                 mexpoTime = '-'
 
@@ -88,19 +90,30 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
             survey_end_resp = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form='23',question='127')
             try:
                 surveyTime = survey_end_resp[0].date_time - survey_start_resp[0].date_time
-                msurveyTime = str((surveyTime.total_seconds() % 3600) // 60)
+                msurveyTime = (surveyTime.total_seconds() % 3600) // 60
+                hsurveyTime = surveyTime.total_seconds() // 3600
+                msurveyTime = str(msurveyTime + hsurveyTime*60)
+
             except:
                 msurveyTime = '-'
             
             #did this sub make it through the recall task (form 27 is the image recall questions, should be 20)
             recallResponses = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form='27',question='128')
-            nRecallResps = len(recallResponses)
             #get the first and last presented form (either form_order or date_time)
             #calculate time spent on the task. 
+            nrecallTrials = str(len(recallResponses))
             try:
                 sortrecallResponses = recallResponses.filter().order_by('date_time') #- for descending order
                 recalltime = sortrecallResponses[len(sortrecallResponses)-1].date_time - sortrecallResponses[0].date_time
-                mrecalltime = str((recalltime.total_seconds() % 3600) // 60)
+                mrecalltime = (recalltime.total_seconds() % 3600) // 60
+                hrecalltime = recalltime.total_seconds() // 3600
+                mrecalltime = str(mrecalltime + hrecalltime*60)
+
+                totalTime = sortrecallResponses[len(sortrecallResponses)-1].date_time - sortExpoResponses[0].date_time
+                mtotalTime = (totalTime.total_seconds() % 3600) // 60
+                htotalTime = totalTime.total_seconds() // 3600
+                mtotalTime = str(mtotalTime + htotalTime*60)
+
             except:
                 mrecalltime = '-'
             
@@ -112,8 +125,8 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
                 textResp = '-'
             #pdb.set_trace() 
 
-            writer.writerow([isub.name_last,isub.name_first,str(isub.date_entered),mexpoTime,msurveyTime,mrecalltime,textResp])
-            print(isub.name_last+', '+isub.name_first+'\t'+str(isub.date_entered)+'\t'+mexpoTime+'\t'+msurveyTime+'\t'+mrecalltime+'\t'+textResp+'\n')
+            writer.writerow([isub.name_last,isub.name_first,str(isub.date_entered),isub.subject_id,nexpoTrials,mexpoTime,msurveyTime,nrecallTrials,mrecalltime,mtotalTime,textResp])
+            print(isub.name_last+', '+isub.name_first+'\t'+str(isub.date_entered)+'\t'+nexpoTrials+'\t'+mexpoTime+'\t'+msurveyTime+'\t'+nrecallTrials+'\t'+mrecalltime+'\t'+mtotalTime+'\t'+textResp+'\n')
                 #'Has Trials\tExpo Time\tSurvey Time\tRecallT Time\tComments\n')
     outDatCSV.close()
 
