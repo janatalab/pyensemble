@@ -268,7 +268,7 @@ def assign_face_stim(request,*args,**kwargs):
             print(f'Creating and loggin a new bio')
             currentOldTrial = Attribute.objects.get(id=str(triallAttrIDsRun1[itrial]))
             #grab all names of all stims presented on this trial (includes)
-            thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentOldTrial,mapping_name__in=prev_subs,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
+            thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentOldTrial,parent__attribute_class='bio_trials',mapping_name__in=prev_subs,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
             for iface in range(0,len(curr_face_stims)):
                 if curr_face_stims[iface].name in thisTrialPrevFaces:
                     #if the current face is in this Q, count the number of times
