@@ -25,7 +25,7 @@ from django.contrib.auth.decorators import login_required
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit
 
-from pyensemble.models import Session, Attribute, Stimulus, StimulusXAttribute, AttributeXAttribute, Experiment, Form, ExperimentXForm, Question, FormXQuestion, DataFormat, Response
+from pyensemble.models import Session, Attribute, Stimulus, StimulusXAttribute, AttributeXAttribute, Experiment, Form, ExperimentXForm, Question, FormXQuestion, DataFormat, Response, ExperimentXStimulus
 
 from pyensemble.importers.forms import ImportForm
 
@@ -161,7 +161,10 @@ def import_attributes(request):
 
     return render(request, template, context)
 
-def update_attributes(attribute_file='./JingleDatabase.csv'):
+def update_attributes(attribute_file='./JingleDatabase.csv',experiment_title='jingle_project_study1'):
+
+    experiment = Experiment.objects.get(title=experiment_title)
+
     with open(attribute_file) as csv_file:
         reader = csv.reader(csv_file)
 
@@ -186,6 +189,12 @@ def update_attributes(attribute_file='./JingleDatabase.csv'):
         # Iterate over the list of stims to update
         for row in reader: 
             stimname = row[cid['Stimulus_ID']]
+
+            # Create an entry in the experimentxstimulus table
+            # pdb.set_trace()
+            stimulus = Stimulus.objects.get(name=stimname)
+            ExperimentXStimulus.objects.get_or_create(stimulus=stimulus,experiment=experiment)
+
 
             # Check whether this is a stimulus whose entry we need to modify
             if stimname not in stims_to_change:
@@ -772,64 +781,6 @@ def import_attributes(request):
 
     return render(request, template, context)
 
-def update_attributes(attribute_file='./JingleDatabase.csv'):
-    with open(attribute_file) as csv_file:
-        reader = csv.reader(csv_file)
-
-        # Get the column headers
-        columns = next(reader)
-
-        # Get a dictionary of column indexes
-        cid = {col:idx for idx, col in enumerate(columns)}
-
-        # Specify our column to attribute mapping
-        colattmap = {
-                        'Company': 'Company',
-                        'Item': 'Product',
-                        'Product_Category': 'Product Category',
-                        'First_Played': 'First Played',
-                        'Last_Played': 'Last Played',
-                        'Region_Played': 'Region',
-                        'Modality': 'Modality',
-                    }
-        numeric = ['First_Played','Last_Played'] 
-
-        # Iterate over the list of stims to update
-        for row in reader: 
-            stimname = row[cid['Stimulus_ID']]
-
-            # Check whether this is a stimulus whose entry we need to modify
-            if stimname not in stims_to_change:
-                continue
-
-            print('Updating attribute values for: %s'%(stimname,))
-
-            # Iterate over our attributes
-            for col in colattmap.keys():
-                # Fetch our attribute object
-                attribute = Attribute.objects.get(name=colattmap[col])
-
-                # Get the attribute value we're going to overwrite
-                value = row[cid[col]]
-
-                if col in numeric:
-                    value_float = float(value) if value and value != '?' else None
-                    value_text = ''
-                else:
-                    value_text = value
-                    value_float = None
-
-                # Fetch the currect StimulusXAttribute entry
-                print('\tFetching attribute: %s'%(attribute.name))
-                sxa = StimulusXAttribute.objects.get(stimulus__name=stimname, attribute=attribute)
-
-                # Store our current mapping values
-                sxa.attribute_value_double = value_float
-                sxa.attribute_value_text = value_text
-
-                # Save the object
-                print("\tSaving attribute values: double=%s, text='%s'"%(value_float,value_text))
-                sxa.save()
 
 @login_required
 def delete_exf(request,title):
