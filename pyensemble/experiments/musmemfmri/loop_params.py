@@ -1,4 +1,4 @@
-# bio_params.py
+# loop_params.py
 # global parameters for all of the musmemfmri loop pilot experiments 
 #### make sure the name of each dictionary matches the name of the experiment in pyensemble! 
 #that's how it pics the right ones...

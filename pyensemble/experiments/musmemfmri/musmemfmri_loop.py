@@ -1,5 +1,5 @@
 # musmemfmri_loop.py
-from . import loop_params as lp
+import loop_params as lp #for some reason this needs "from . " in the _bio??
 
 import pdb
 import os, csv
@@ -21,10 +21,9 @@ stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
 study_params = lp.loop_params()
 
 
-# Imports stimuli for Angela Nazarian's jingle study
-#@login_required
-def import_stims(stimin):#removed request arg. stimdir=stimdir
-    #stimin='/home/bmk/stims2upload/' 
+def import_stims(stimin):
+    # Imports loop stimuli for musmemfmri study (creates attributes too)
+    #stimin='/var/www/html/ensemble/stimuli/musmemfmristims/loops/' 
     # Determine the number of subdirectories, corresponding to media types
     mediadirs = []
 
@@ -34,57 +33,54 @@ def import_stims(stimin):#removed request arg. stimdir=stimdir
                 mediadirs.append(entry.name)
     print(mediadirs)
     for media_type in mediadirs:
-        # Get an attribute corresponding to this media type
-        attribute, ehn = Attribute.objects.get_or_create(name='Media Type', attribute_class='stimulus')
-        
-        #import pdb; pdb.set_trace()
-        print(f'Working on {media_type}s ...')
+        if media_type == 'loops':
+            # Get an attribute corresponding to this media type
+            attribute, ehn = Attribute.objects.get_or_create(name='Media Type', attribute_class='stimulus')
+            attribute2, ehn = Attribute.objects.get_or_create(name='loopsV1', attribute_class='stimulus')
 
-        # Loop over files in the directory
-        with os.scandir(os.path.join(stimin,media_type)) as stimlist:
-            for stim in stimlist:
-                if not stim.name.startswith('.') and stim.is_file():
-                    print(f'\tImporting {stim.name}')
+            # Create the key attributes if they don't exist
+            attributeC, ehn = Attribute.objects.get_or_create(name='Key of C', attribute_class='stimulus')
+            attributeE, ehn = Attribute.objects.get_or_create(name='Key of E', attribute_class='stimulus')
+            attributeAb, ehn = Attribute.objects.get_or_create(name='Key of Ab', attribute_class='stimulus')
 
-                    # Strip off the extension
-                    fstub,fext = os.path.splitext(stim.name)
+            #import pdb; pdb.set_trace()
+            print(f'Working on {media_type}s ...')
 
-                    # Create the stimulus object
-                    stimulus, _ = Stimulus.objects.get_or_create(
-                        name=fstub,
-                        playlist='Musmem fMRI',
-                        file_format=fext,
-                        location=os.path.join(rootdir,media_type,stim.name)
-                        )
+            # Loop over files in the directory
+            with os.scandir(os.path.join(stimin,media_type)) as stimlist:
+                for stim in stimlist:
+                    if not stim.name.startswith('.') and stim.is_file():
+                        print(f'\tImporting {stim.name}')
 
-                    # Create a stimulusXattribute entry
-                    #import pdb; pdb.set_trace()
-                    stimXattrib, _ = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attribute, attribute_value_text=media_type)
+                        # Strip off the extension
+                        fstub,fext = os.path.splitext(stim.name)
+
+                        # Create the stimulus object
+                        stimulus, _ = Stimulus.objects.get_or_create(
+                            name=fstub,
+                            playlist='Musmem fMRI',
+                            file_format=fext,
+                            location=os.path.join(rootdir,media_type,stim.name)
+                            )
+
+                        # Create a stimulusXattribute entry
+                        #pdb.set_trace()
+                        stimXattrib, _ = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attribute, attribute_value_text=media_type)
+                        stimXattrib2, _ = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attribute2, attribute_value_text=media_type)
+
+                        # Add and attribute for key
+
+                        if '_C' in fstub:
+                            stimXattrib3, _ = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attributeC, attribute_value_text=media_type)
+                        elif '_E' in fstub:
+                            stimXattrib3, _ = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attributeE, attribute_value_text=media_type)
+                        elif '_Ab' in fstub:
+                            stimXattrib3, _ = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attributeAb, attribute_value_text=media_type)
+
+
 
     return print('pyensemble/message.html',{'msg':'Successfully imported the stimuli'})
     #return render(request,'pyensemble/message.html',{'msg':'Successfully imported the stimuli'})
-
-def import_attributes(stimin):
-    #stimin='/home/bmk/stims2upload/musmemfmri_attribute_uploadsV2.csv'
-    #load up the csv file
-    #with open(stimdir,'rt', encoding='ISO-8859-1') as f:
-    with open(stimin,'rt', encoding='ISO-8859-1') as f:
-        reader = csv.reader(f)
-        nattrib = 0
-        # Get the column headers
-        columns = next(reader)
-
-        # Get a dictionary of column indexes
-        cid = {col:idx for idx, col in enumerate(columns)}
-        # Iterate over the rows
-        for row in reader:
-            nattrib +=1
-            name = row[cid['name']]
-            nclass = row[cid['class']]
-            print(f"Processing attribute {nattrib}: {name}")
-            attribute, _ = Attribute.objects.get_or_create(name=name, attribute_class=nclass)
-
-    return print('pyensemble/message.html',{'msg':'Successfully imported the attributes'})
 
 def assign_face_stim(request,*args,**kwargs):
     #This function assembles the bios and assigns them to trials
