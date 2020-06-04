@@ -219,7 +219,8 @@ def assign_face_stim(request,*args,**kwargs):
             #for each trial, find the face least often assigned across previous subs and
             #choose that one
             #grab all names of all stims presented on this trial (includes)
-            thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentTrial,mapping_name__in=prev_subs,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
+            pdb.set_trace()
+            thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentTrial,parent__attribute_class='bio_trials',mapping_name__in=prev_subs,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
             for iface in range(0,len(curr_face_stims)):
                 if curr_face_stims[iface].name in thisTrialPrevFaces:
                     #if the current face is in this Q, count the number of times
@@ -267,7 +268,7 @@ def assign_face_stim(request,*args,**kwargs):
             print(f'Creating and loggin a new bio')
             currentOldTrial = Attribute.objects.get(id=str(triallAttrIDsRun1[itrial]))
             #grab all names of all stims presented on this trial (includes)
-            thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentOldTrial,mapping_name__in=prev_subs,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
+            thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentOldTrial,parent__attribute_class='bio_trials',mapping_name__in=prev_subs,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
             for iface in range(0,len(curr_face_stims)):
                 if curr_face_stims[iface].name in thisTrialPrevFaces:
                     #if the current face is in this Q, count the number of times
@@ -444,7 +445,7 @@ def select_stim(request,*args,**kwargs):
     
     # if it's practice_trial, go ahead and present trial01
     if lastTrialAttribute == 'trial_practice':
-        currTrialAttribute = Attribute.objects.get(name='trial01')
+        currTrialAttribute = Attribute.objects.get(name='trial01',attribute_class='bio_trials')
 
     else:
         # grab the lst two char (numbers) in the attr. name
@@ -452,7 +453,7 @@ def select_stim(request,*args,**kwargs):
         # increment them by 1 and put back into the string
         tmpTrialNum = tmpTrialNum + 1
         # grab the attribute for the new trial 
-        currTrialAttribute = Attribute.objects.get(name='trial%02d'%tmpTrialNum)
+        currTrialAttribute = Attribute.objects.get(name='trial%02d'%tmpTrialNum,attribute_class='bio_trials')
 
 
     # Check to see if we already assigned a bio for this trial 
