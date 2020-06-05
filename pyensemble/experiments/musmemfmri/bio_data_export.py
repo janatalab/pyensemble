@@ -126,7 +126,7 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
             #pdb.set_trace() 
 
             writer.writerow([isub.name_last,isub.name_first,str(isub.date_entered),isub.subject_id,nexpoTrials,mexpoTime,msurveyTime,nrecallTrials,mrecalltime,mtotalTime,textResp])
-            print(isub.name_last+', '+isub.name_first+'\t'+str(isub.date_entered)+'\t'+nexpoTrials+'\t'+mexpoTime+'\t'+msurveyTime+'\t'+nrecallTrials+'\t'+mrecalltime+'\t'+mtotalTime+'\t'+textResp+'\n')
+            print(isub.name_last+', '+isub.name_first+'\t'+str(isub.date_entered)+'\t'+isub.subject_id+'\t'+nexpoTrials+'\t'+mexpoTime+'\t'+msurveyTime+'\t'+nrecallTrials+'\t'+mrecalltime+'\t'+mtotalTime+'\t'+textResp+'\n')
                 #'Has Trials\tExpo Time\tSurvey Time\tRecallT Time\tComments\n')
     outDatCSV.close()
 
