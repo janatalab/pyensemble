@@ -441,8 +441,7 @@ def select_stim(request,*args,**kwargs):
     lastTrialAttribute = expsessinfo['currTrialAttribute']
 
     expsessinfo['misc_info'] = 'NULL' #reset it for sanity 
-
-    import pdb; pdb.set_trace()
+    print(f'last trial: '+lastTrialAttribute)
     # if it's practice_trial, go ahead and present trial01
     if lastTrialAttribute == 'trial_practice':
         currTrialAttribute = Attribute.objects.get(name='trial01',attribute_class='bio_trials')
@@ -455,6 +454,7 @@ def select_stim(request,*args,**kwargs):
         # grab the attribute for the new trial 
         currTrialAttribute = Attribute.objects.get(name='trial%02d'%tmpTrialNum,attribute_class='bio_trials')
 
+    print(f'this trial: '+currTrialAttribute.name)
 
     # Check to see if we already assigned a bio for this trial 
     currBioDic, currBio = doesThisBioExist(subject,currTrialAttribute,params)
