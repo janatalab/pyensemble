@@ -441,8 +441,7 @@ def select_stim(request,*args,**kwargs):
     lastTrialAttribute = expsessinfo['currTrialAttribute']
 
     expsessinfo['misc_info'] = 'NULL' #reset it for sanity 
-
-    
+    print(f'last trial: '+lastTrialAttribute)
     # if it's practice_trial, go ahead and present trial01
     if lastTrialAttribute == 'trial_practice':
         currTrialAttribute = Attribute.objects.get(name='trial01',attribute_class='bio_trials')
@@ -455,6 +454,7 @@ def select_stim(request,*args,**kwargs):
         # grab the attribute for the new trial 
         currTrialAttribute = Attribute.objects.get(name='trial%02d'%tmpTrialNum,attribute_class='bio_trials')
 
+    print(f'this trial: '+currTrialAttribute.name)
 
     # Check to see if we already assigned a bio for this trial 
     currBioDic, currBio = doesThisBioExist(subject,currTrialAttribute,params)
@@ -843,7 +843,7 @@ def select_recall_stim(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
     recall_trial_order = expsessinfo['recall_trial_order'] 
-    curr_recall_trial = Attribute.objects.get(name=recall_trial_order[int(expsessinfo['curr_recall_trial'])])
+    curr_recall_trial = Attribute.objects.get(attribute_class='bio_trials',name=recall_trial_order[int(expsessinfo['curr_recall_trial'])])
 
     #get the face stim.id and the bio for this trial 
     thisFaceName = AttributeXAttribute.objects.filter(parent=curr_recall_trial,mapping_name=subject.subject_id,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)

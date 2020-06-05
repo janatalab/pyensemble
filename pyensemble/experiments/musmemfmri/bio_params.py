@@ -9,7 +9,8 @@ def bio_params():
         'musmemfmri_bio_pilot': {
             'experiment_id': 1,
             'ignore_subs': ['01mtt01011','01mtt89011','01ttf67012','04ttt89211','04ktb89211','01mtt89012','01ttt89011',
-                            '01ttt89011','02weh90191','01mtt90011','01mtt91011','01ttt69011','02wem90191','04ktb20211'],#
+                            '01ttt89011','02weh90191','01mtt90011','01mtt91011','01ttt69011','02wem90191','04ktb20211',
+                            '01ttt72011','07coa00241','06asm20041'],#
             'breakAfterTheseTrials': ['trial10','trial20','trial30'],
             'practice_face_stim_ids': [840, 841],
             'face_stim_ids': [range(820,820+20)],
