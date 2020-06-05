@@ -442,7 +442,7 @@ def select_stim(request,*args,**kwargs):
 
     expsessinfo['misc_info'] = 'NULL' #reset it for sanity 
 
-    
+    import pdb; pdb.set_trace()
     # if it's practice_trial, go ahead and present trial01
     if lastTrialAttribute == 'trial_practice':
         currTrialAttribute = Attribute.objects.get(name='trial01',attribute_class='bio_trials')
@@ -843,7 +843,7 @@ def select_recall_stim(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
     recall_trial_order = expsessinfo['recall_trial_order'] 
-    curr_recall_trial = Attribute.objects.get(name=recall_trial_order[int(expsessinfo['curr_recall_trial'])])
+    curr_recall_trial = Attribute.objects.get(attribute_class='bio_trials',name=recall_trial_order[int(expsessinfo['curr_recall_trial'])])
 
     #get the face stim.id and the bio for this trial 
     thisFaceName = AttributeXAttribute.objects.filter(parent=curr_recall_trial,mapping_name=subject.subject_id,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
