@@ -330,6 +330,13 @@ def run_experiment(request, experiment_id=None):
         if ticket.expired:
             return HttpResponseBadRequest('The ticket has expired')
 
+        # Get the SONA code if there is one
+        sona_code = request.GET.get('sona',None)
+
+        # Deal with the situation in which we are trying to access using a survey code from SONA, but no code has been set
+        if 'sona' in request.GET.keys() and not sona_code:
+            return render(request,'pyensemble/error.html',{'msg':'No SONA survey code was specified!','next':'/'})
+
         # Initialize a session in the PyEnsemble session table
         session = Session.objects.create(experiment=ticket.experiment, ticket=ticket)
 
@@ -347,7 +354,7 @@ def run_experiment(request, experiment_id=None):
             'last_in_loop': {},
             'visit_count': {},
             'running': True,
-            'sona': request.GET.get('sona',None)
+            'sona': sona_code,
             })
 
     # Set the experiment session info
