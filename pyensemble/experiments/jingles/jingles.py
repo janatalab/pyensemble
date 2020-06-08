@@ -352,11 +352,15 @@ def select_study1(request,*args,**kwargs):
 
     # Get our list of stimuli that this subject has already encountered
     presented_stim_ids = Response.objects.filter(experiment=session.experiment, subject_id=subject, stimulus__isnull=False).values_list('stimulus',flat=True).distinct()
+    
     presented_stims = Stimulus.objects.filter(id__in=presented_stim_ids)
+
+    # Exclude faulty stims that don't have a company associated with them
+    presented_stims = presented_stims.filter(attributes__name='Company')
 
     # Get the last presented stimulus to this subject in this experiment
     if presented_stims:
-        previous_stim = presented_stims.get(id=presented_stim_ids.last())
+        previous_stim = presented_stims.last()
     else:
         previous_stim = None
 
@@ -365,10 +369,8 @@ def select_study1(request,*args,**kwargs):
     #
     experiment = Experiment.objects.get(title='jingle_project_study1')
 
-    # Exclude previously presented stimuli
-    possible_stims = Stimulus.objects.filter(playlist='Jingle Study', experimentxstimulus__experiment=experiment).exclude(id__in=(presented_stims))
-
-    #possible_stims = Stimulus.objects.filter(playlist='Jingle Study').exclude(id__in=(presented_stims))
+    # Exclude previously presented stimuli and make sure the stim has a company
+    possible_stims = Stimulus.objects.filter(playlist='Jingle Study', experimentxstimulus__experiment=experiment, attributes__name='Company').exclude(id__in=(presented_stims))
 
     # Exclude stimuli that are in the same advertisement grouping as any of the presented stimui
     for stim in presented_stims:
@@ -397,19 +399,29 @@ def select_study1(request,*args,**kwargs):
             except:
                 if settings.DEBUG:
                     pdb.set_trace()
+                    continue
 
 
     # Exclude stimuli that have the same company as the previously presented stimulus
     if previous_stim:
-        #company = StimulusXAttribute.objects.get(stimulus=previous_stim,attribute__name='Company').attribute_value_text
-        company = StimulusXAttribute.objects.filter(stimulus=previous_stim)[1].attribute_value_text
+        company = StimulusXAttribute.objects.get(stimulus=previous_stim,attribute__name='Company').attribute_value_text
+        # company = StimulusXAttribute.objects.filter(stimulus=previous_stim)[1].attribute_value_text # This line cannot work as intended 
         possible_stims = possible_stims.exclude(stimulusxattribute__attribute_value_text=company)
 
     # Determine the number of times that each stimulus has been presented
+    # query_filter = Q(
+    #     response__experiment=session.experiment, 
+    #     response__form__name='Jingle Project Familiarity',
+    #     response__question__text__contains='familiar is this advertisement'
+    #     )
     query_filter = Q(
         response__experiment=session.experiment, 
         response__form__name='Jingle Project Familiarity',
-        response__question__text__contains='familiar is this advertisement'
+        response__form_question_num=0
+        )
+
+    exclude_query_filter = Q(
+        response__subject__id__regex=r'^01ttf',
         )
 
     experiment_responses = Count('response', filter=query_filter)
@@ -420,13 +432,19 @@ def select_study1(request,*args,**kwargs):
 
     # Select a stimulus based on region
     # Get the number of trial repeats for this study
-    repeats = ExperimentXForm.objects.get(experiment = session.experiment, form__name = 'Jingle Project Familiarity').repeat
-    #repeats = ExperimentXForm.objects.get(experiment = 3, form__name__contains = 'Familiarity').repeat
+    # This is specified for the form at the end of the loop, not necessarily the form we are selecting the stimulus for
+
+    if session.experiment.title == 'jingle_project_study1':
+        form_name = 'Emotion Ratings'
+    elif session.experiment.title == 'jingle_stim_select_test':
+        form_name = 'Jingle Project Familiarity'
+
+    repeats = ExperimentXForm.objects.get(experiment = session.experiment, form__name = form_name).repeat
     
     # Set the proportion/weight based on the number of trials
     # 10% of the total number of trials should be comprised of the Canadian foils 
     num_can = int(.10 * (repeats))
-    num_USA = int(repeats - num_can)
+    num_USA = repeats - num_can
 
     # Create a list of possible regions with the correct number of iterations
     total_regions = ['USA'] * num_USA
@@ -478,12 +496,10 @@ def select_study1(request,*args,**kwargs):
         # Randomly pick an age range from those that actually have stimuli
         num_available_in_range = [r.count() for r in stims_x_agerange]
 
-        pdb.set_trace()
+        # pdb.set_trace()
 
         available_ranges = [idx for idx,n in enumerate(num_available_in_range) if n]
         age_idx = available_ranges[random.randrange(0,len(available_ranges))]
-
-
 
         # Select from among the least played stimuli in the target category
         num_min = stims_x_agerange[age_idx].aggregate(Min('num_responses'))['num_responses__min']
@@ -535,6 +551,7 @@ def select_study1(request,*args,**kwargs):
             'choices': 'none',
             #'stimulus_duration': params['jingle_duration_ms'],
             #'trial_duration': params['jingle_duration_ms'],
+            'click_to_start': True,
             'trial_ends_after_audio': True,
         }
         if trial['click_to_start']:
