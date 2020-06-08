@@ -25,7 +25,7 @@ from django.contrib.auth.decorators import login_required
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit
 
-from pyensemble.models import Session, Attribute, Stimulus, StimulusXAttribute, AttributeXAttribute, Experiment, Form, ExperimentXForm, Question, FormXQuestion, DataFormat, Response
+from pyensemble.models import Session, Attribute, Stimulus, StimulusXAttribute, AttributeXAttribute, Experiment, Form, ExperimentXForm, Question, FormXQuestion, DataFormat, Response, ExperimentXStimulus
 
 from pyensemble.importers.forms import ImportForm
 
@@ -35,7 +35,7 @@ import pdb
 rootdir = 'jinglestims'
 stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
 
-stims_to_change = ['Best_Western_logo', 'Hormel_tagline', 'Hormel_tagline2', '7_Subway_tagline2']
+stims_to_change = ['139_Mazda_tagline2', '7_Subway_tagline2']
 
 study_params = {
     'jingle_project_study1': {
@@ -315,6 +315,7 @@ def imagined_jingle(request,*args,**kwargs):
 
     return int(last_response.response_text)>0
 
+
 def select_study1(request,*args,**kwargs):
     # Construct a jsPsych timeline
     # https://www.jspsych.org/overview/timeline/
@@ -534,7 +535,6 @@ def select_study1(request,*args,**kwargs):
     else:
         stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
 
-
     #
     # Now, set up the jsPsych trial
     #
@@ -555,7 +555,7 @@ def select_study1(request,*args,**kwargs):
             'trial_ends_after_audio': True,
         }
         if trial['click_to_start']:
-            trial['prompt']='<a id="start_button" class="btn btn-primary" role="button"  href="#">Please listen to the following advertisement</a>'
+            trial['prompt']='<a id="start_button" class="btn btn-primary" role="button"  href="#">Click this button to hear the advertisement</a>'
 
 
     elif media_type == 'logo':
@@ -568,6 +568,8 @@ def select_study1(request,*args,**kwargs):
             'stimulus_duration': params['logo_duration_ms'],
             'trial_duration': params['logo_duration_ms'],
         }
+
+
     elif media_type == 'slogan':
         # Possibly need to fetch the text from the file and place it into the stimulus string
         contents = stimulus.location.open().read().decode('utf-8')
@@ -579,9 +581,7 @@ def select_study1(request,*args,**kwargs):
             'trial_duration': params['slogan_duration_ms'],
         }
     else:
-        raise ValueError('Cannot specify trial')
-
-    
+        raise ValueError('Cannot specify trial') 
 
     # Push the trial to the timeline
     timeline.append(trial)
