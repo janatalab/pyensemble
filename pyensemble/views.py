@@ -330,6 +330,13 @@ def run_experiment(request, experiment_id=None):
         if ticket.expired:
             return HttpResponseBadRequest('The ticket has expired')
 
+        # Get the SONA code if there is one
+        sona_code = request.GET.get('sona',None)
+
+        # Deal with the situation in which we are trying to access using a survey code from SONA, but no code has been set
+        if 'sona' in request.GET.keys() and not sona_code:
+            return render(request,'pyensemble/error.html',{'msg':'No SONA survey code was specified!','next':'/'})
+
         # Initialize a session in the PyEnsemble session table
         session = Session.objects.create(experiment=ticket.experiment, ticket=ticket)
 
@@ -347,7 +354,7 @@ def run_experiment(request, experiment_id=None):
             'last_in_loop': {},
             'visit_count': {},
             'running': True,
-            'sona': request.GET.get('sona',None)
+            'sona': sona_code,
             })
 
     # Set the experiment session info
@@ -397,6 +404,7 @@ def serve_form(request, experiment_id=None):
     # Initialize other context
     trialspec = {}
     timeline = []
+    stimulus = None
 
     if request.method == 'POST':
         #
@@ -585,8 +593,6 @@ def serve_form(request, experiment_id=None):
             else:
                 expsessinfo['curr_form_idx']+=1
 
-            pdb.set_trace()
-
             # Go to that next form
             request.session.modified=True
             return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
@@ -594,8 +600,13 @@ def serve_form(request, experiment_id=None):
         #
         # Reset our session stimulus_id variable if appropriate
         #
+        stimulus = None
         if not requires_stimulus:
             expsessinfo['stimulus_id'] = None
+        else:
+            stimulus_id = expsessinfo.get('stimulus_id',None)
+            if stimulus_id:
+                stimulus = Stimulus.objects.get(id=stimulus_id)
 
         #
         # Get our blank form
@@ -621,6 +632,7 @@ def serve_form(request, experiment_id=None):
         'timeline': timeline,
         'timeline_json': json.dumps(timeline),
         'trialspec': trialspec,
+        'stimulus': stimulus,
        }
 
     if settings.DEBUG:
@@ -656,7 +668,6 @@ def serve_form(request, experiment_id=None):
 def create_ticket(request):
     # Creates a ticket for an experiment.
     # Type can be master (multi-use) or user (single-use)
-    # pdb.set_trace()
 
     # Get our request data
     ticket_request = TicketCreationForm(request.POST)
