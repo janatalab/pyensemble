@@ -1,3 +1,7 @@
+#USA CAN selection
+#line 996 re: excluding stimuli that have the same company as the previously presented stimulus is commented out because it's not working
+#choose media type based on available media types in age_range
+
 # jingle_study.py
 #
 # Run a couple of importers to establish this experiment in the database:
@@ -21,7 +25,7 @@ from django.contrib.auth.decorators import login_required
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit
 
-from pyensemble.models import Session, Attribute, Stimulus, StimulusXAttribute, AttributeXAttribute, Experiment, Form, ExperimentXForm, Question, FormXQuestion, DataFormat, Response
+from pyensemble.models import Session, Attribute, Stimulus, StimulusXAttribute, AttributeXAttribute, Experiment, Form, ExperimentXForm, Question, FormXQuestion, DataFormat, Response, ExperimentXStimulus
 
 from pyensemble.importers.forms import ImportForm
 
@@ -31,7 +35,7 @@ import pdb
 rootdir = 'jinglestims'
 stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
 
-stims_to_change = ['151_Miller_logo2', '36_DrPepper_tagline9', '52_KellogsFrostedFlakes_tagline6', '631_MrPotatoHead_logo2', '797_Tide_tagline5', '90_Beachnutgum_logo7', '90_Beachnutgum_tagline7', '98_Kool-Aid_comm3', '98_Kool-Aid_tagline4', 'Converse_tagline', 'GirlTalk_comm', 'GreenGiant_comm3', 'Hormel_comm', 'Hormel_tagline5', 'Hormel_tagline6', 'Jif_tagline_02', 'Oxydol_comm']
+stims_to_change = ['139_Mazda_tagline2', '7_Subway_tagline2']
 
 study_params = {
     'jingle_project_study1': {
@@ -157,7 +161,10 @@ def import_attributes(request):
 
     return render(request, template, context)
 
-def update_attributes(attribute_file='./JingleDatabase.csv'):
+def update_attributes(attribute_file='./JingleDatabase.csv',experiment_title='jingle_project_study1'):
+
+    experiment = Experiment.objects.get(title=experiment_title)
+
     with open(attribute_file) as csv_file:
         reader = csv.reader(csv_file)
 
@@ -183,11 +190,17 @@ def update_attributes(attribute_file='./JingleDatabase.csv'):
         for row in reader: 
             stimname = row[cid['Stimulus_ID']]
 
+            # Create an entry in the experimentxstimulus table
+            stimulus = Stimulus.objects.get(name=stimname)
+            ExperimentXStimulus.objects.get_or_create(stimulus=stimulus,experiment=experiment)
+
+
             # Check whether this is a stimulus whose entry we need to modify
             if stimname not in stims_to_change:
                 continue
 
             print('Updating attribute values for: %s'%(stimname,))
+
 
             # Iterate over our attributes
             for col in colattmap.keys():
@@ -206,7 +219,10 @@ def update_attributes(attribute_file='./JingleDatabase.csv'):
 
                 # Fetch the currect StimulusXAttribute entry
                 print('\tFetching attribute: %s'%(attribute.name))
-                sxa = StimulusXAttribute.objects.get(stimulus__name=stimname, attribute=attribute)
+                try: 
+                    sxa = StimulusXAttribute.objects.get(stimulus__name=stimname, attribute=attribute)
+                except:
+                    sxa = StimulusXAttribute.objects.get_or_create(stimulus__name=stimname, attribute=attribute)
 
                 # Store our current mapping values
                 sxa.attribute_value_double = value_float
@@ -215,6 +231,7 @@ def update_attributes(attribute_file='./JingleDatabase.csv'):
                 # Save the object
                 print("\tSaving attribute values: double=%s, text='%s'"%(value_float,value_text))
                 sxa.save()
+
 
 @login_required
 def delete_exf(request,title):
@@ -298,6 +315,7 @@ def imagined_jingle(request,*args,**kwargs):
 
     return int(last_response.response_text)>0
 
+
 def select_study1(request,*args,**kwargs):
     # Construct a jsPsych timeline
     # https://www.jspsych.org/overview/timeline/
@@ -335,20 +353,25 @@ def select_study1(request,*args,**kwargs):
 
     # Get our list of stimuli that this subject has already encountered
     presented_stim_ids = Response.objects.filter(experiment=session.experiment, subject_id=subject, stimulus__isnull=False).values_list('stimulus',flat=True).distinct()
+    
     presented_stims = Stimulus.objects.filter(id__in=presented_stim_ids)
+
+    # Exclude faulty stims that don't have a company associated with them
+    presented_stims = presented_stims.filter(attributes__name='Company')
 
     # Get the last presented stimulus to this subject in this experiment
     if presented_stims:
-        previous_stim = presented_stims.get(id=presented_stim_ids.last())
+        previous_stim = presented_stims.last()
     else:
         previous_stim = None
 
     #
     # Get our list of possible stimuli
     #
+    experiment = Experiment.objects.get(title='jingle_project_study1')
 
-    # Exclude previously presented stimuli
-    possible_stims = Stimulus.objects.filter(playlist='Jingle Study').exclude(id__in=(presented_stims))
+    # Exclude previously presented stimuli and make sure the stim has a company
+    possible_stims = Stimulus.objects.filter(playlist='Jingle Study', experimentxstimulus__experiment=experiment, attributes__name='Company').exclude(id__in=(presented_stims))
 
     # Exclude stimuli that are in the same advertisement grouping as any of the presented stimui
     for stim in presented_stims:
@@ -377,103 +400,164 @@ def select_study1(request,*args,**kwargs):
             except:
                 if settings.DEBUG:
                     pdb.set_trace()
+                    continue
+
 
     # Exclude stimuli that have the same company as the previously presented stimulus
     if previous_stim:
         company = StimulusXAttribute.objects.get(stimulus=previous_stim,attribute__name='Company').attribute_value_text
+        # company = StimulusXAttribute.objects.filter(stimulus=previous_stim)[1].attribute_value_text # This line cannot work as intended 
         possible_stims = possible_stims.exclude(stimulusxattribute__attribute_value_text=company)
 
     # Determine the number of times that each stimulus has been presented
+    # query_filter = Q(
+    #     response__experiment=session.experiment, 
+    #     response__form__name='Jingle Project Familiarity',
+    #     response__question__text__contains='familiar is this advertisement'
+    #     )
     query_filter = Q(
         response__experiment=session.experiment, 
         response__form__name='Jingle Project Familiarity',
-        response__question__text__contains='familiar is this advertisement'
+        response__form_question_num=0
+        )
+
+    exclude_query_filter = Q(
+        response__subject__id__regex=r'^01ttf',
         )
 
     experiment_responses = Count('response', filter=query_filter)
     possible_stims = possible_stims.annotate(num_responses=experiment_responses)
 
-    # pdb.set_trace()
-
     # Determine the existing media types
     media_types = StimulusXAttribute.objects.filter(stimulus__in=possible_stims,attribute__name='Media Type').values_list('attribute_value_text',flat=True).distinct()
 
-    # Get the first and last played attributes
-    first_attrib = Attribute.objects.get(name='First Played')
-    last_attrib = Attribute.objects.get(name='Last Played')
+    # Select a stimulus based on region
+    # Get the number of trial repeats for this study
+    # This is specified for the form at the end of the loop, not necessarily the form we are selecting the stimulus for
 
-    # Get the possible stimuli within each year range
-    stims_x_agerange = []
-    for r in media_year_ranges:
-        stims_x_agerange.append(possible_stims
-            .filter(
-                stimulusxattribute__attribute=first_attrib, 
-                stimulusxattribute__attribute_value_double__gte=r[0])
-            .filter(
-                stimulusxattribute__attribute=first_attrib,
-                stimulusxattribute__attribute_value_double__lt=r[1]) 
-            | possible_stims
-            .filter(
-                stimulusxattribute__attribute=last_attrib,
-                stimulusxattribute__attribute_value_double__gte=r[0])
-            .filter(
-                stimulusxattribute__attribute=last_attrib,
-                stimulusxattribute__attribute_value_double__lt=r[1])                
-            )
+    if session.experiment.title == 'jingle_project_study1':
+        form_name = 'Emotion Ratings'
+    elif session.experiment.title == 'jingle_stim_select_test':
+        form_name = 'Jingle Project Familiarity'
 
-    # Randomly pick a media type
-    media_idx = random.randrange(0,media_types.count())
-    curr_media_type = media_types[media_idx]
+    repeats = ExperimentXForm.objects.get(experiment = session.experiment, form__name = form_name).repeat
+    
+    # Set the proportion/weight based on the number of trials
+    # 10% of the total number of trials should be comprised of the Canadian foils 
+    num_can = int(.10 * (repeats))
+    num_USA = repeats - num_can
 
-    # Randomly pick an age range from those that actually have stimuli
-    num_available_in_range = [r.count() for r in stims_x_agerange]
-    available_ranges = [idx for idx,n in enumerate(num_available_in_range) if n]
-    age_idx = available_ranges[random.randrange(0,len(available_ranges))]
+    # Create a list of possible regions with the correct number of iterations
+    total_regions = ['USA'] * num_USA
+    canadian_additions = ['Canada'] * num_can
+    total_regions.extend(canadian_additions)
 
-    # Select from among the least played stimuli in the target category
-    # pdb.set_trace()
-    select_from_stims = stims_x_agerange[age_idx].filter(
-        stimulusxattribute__attribute__name='Media Type',
-        stimulusxattribute__attribute_value_text=curr_media_type)
+    # Randomly choose a region from this list and remove it from the list of regions so it's not selected again
+    rand_region = random.choice(total_regions)
+    print(rand_region)
+    total_regions.remove(rand_region)
 
-    # We've arrived at our stimulus
-    if not select_from_stims.count():
-        if settings.DEBUG:
-            print('Of the %d stimuli in age range %d, none have the requested media type: %s'%(stims_x_agerange[age_idx].count(),age_idx,curr_media_type))
-            pdb.set_trace()    
+    CAN_stim_ids = StimulusXAttribute.objects.filter(attribute__name = 'Region', attribute_value_text = 'Canada').values_list('stimulus',flat=True).distinct()
+    CAN_stims = Stimulus.objects.filter(id__in=CAN_stim_ids)
 
-    num_min = select_from_stims.aggregate(Min('num_responses'))['num_responses__min']
-    select_from_stims = select_from_stims.filter(num_responses=num_min)
+    USA_stim_ids = StimulusXAttribute.objects.filter(attribute__name = 'Region', attribute_value_text = 'USA').values_list('stimulus',flat=True).distinct()
+    USA_stims = Stimulus.objects.filter(id__in=USA_stim_ids)    
+
+   # if it's an American advertisement, filter Canadian ads out of possible stims and proceed
+    if rand_region == 'USA':
+
+        #remove Canadian stims from the list of possible stimuli
+        possible_stims = possible_stims.exclude(stimulusxattribute__attribute_value_text='Canada')
+        #possible_stims = Stimulus.objects.filter(playlist='Jingle Study').exclude(id__in=(CAN_stim_ids))
+            
+        # Proceed with the full stim selection pipeline
+        # Get the first and last played attributes
+        first_attrib = Attribute.objects.get(name='First Played')
+        last_attrib = Attribute.objects.get(name='Last Played')
+
+        # Get the possible stimuli within each year range
+        stims_x_agerange = []
+        for r in media_year_ranges:
+            stims_x_agerange.append(possible_stims
+                .filter(
+                    stimulusxattribute__attribute=first_attrib, 
+                    stimulusxattribute__attribute_value_double__gte=r[0])
+                .filter(
+                    stimulusxattribute__attribute=first_attrib,
+                    stimulusxattribute__attribute_value_double__lt=r[1]) 
+                | possible_stims
+                .filter(
+                    stimulusxattribute__attribute=last_attrib,
+                    stimulusxattribute__attribute_value_double__gte=r[0])
+                .filter(
+                    stimulusxattribute__attribute=last_attrib,
+                    stimulusxattribute__attribute_value_double__lt=r[1])                
+                )
+
+        # Randomly pick an age range from those that actually have stimuli
+        num_available_in_range = [r.count() for r in stims_x_agerange]
+
+        # pdb.set_trace()
+
+        available_ranges = [idx for idx,n in enumerate(num_available_in_range) if n]
+        age_idx = available_ranges[random.randrange(0,len(available_ranges))]
+
+        # Select from among the least played stimuli in the target category
+        num_min = stims_x_agerange[age_idx].aggregate(Min('num_responses'))['num_responses__min']
+        select_from_stims = stims_x_agerange[age_idx].filter(num_responses=num_min)        
+        #select_from_stims = stims_x_agerange[age_idx].filter(
+         #   stimulusxattribute__attribute__name='Media Type',
+          #  stimulusxattribute__attribute_value_text=curr_media_type)
+
+        # We've arrived at our stimulus
+        if not select_from_stims.count():
+            if settings.DEBUG:
+                print('Of the %d stimuli in age range %d, none have the requested media type: %s'%(stims_x_agerange[age_idx].count(),age_idx,curr_media_type))    
+
+    # if it's a Canadian advertisement, filter USA ads out of possible_stims
+    if rand_region == 'Canada':
+
+    #remove American stims from the list of possible stimuli
+        possible_stims = possible_stims.exclude(stimulusxattribute__attribute_value_text='USA')
+
+        # Skip over lifetime period selection because there isn't a Canadian ad for each lifetime period 
+        # Set select_from_stims to possible_stims to achieve this
+        num_min = possible_stims.aggregate(Min('num_responses'))['num_responses__min']
+        select_from_stims = possible_stims.filter(num_responses=num_min)
+
 
     # We've arrived at our stimulus
     if not select_from_stims.count():
         if settings.DEBUG:
             print('No more stims')
-            pdb.set_trace()
 
         return None,  None
     else:
         stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
-        print(stimulus)
 
     #
     # Now, set up the jsPsych trial
     #
     
     # Determine the stimulus type
-    media_type = media_types[media_idx]
+    media_type = StimulusXAttribute.objects.get(stimulus = stimulus, attribute__name = 'Media Type').attribute_value_text
 
     # Specify the trial based on the jsPsych definition for the corresponding media type
     if media_type == 'jingle':
         trial = {
             'type': 'audio-keyboard-response',
             'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
-            'prompt':'<p style=font-size:30px;margin-top:200px;>(Please listen to the following advertisement)</p>',
+            #'prompt':'<p style=font-size:30px;margin-top:200px;>(Please listen to the following advertisement)</p>',
             'choices': 'none',
-            'stimulus_duration': params['jingle_duration_ms'],
-            'trial_duration': params['jingle_duration_ms'],
-            #'trial_ends_after_audio': True,
+            #'stimulus_duration': params['jingle_duration_ms'],
+            #'trial_duration': params['jingle_duration_ms'],
+            'click_to_start': True,
+            'trial_ends_after_audio': True,
         }
+        if trial['click_to_start']:
+            trial['prompt']='<a id="start_button" class="btn btn-primary" role="button"  href="#">Click this button to hear the advertisement</a>'
+
+
     elif media_type == 'logo':
         trial = {
             'type': 'image-keyboard-response',
@@ -484,6 +568,8 @@ def select_study1(request,*args,**kwargs):
             'stimulus_duration': params['logo_duration_ms'],
             'trial_duration': params['logo_duration_ms'],
         }
+
+
     elif media_type == 'slogan':
         # Possibly need to fetch the text from the file and place it into the stimulus string
         contents = stimulus.location.open().read().decode('utf-8')
@@ -495,11 +581,10 @@ def select_study1(request,*args,**kwargs):
             'trial_duration': params['slogan_duration_ms'],
         }
     else:
-        raise ValueError('Cannot specify trial')
+        raise ValueError('Cannot specify trial') 
 
     # Push the trial to the timeline
     timeline.append(trial)
 
-    pdb.set_trace()
+    return timeline, stimulus.id# jingle_study.py
 
-    return timeline, stimulus.id
