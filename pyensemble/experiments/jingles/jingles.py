@@ -1,6 +1,5 @@
 #USA CAN selection
-#line 996 re: excluding stimuli that have the same company as the previously presented stimulus is commented out because it's not working
-#choose media type based on available media types in age_range
+
 
 # jingle_study.py
 #
@@ -28,6 +27,8 @@ from crispy_forms.layout import Submit
 from pyensemble.models import Session, Attribute, Stimulus, StimulusXAttribute, AttributeXAttribute, Experiment, Form, ExperimentXForm, Question, FormXQuestion, DataFormat, Response, ExperimentXStimulus
 
 from pyensemble.importers.forms import ImportForm
+
+from collections import Counter
 
 import pdb
 
@@ -320,12 +321,6 @@ def select_study1(request,*args,**kwargs):
     # Construct a jsPsych timeline
     # https://www.jspsych.org/overview/timeline/
     #
-    # Still need to:
-    # prevent repeats of product category
-    # select based on product categories
-    # incorporate desired percentage of Canadian stims
-    # incorporate maximum selected number per-category
-    # make
 
     timeline = []
 
@@ -431,6 +426,9 @@ def select_study1(request,*args,**kwargs):
     # Determine the existing media types
     media_types = StimulusXAttribute.objects.filter(stimulus__in=possible_stims,attribute__name='Media Type').values_list('attribute_value_text',flat=True).distinct()
 
+    #Determine how many stimuli have been presented from each media_type
+    media_counts = Counter(StimulusXAttribute.objects.filter(stimulus__in=presented_stims,attribute__name='Media Type').values_list('attribute_value_text',flat=True))
+
     # Select a stimulus based on region
     # Get the number of trial repeats for this study
     # This is specified for the form at the end of the loop, not necessarily the form we are selecting the stimulus for
@@ -500,7 +498,13 @@ def select_study1(request,*args,**kwargs):
         # pdb.set_trace()
 
         available_ranges = [idx for idx,n in enumerate(num_available_in_range) if n]
+        if not available_ranges:
+            if settings.DEBUG:
+                print('There are no stimuli in the remaining age ranges')    
+
+
         age_idx = available_ranges[random.randrange(0,len(available_ranges))]
+
 
         # Select from among the least played stimuli in the target category
         num_min = stims_x_agerange[age_idx].aggregate(Min('num_responses'))['num_responses__min']
@@ -525,7 +529,6 @@ def select_study1(request,*args,**kwargs):
         num_min = possible_stims.aggregate(Min('num_responses'))['num_responses__min']
         select_from_stims = possible_stims.filter(num_responses=num_min)
 
-
     # We've arrived at our stimulus
     if not select_from_stims.count():
         if settings.DEBUG:
@@ -533,12 +536,28 @@ def select_study1(request,*args,**kwargs):
 
         return None,  None
     else:
-        stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
+        #if there are no previous stims to calculate media_counts, randomly select a stim from select_from_stims
+        if len(media_counts) == 0:
+            stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
 
+        #otherwise, try to pick from the least presented modalities so far
+        else:
+            least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = (min(media_counts)))
+
+            #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type').exclude(stimulusxattribute__attribute_value_text = (media_counts.most_common(1)[0][0]))
+            
+
+            #select_from_stims = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = min(media_counts))
+            
+            #if there are no stimuli from least_used_modalities, randomly select a stim from select_from_stims
+            if len(least_used_modalities) == 0:
+                stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
+            else:
+                stimulus = random.choice(least_used_modalities)
     #
     # Now, set up the jsPsych trial
     #
-    
+
     # Determine the stimulus type
     media_type = StimulusXAttribute.objects.get(stimulus = stimulus, attribute__name = 'Media Type').attribute_value_text
 
@@ -555,7 +574,8 @@ def select_study1(request,*args,**kwargs):
             'trial_ends_after_audio': True,
         }
         if trial['click_to_start']:
-            trial['prompt']='<a id="start_button" class="btn btn-primary" role="button"  href="#">Click this button to hear the advertisement</a>'
+            #trial['prompt']='<div class="row align-items-center justify-content-center"><a id="start_button" class="btn btn-primary" role="button"  href="#"><p style="font-size:20px">Click this button to hear the advertisement</p></a></div>',
+             trial['prompt']='<div class="btn-group btn-group-justified"><a id="start_button" href="#" class="btn btn-primary" role="button" ><p style="font-size:20px">Click this button to hear the advertisement</p></a></div>',
 
 
     elif media_type == 'logo':
@@ -569,7 +589,6 @@ def select_study1(request,*args,**kwargs):
             'trial_duration': params['logo_duration_ms'],
         }
 
-
     elif media_type == 'slogan':
         # Possibly need to fetch the text from the file and place it into the stimulus string
         contents = stimulus.location.open().read().decode('utf-8')
@@ -580,11 +599,14 @@ def select_study1(request,*args,**kwargs):
             'stimulus_duration': params['slogan_duration_ms'],
             'trial_duration': params['slogan_duration_ms'],
         }
+
     else:
         raise ValueError('Cannot specify trial') 
 
     # Push the trial to the timeline
     timeline.append(trial)
+
+    print("# jingles:", media_counts['jingle'], "# slogans:", media_counts['slogan'], "# logos", media_counts['logo'])
 
     return timeline, stimulus.id# jingle_study.py
 
