@@ -8,12 +8,13 @@ def loop_params():
     study_params = {
         #params for the first bio pilot study
         'musmemfmri_loop_pilot': {
-            'experiment_id': 99999,
+            'experiment_id': 6,
             'ignore_subs': [''],#
             'breakAfterTheseTrials': ['trial20','trial40','trial60','trial80','trial100','trial120'],
             'prac_loop_stim_id': 99999,
             'loop_attribute': 'loopsV1',
             'nUniqueLoops': nuLoops,
+            'loop_keys': ['C','E','Ab'],
             'run_params': {'run1_trials': [str('trial%02d'%i) for i in range(1,1+nuLoops)],
                             'run2_trials': [str('trial%02d'%i) for i in range((nuLoops*1)+1,21+nuLoops)],#_21-40
                             'run3_trials': [str('trial%02d'%i) for i in range((nuLoops*2)+1,41+nuLoops)],#_41-60

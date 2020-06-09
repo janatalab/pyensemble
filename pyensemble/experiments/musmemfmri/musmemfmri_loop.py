@@ -1,8 +1,8 @@
 # musmemfmri_loop.py
-import loop_params as lp #for some reason this needs "from . " in the _bio??
+from . import loop_params as lp #for some reason this needs "from . " in the _bio??
 
 import pdb
-import os, csv
+import os, csv, re
 import random
 #import json
 
@@ -104,7 +104,7 @@ def import_attributes(stimin):
 
     return print('pyensemble/message.html',{'msg':'Successfully imported the attributes'})
 
-def assign_loop_trials():#request,*args,**kwargs
+def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
     #This function figures out which key version to use and assigns loops to trials
     #in the attr X attr table
 
@@ -128,29 +128,53 @@ def assign_loop_trials():#request,*args,**kwargs
     #get the session var
     #expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
 
+    #grab all previous subs who have participated
+    all_prev_subids = Response.objects.filter(experiment_id=session.experiment.id).values_list('subject_id',flat=True).distinct()
+    all_prev_subs = Subject.objects.filter(subject_id__in=all_prev_subids)
+    prev_subs = all_prev_subs.exclude(subject_id__in=params['ignore_subs'])
+    #subject session id is what's written to attr X attr, use this to get previous subs...
+    prev_sess = Session.objects.filter(subject_id__in=prev_subs,experiment_id=session.experiment.id).values_list('id',flat=True).distinct()
+
     # Grab the loop stims
     try:
         #this includes 3 versions of each loop (keys) 
-        loop_stims_long = Stimulus.objects.filter(stimulusxattribute__child__name=params['loop_attribute'])
+        loop_stims_long = Stimulus.objects.filter(stimulusxattribute__attribute_id__name=params['loop_attribute'])
     except:
         print(f'Cannot find loop stims')
 
-    pdb.set_trace() 
-    loop_stims = []
-    # Now pick the key of each loop we are going to use 
     # get the unique names (minus key info at end), loop through each of these
-
+    uloop_stim_names = []
+    sloop_stim_names = []
+    for iloop in loop_stims_long.values_list('name',flat=True):
+        #remove key info part of string
+        sloop_stim_names.append(re.sub('_.*', '', iloop))
+    uloop_stim_names = [*set(sloop_stim_names), ]
+    
+    """ 
+    ACTUALLY, if we want to make sure 1/3 of the trials are from each key, then we need to 
+    pick the keys after we select the final 20 stims. 
+    
+    # Now pick the key of each loop we are going to use 
     # tally how many times each version of the stim has been presented across subs
+    loop_stims = []#hold list of stim set to choose from. 
+    for iloop in uloop_stim_names:
+        tmp_loop_count = []
+        for ikey in params['loop_keys']:
+            #grab all previous instances for this loop
+            thisLoop = iloop+'_'+ikey
+            tmpq = AttributeXAttribute.objects.filter(parent__attribute_class='loop_trials',mapping_name__in=prev_sess,child__name='Key of '+ikey).values_list('mapping_value_text',flat=True)
+            tmp_loop_count.append(tmpq.count())
+        #get the min count idx
+        min_key_idxs = [i for i, x in enumerate(tmp_loop_count) if x == min(tmp_loop_count)]
+        choose_this_loop_idx = min_key_idxs[random.randrange(0,len(min_key_idxs))]
+        loop_stims.append(iloop+'_'+params['loop_keys'][choose_this_loop_idx])
+
+    pdb.set_trace()
+
 
     # random least frequent 
+    """
 
-
-
-    #grab all previous subs who have participated
-    all_prev_subids = Response.objects.filter(experiment_id=session.experiment.id,).values_list('subject_id',flat=True).distinct()
-    all_prev_subs = Subject.objects.filter(subject_id__in=all_prev_subids)
-    prev_subs = all_prev_subs.exclude(subject_id__in=params['ignore_subs'])
-        
     """
     On a given trial, 
     -get all the loopXtrialN instances (all subs)
@@ -169,59 +193,160 @@ def assign_loop_trials():#request,*args,**kwargs
     *question here is whether or not it will ever run out of stims this way? 
     """
 
-
+    pdb.set_trace() 
+    run_list = sorted(params['run_params'].keys()) #need to go through runs in order
+    previous_runs = []
     #OK, so let's just try and just get em assigned once, so it's easier to test the db
-    for irun in params['run_params']:
-        curr_loop_stims = loop_stims #need to remove faces once's we've assigned one
-        triallAttrIDsRun1 = irun
-        for itrial in range(0,len(triallAttrIDsRun1)):
+    for irun in run_list:
+        pdb.set_trace()
+        if irun in 'run1_trials':
+            curr_loop_stims = uloop_stim_names #need to remove faces once's we've assigned one
+        else:
+            #grab all the stims present in the first run
+            tmp_stims = AttributeXAttribute.objects.filter(parent__name__in=params['run_params']['run1_trials'],parent__attribute_class='loop_trials',mapping_name=str(session.id)).values_list('mapping_value_text',flat=True)
+            r1_loop_stims = []
+            for ist in tmp_stims:
+                #remove key info part of string
+                r1_loop_stims.append(re.sub('_.*', '', ist))
+            curr_loop_stims = [*set(r1_loop_stims), ]
+            pdb.set_trace()
 
-            currentTrial = Attribute.objects.get(name=str(triallAttrIDsRun1[itrial]))
+        previous_runs.append(irun)
+        for itrial in range(0,len(params['run_params'][irun])):
 
+            currentTrial = Attribute.objects.get(name=params['run_params'][irun][itrial],attribute_class='loop_trials')
+            currentTrialPosition = Attribute.objects.get(name=params['run_params']['run1_trials'][itrial],attribute_class='loop_trials')
             # Check to see if we already assigned a loop for this trial 
-            currStim = doesThisTrialExist(subject,currentTrial)
+            currStim = doesThisTrialExist(session,currentTrial)
             
             if not currStim:
                 curr_stims_x_pres = [] #tally number of times loop was assigned to this trial (across subs)
                 print(f'Creating and loggin a new loop-trial')
                 #for each trial, find the loop least often assigned across previous subs 
                 #grab all names of all stims presented on this trial 
-                # MAPPINGVALUETEXT - STIM NAME - NEED TO DROP THE KEY STRIN 
-                thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentTrial,parent__attribute_class='loop_trials',mapping_name__in=prev_subs).values_list('mapping_value_text',flat=True)
-                for iface in range(0,len(curr_loop_stims)):
-                    if curr_loop_stims[iface].name in thisTrialPrevFaces:
+                #NOTE, second time through this limits the search to the 20 stims selected out of the 
+                #total 41 during run1
+                ###NEED TO FIX SESSION ID HERE SO IT GRABS ALL PREVIOUS SUBS INCLUDING THE CURRENT
+                thisTrialPrevLoops = AttributeXAttribute.objects.filter(parent=currentTrialPosition,mapping_name__in=[str(session.id)],mapping_value_text__iregex=r'^%s'%(curr_loop_stims)).values_list('mapping_value_text',flat=True)
+
+                #trip the thisTrialPrevLoops of key ending
+                thisTrialStrpdPrevLoops = []
+                for iloop in thisTrialPrevLoops:
+                    #remove key info part of string
+                    thisTrialStrpdPrevLoops.append(re.sub('_.*', '', iloop))
+
+                #now go through and count the occurances 
+                for iloop in range(0,len(curr_loop_stims)):
+                    if curr_loop_stims[iloop] in thisTrialStrpdPrevLoops:
                         #if the current face is in this Q, count the number of times
-                        curr_stims_x_pres.append([*thisTrialPrevFaces].count(curr_loop_stims[iface].name))
+                        curr_stims_x_pres.append([*thisTrialStrpdPrevLoops].count(curr_loop_stims[iloop]))
                     else:
                         #it hasn't been presented on this trial yet, so add 0
                         curr_stims_x_pres.append(0)
-
+                
                 #this is idx from curr_stims_x_pres of the stims presented least often
-                final_face_idxs = [i for i, x in enumerate(curr_stims_x_pres) if x == min(curr_stims_x_pres)]
+                min_loop_idxs = [i for i, x in enumerate(curr_stims_x_pres) if x == min(curr_stims_x_pres)]
 
-                #randomly select the face, 
-                choose_this_face_idx = final_face_idxs[random.randrange(0,len(final_face_idxs))]
-                currFaceStim = curr_loop_stims[choose_this_face_idx]
+                #pdb.set_trace() 
+                if irun not in 'run1_trials':
+                    #need to make sure stim isn't present in the same location as in a previous run
+                    trials2check = [*range(itrial+1,20*(len(previous_runs)-1),20),]
+                    pdb.set_trace()
+                    prevLoopsThisPosition = AttributeXAttribute.objects.filter(parent__in=trials2check,parent__attribute_class='loop_trials',mapping_name__in=[str(session.id)]).values_list('mapping_value_text',flat=True)
+                    remove_loop_idxs = [i for i, x in enumerate(curr_loop_stims) if x in prevLoopsThisPosition]
+                    #remove the prev. face idx from the possibilities 
+                    try:
+                        final_loop_idxs = min_loop_idxs.remove(remove_loop_idxs)
+                    except:
+                        final_loop_idxs = min_loop_idxs
+                    if len(final_loop_idxs)==0:
+                        print(f'WARNING: ran out of possible loops!!!')
+                        pdb.set_trace()
+
+                    #while loop, 
+                    #for this stim, get the ids of the stims that came before it
+                    pdb.set_trace()
+                    trials2check = [*range(itrial-1,20*len(previous_runs),20),]
+
+                    #get the stim on the previous cuurrent trial
+                    #if the latter is in the former list, pic another current stim
+
+                    #randomly select the loop, 
+                    choose_this_loop_idx = final_loop_idxs[random.randrange(0,len(final_loop_idxs))]
+                    currStimName = curr_loop_stims[choose_this_loop_idx]
+                    pdb.set_trace()
+                    #grab the key the loop was presented in during run 1
+
+                else:
+                    #1st run
+                    final_loop_idxs = min_loop_idxs
+
+                    #randomly select the loop, 
+                    choose_this_loop_idx = final_loop_idxs[random.randrange(0,len(final_loop_idxs))]
+                    currStimName = curr_loop_stims[choose_this_loop_idx]
+
+                    currStimNames = []
+                    # add the key info back to names
+                    for ikey in params['loop_keys']:
+                        currStimNames.append(currStimName+'_'+ikey)
+                    #now grab instance of this stim in every key
+                    currStims = Stimulus.objects.filter(name__in = currStimNames)
+
+                    # Now we select the key class
+                    #first we need to mkae sure this sub hasn't already had too many of 1 class
+                    ignore_keys = [] #key options for loop to filter out
+                    for ikey in params['loop_keys']:
+                        #get vals within this sub
+                        tmpqThisSub = AttributeXAttribute.objects.filter(parent__attribute_class='loop_trials',mapping_name=str(session.id),child__name='Key of '+ikey).values_list('mapping_value_text',flat=True)
+                        if len(tmpqThisSub)>=round(params['nUniqueLoops']/3):
+                            ignore_keys.append(currStimName+'_'+ikey)
+                    if len(ignore_keys)==3:
+                        #if we removed the all above, then pick one randomly
+                        #because one class needs to have 6, the others 7
+                        ignore_keys = [] #
+
+                    pdb.set_trace() 
+
+                    #filter out the keys we are ignoring based on this subject
+                    currStims = currStims.exclude(name__in=ignore_keys)
+
+                    tmp_key_count_acrossSubs = []
+                    # now get the counts for this stim-key across subject
+                    for iloop in currStims:
+                        #get vals across subs
+                        tmpq = AttributeXAttribute.objects.filter(parent__attribute_class='loop_trials',mapping_name__in=prev_sess,mapping_value_text=iloop.name).values_list('mapping_value_text',flat=True)
+                        tmp_key_count_acrossSubs.append(tmpq.count())
+
+                    #do a check to see how many keys we've assigned to each one. if we have assign 
+                    #get the min count idx
+                    min_key_idxs = [i for i, x in enumerate(tmp_key_count_acrossSubs) if x == min(tmp_key_count_acrossSubs)]
+                    choose_this_loop_idx = min_key_idxs[random.randrange(0,len(min_key_idxs))]
+                    currStim = currStims[choose_this_loop_idx]
+
+                    
+
+
+                
+
                 #import pdb; pdb.set_trace() 
                 #need to ensure it doesn't get picked in a subsequent step
-                curr_loop_stims = curr_loop_stims.exclude(name=curr_loop_stims[choose_this_face_idx].name)
+                if re.sub('_.*', '', currStim.name) in curr_loop_stims: curr_loop_stims.remove(re.sub('_.*', '', currStim.name))
 
-                #import pdb; pdb.set_trace() 
+                pdb.set_trace() 
                 # Save the particular loop-trial config so we know what it was later on!
-                tmp = logThisLoop(subject,currStim,currentTrial,params)
+                tmp = logThisLoop(session,currStim,currentTrial,params)
             else:
                 #remove the face incase we need to assign more trials 
                 #need to ensure it doesn't get picked in a subsequent step
-                curr_loop_stims = curr_loop_stims.exclude(name=currBioDic['picture'].name)
+                if re.sub('_.*', '', currStim.name) in curr_loop_stims: curr_loop_stims.remove(re.sub('_.*', '', currStim.name))
 
-            #print('currBio')
-            #print(currBio)
-            #print(itrial)
-            #print(str(triallAttrIDsRun1[itrial]))
-            #import pdb; pdb.set_trace() 
+            print('currentTrial')
+            print(itrial)
+            print(currentTrial.name)
+            print(currStim.name)
         
-    #import pdb; pdb.set_trace()    
-    curr_loop_stims = loop_stims #need to remove faces once's we've assigned one
+    pdb.set_trace()    
+    curr_loop_stims = uloop_stim_names #need to remove faces once's we've assigned one
     triallAttrIDsRun2 = params['encoding_trials_21-40']
     for itrial in range(0,len(triallAttrIDsRun2)):
         currentTrial = Attribute.objects.get(id=triallAttrIDsRun2[itrial])
@@ -233,7 +358,7 @@ def assign_loop_trials():#request,*args,**kwargs
             print(f'Creating and loggin a new bio')
             currentOldTrial = Attribute.objects.get(id=str(triallAttrIDsRun1[itrial]))
             #grab all names of all stims presented on this trial (includes)
-            thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentOldTrial,mapping_name__in=prev_subs,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
+            thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentOldTrial,mapping_name__in=prev_sess,child__attribute_class='relation_name').values_list('mapping_value_text',flat=True)
             for iface in range(0,len(curr_loop_stims)):
                 if curr_loop_stims[iface].name in thisTrialPrevFaces:
                     #if the current face is in this Q, count the number of times
@@ -500,32 +625,30 @@ def clear_trial_sess_info(request,*args,**kwargs):
     return(timeline,'')
 
 # Create our attribute X attribute entries for a specific bio
-def logThisBio(subject,currBioDic,currTrialAttribute,params):
+def logThisLoop(session,currStim,currTrialAttribute,params):
     #enter each feature for a pic; parent attrb is the current trial type/number
-    for iftr in params['bioFeature_names']:
-        mappingName = subject.subject_id
-        mappingValText = currBioDic['picture'].name
-        childattr = currBioDic[iftr]
-        parentattr = currTrialAttribute
-
-        #import pdb; pdb.set_trace()   
-        print(f'creating entry for: ' +mappingName+' '+mappingValText+' '+childattr.name+' '+parentattr.name)     
-        try:
-            axa = AttributeXAttribute.objects.get_or_create(child=childattr, parent=parentattr,mapping_value_text = mappingValText, mapping_name=mappingName)
-        except:
-            print(f'failed to create attr X attr entry!')
-            axa = ''
+    mappingName = str(session.id)
+    mappingValText = currStim.name
+    #grab the key attribute
+    childattr =Attribute.objects.get(name='Key of '+re.sub('.*_', '', currStim.name))
+    parentattr = currTrialAttribute
+  
+    print(f'creating entry for: ' +mappingName+' '+mappingValText+' '+childattr.name+' '+parentattr.name)     
+    try:
+        axa = AttributeXAttribute.objects.get_or_create(child=childattr, parent=parentattr,mapping_value_text = mappingValText, mapping_name=mappingName)
+    except:
+        print(f'failed to create attr X attr entry!')
+        axa = ''
 
     return axa
     
 # Return the loop_name if trial already exists in attr X attr table
-def doesThisTrialExist(subject,currTrialAttribute):
-    currTrialEntry = AttributeXAttribute.objects.filter(parent=currTrialAttribute, 
-                    mapping_name=subject.subject_id)
+def doesThisTrialExist(session,currTrialAttribute):
+    currTrialEntry = AttributeXAttribute.objects.filter(parent=currTrialAttribute,mapping_name=str(session.id))
      
-    if currTrialEntry:
-        currStim = currTrialEntry[0].mapping_value_text
-    else:
+    try:
+        currStim = Stimulus.objects.get(name = currTrialEntry[0].mapping_value_text)
+    except:
         currStim = {}
     
     return currStim
