@@ -1,5 +1,5 @@
 #USA CAN selection
-#chooses media type based on (1) available media types in age_range and (2) least frequently presented media type in sesssion
+#chooses media type based on (1) available media types in age_range and (2) least frequently presented media type in session
 
 
 # jingle_study.py
