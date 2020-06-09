@@ -9,7 +9,7 @@ def loop_params():
         #params for the first bio pilot study
         'musmemfmri_loop_pilot': {
             'experiment_id': 6,
-            'ignore_subs': [''],#
+            'ignore_subs': ['01mtt90011'],#
             'breakAfterTheseTrials': ['trial20','trial40','trial60','trial80','trial100','trial120'],
             'prac_loop_stim_id': 99999,
             'loop_attribute': 'loopsV1',
