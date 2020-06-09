@@ -437,6 +437,11 @@ def bio_performancePlots(expName):
     study_params = bp() 
     params = study_params[expName] #'musmemfmri_bio_pilot'
 
+    #load in the latest status data
+    list_of_files = glob.glob(os.path.join(params['data_dump_path'],expName+'_status_'+'*.csv'))
+    latest_file = max(list_of_files, key=os.path.getctime)
+    statusDat = pd.read_csv(latest_file)
+
     #load in the latest recog data
     list_of_files = glob.glob(os.path.join(params['data_dump_path'],expName+'_expo_'+'*.csv'))
     latest_file = max(list_of_files, key=os.path.getctime)
@@ -449,7 +454,7 @@ def bio_performancePlots(expName):
 
     #calculate total number of subjects 
     nsubs = len(recogDat.subject_id.unique())
-    #pdb.set_trace()
+    pdb.set_trace()
 
     with PdfPages(os.path.join(params['data_dump_path'],('plotAll_'+'nSubs%02d'%nsubs)+'_'+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+'.pdf')) as pdf_pages:
 
@@ -460,7 +465,7 @@ def bio_performancePlots(expName):
         subRecogScores = subRecogScores.rename(columns= {'hit': 'score'})
         subRecogScores['task'] = 'recog'#add col for value type
 
-        # overall exposure score (include subject-data points)
+        # overall recall score (include subject-data points)
         subRecallScores = recallDat.groupby('subject_id')['perc_recall'].mean()  #get sub level score
         subRecallScores = subRecallScores.to_frame().reset_index()
         subRecallScores = subRecallScores.rename(columns= {'perc_recall': 'score'})
@@ -579,6 +584,18 @@ def bio_performancePlots(expName):
         plot11 = sb.catplot(x="relation_name",y="perc_recall",kind='box',data=featureSubRecallScores)
         plot11.set_xticklabels(rotation=45,horizontalalignment='right')
         pdf_pages.savefig(plot11.fig)
+
+        #######################################################
+        # overall exposure times (include subject-data points)
+        pdb.set_trace()
+        tmp = statusDat.reset_index()
+        statusDat_long = pd.melt(tmp, id_vars=['subject_id'], value_vars=['Expo_Time', 'Survey_Time', 'Recall_Time','Total_Time'])
+
+        statusDat_scores = statusDat_long.rename(columns= {'variable': 'task','value':'total_minutes'})
+        plot12 = sb.catplot(x="total_minutes",y="task",kind='box',data=statusDat_scores)
+        plot12.set_xticklabels(rotation=45,horizontalalignment='right')
+        #plot5.savefig(os.path.join(params['data_dump_path'],'plot5.png'))
+        pdf_pages.savefig(plot12.fig)
 
         #######################################################
         # counterbalance plots IDEALLY< USE HEATMAPS? 
