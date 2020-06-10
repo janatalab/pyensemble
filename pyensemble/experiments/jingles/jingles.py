@@ -428,7 +428,10 @@ def select_study1(request,*args,**kwargs):
     media_types = StimulusXAttribute.objects.filter(stimulus__in=possible_stims,attribute__name='Media Type').values_list('attribute_value_text',flat=True).distinct()
 
     #Determine how many stimuli have been presented from each media_type
-    media_counts = Counter(StimulusXAttribute.objects.filter(stimulus__in=presented_stims,attribute__name='Media Type').values_list('attribute_value_text',flat=True))
+    media_counts = Counter()
+    media_counts.update({x:0 for x in media_types})
+    media_counts.update(StimulusXAttribute.objects.filter(stimulus__in=presented_stims,attribute__name='Media Type').values_list('attribute_value_text',flat=True))  
+    #media_counts = Counter(StimulusXAttribute.objects.filter(stimulus__in=presented_stims,attribute__name='Media Type').values_list('attribute_value_text',flat=True))
 
     # Select a stimulus based on region
     # Get the number of trial repeats for this study
@@ -501,7 +504,8 @@ def select_study1(request,*args,**kwargs):
         available_ranges = [idx for idx,n in enumerate(num_available_in_range) if n]
         if not available_ranges:
             if settings.DEBUG:
-                print('There are no stimuli in the remaining age ranges')    
+                print('There are no stimuli in the remaining age ranges') 
+                return None, None   
 
 
         age_idx = available_ranges[random.randrange(0,len(available_ranges))]
@@ -543,18 +547,30 @@ def select_study1(request,*args,**kwargs):
 
         #otherwise, try to pick from the least presented modalities so far
         else:
-            least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = (min(media_counts)))
+            #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = (min(media_counts)))
+            #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type').exclude(stimulusxattribute__attribute_value_text = media_counts.most_common(1)[0][0])
+            least_used_modality = min(media_counts, key=media_counts.get)
+            most_used_modality = max(media_counts, key=media_counts.get)
 
-            #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type').exclude(stimulusxattribute__attribute_value_text = (media_counts.most_common(1)[0][0]))
-            
+            #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = least_used_modality)
+            least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type').exclude(stimulusxattribute__attribute_value_text = most_used_modality)
 
-            #select_from_stims = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = min(media_counts))
+            print('number available:', len(least_used_modalities), 'least used modality:', least_used_modality)
+            #select_from_stims = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = min(media_counts)
             
             #if there are no stimuli from least_used_modalities, randomly select a stim from select_from_stims
             if len(least_used_modalities) == 0:
                 stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
             else:
-                stimulus = random.choice(least_used_modalities)
+                #try to use the least presented modality in this session
+                least_used_modality_stims = least_used_modalities.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = least_used_modality)
+                #otherwise, use whatever is available from the two least frequently presented modality in this session
+                if not least_used_modality_stims:
+                    stimulus = random.choice(least_used_modalities)
+                else:
+                    stimulus = random.choice(least_used_modality_stims)
+                
+                
     #
     # Now, set up the jsPsych trial
     #
@@ -607,7 +623,6 @@ def select_study1(request,*args,**kwargs):
     # Push the trial to the timeline
     timeline.append(trial)
 
-    print("# jingles:", media_counts['jingle'], "# slogans:", media_counts['slogan'], "# logos", media_counts['logo'])
+    print("# jingles:", media_counts['jingle'], "# slogans:", media_counts['slogan'], "# logos:", media_counts['logo'])
 
     return timeline, stimulus.id# jingle_study.py
-
