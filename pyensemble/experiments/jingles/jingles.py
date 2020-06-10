@@ -261,8 +261,6 @@ def age_meets_criterion_and_lived_in_USA(request,*args,**kwargs):
 
     return not meets_both_criteria
 
-    pdb.set_trace()
-
 
 def age_meets_criterion(request,*args,**kwargs):
 #
@@ -275,6 +273,7 @@ def age_meets_criterion(request,*args,**kwargs):
     dob = Session.objects.get(id=kwargs['session_id']).subject.dob
 
     return (timezone.now().date()-dob).days >= int(kwargs['min'])*365
+
 
 def stim_was_familiar_and_jingle(request,*args,**kwargs):
     # Get the current stimulus ID
@@ -426,14 +425,18 @@ def select_study1(request,*args,**kwargs):
 
     # Determine the existing media types
     media_types = StimulusXAttribute.objects.filter(stimulus__in=possible_stims,attribute__name='Media Type').values_list('attribute_value_text',flat=True).distinct()
+    # If there are no remaining media types to present, end the experiment
+    if not media_types:
+        return None, None
 
-    #Determine how many stimuli have been presented from each media_type
+    # Determine how many stimuli have been presented from each media_type
     media_counts = Counter()
     media_counts.update({x:0 for x in media_types})
     media_counts.update(StimulusXAttribute.objects.filter(stimulus__in=presented_stims,attribute__name='Media Type').values_list('attribute_value_text',flat=True))  
     #media_counts = Counter(StimulusXAttribute.objects.filter(stimulus__in=presented_stims,attribute__name='Media Type').values_list('attribute_value_text',flat=True))
 
     # Select a stimulus based on region
+
     # Get the number of trial repeats for this study
     # This is specified for the form at the end of the loop, not necessarily the form we are selecting the stimulus for
 
@@ -456,7 +459,7 @@ def select_study1(request,*args,**kwargs):
 
     # Randomly choose a region from this list and remove it from the list of regions so it's not selected again
     rand_region = random.choice(total_regions)
-    print(rand_region)
+    #print(rand_region)
     total_regions.remove(rand_region)
 
     CAN_stim_ids = StimulusXAttribute.objects.filter(attribute__name = 'Region', attribute_value_text = 'Canada').values_list('stimulus',flat=True).distinct()
@@ -505,7 +508,7 @@ def select_study1(request,*args,**kwargs):
         if not available_ranges:
             if settings.DEBUG:
                 print('There are no stimuli in the remaining age ranges') 
-                return None, None   
+            return None, None  
 
 
         age_idx = available_ranges[random.randrange(0,len(available_ranges))]
@@ -522,6 +525,7 @@ def select_study1(request,*args,**kwargs):
         if not select_from_stims.count():
             if settings.DEBUG:
                 print('Of the %d stimuli in age range %d, none have the requested media type: %s'%(stims_x_agerange[age_idx].count(),age_idx,curr_media_type))    
+            return None, None
 
     # if it's a Canadian advertisement, filter USA ads out of possible_stims
     if rand_region == 'Canada':
@@ -539,7 +543,7 @@ def select_study1(request,*args,**kwargs):
         if settings.DEBUG:
             print('No more stims')
 
-        return None,  None
+        return None, None
     else:
         #if there are no previous stims to calculate media_counts, randomly select a stim from select_from_stims
         if len(media_counts) == 0:
