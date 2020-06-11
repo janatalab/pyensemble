@@ -234,6 +234,7 @@ def update_attributes(attribute_file='./JingleDatabase.csv',experiment_title='ji
                 print("\tSaving attribute values: double=%s, text='%s'"%(value_float,value_text))
                 sxa.save()
 
+            
 
 @login_required
 def delete_exf(request,title):
@@ -580,6 +581,29 @@ def select_study1(request,*args,**kwargs):
     #
 
     # Determine the stimulus type
+
+    # Get the name of the advertised item (called Product) for this stimulus
+    item = StimulusXAttribute.objects.get(stimulus = stimulus, attribute__name = 'Product').attribute_value_text
+
+    # Jingle durations are used as the stim durations for the other two modalities associated with this advertised item
+    # Create a list of jingle ids for this item
+    jingle_ids = StimulusXAttribute.objects.filter(stimulus__name__contains='comm', attribute__name = 'Product', attribute_value_text = item).values_list('stimulus_id')
+
+    # There are often multiple jingles associated with an item
+    # If that's the case, find the longest jingle for this item and use it as the stim duration for other modalities associated with that item
+    if jingle_ids.count() > 1:
+        
+        durations = []
+
+        for jingle_id in jingle_ids: 
+            duration = StimulusXAttribute.objects.filter(stimulus_id=jingle_id, attribute__name = 'Duration').values_list('attribute_value_double')[0]
+            durations.append(duration)
+        stim_duration = max(durations)
+
+    else: 
+        stim_duration = StimulusXAttribute.objects.get(stimulus_id=jingle_ids[0], attribute__name = 'Duration').attribute_value_double
+    #if there's more than one jingle for this item (which is a strong possibility), use the longer jingle duration as the general stim duration 
+
     media_type = StimulusXAttribute.objects.get(stimulus = stimulus, attribute__name = 'Media Type').attribute_value_text
 
     # Specify the trial based on the jsPsych definition for the corresponding media type
@@ -606,8 +630,8 @@ def select_study1(request,*args,**kwargs):
             'stimulus_height': None,
             'stimulus_width': None,
             'choices': 'none',
-            'stimulus_duration': params['logo_duration_ms'],
-            'trial_duration': params['logo_duration_ms'],
+            'stimulus_duration': stim_duration,
+            'trial_duration': stim_duration,
         }
 
     elif media_type == 'slogan':
@@ -617,8 +641,8 @@ def select_study1(request,*args,**kwargs):
             'type': 'html-keyboard-response',
             'stimulus': '<p style="font-size:30px;margin-top:200px">'+contents+'</p>',
             'choices': 'none',
-            'stimulus_duration': params['slogan_duration_ms'],
-            'trial_duration': params['slogan_duration_ms'],
+            'stimulus_duration': stim_duration,
+            'trial_duration': stim_duration,
         }
 
     else:
