@@ -706,10 +706,11 @@ def setUpLoopRecog(request,*args,**kwargs):
     #make sure we present no more than 3 targets in a row. 
     trialNames = params['run_params']['run1_trials']+params['run_params']['run2_trials']
     ready2go = False
-    targetCount = 0
     while not ready2go:
-        pdb.set_trace()
+        targetCount = 0
+        foilCount = 0
         random.shuffle(all_loop_names) # rand. order of all loops, 
+        pdb.set_trace()
 
         for itrial in range(0,len(all_loop_names)):
             trialReady = False
@@ -719,7 +720,9 @@ def setUpLoopRecog(request,*args,**kwargs):
 
                 if currStimName in target_names:
                     targetCount = targetCount + 1
+                    foilCount = 0
                 else:
+                    foilCount = foilCount + 1
                     targetCount = 0
 
                 if not itrial==0:
@@ -742,10 +745,8 @@ def setUpLoopRecog(request,*args,**kwargs):
                         tmpTrialNum = int(re.sub('^[a-zA-Z]*','',currTrial))#int(currentTrial.name[-2:]) re.sub('^[a-zA-Z]*','',currentTrial.name)
                         tmpTrialNum = tmpTrialNum - 1
                         trial2check = 'trial'+'%02d'%(tmpTrialNum)
-                        #pdb.set_trace()
                         currPrecedingLoop = trialDict[trial2check]['loop']
-                        #currPrecedingLoop = AttributeXAttribute.objects.filter(parent__name=trial2check,parent__attribute_class='loop_trials',mapping_name=str(session.id)).values_list('mapping_value_text',flat=True)
-                        #pdb.set_trace()
+
                         #if list 2 stimid (only 1) is in List 1, then choose another current stimulus
                         #so that we don't reproduce the order within subject. 
                         noDup = False
