@@ -1,6 +1,7 @@
 backcall==0.1.0
 cffi==1.13.2
 cryptography==2.8
+cycler==0.10.0
 decorator==4.4.1
 Django==2.2.7
 django-crispy-forms==1.8.1
@@ -10,9 +11,12 @@ fuzzywuzzy==0.18.0
 ipython==7.11.1
 ipython-genutils==0.2.0
 jedi==0.15.2
+kiwisolver==1.2.0
+matplotlib==3.2.1
 mod-wsgi==4.7.1
 mysqlclient==1.4.6
 numpy==1.18.2
+pandas==1.0.4
 parso==0.5.2
 pexpect==4.7.0
 pickleshare==0.7.5
@@ -20,8 +24,13 @@ prompt-toolkit==3.0.2
 ptyprocess==0.6.0
 pycparser==2.19
 Pygments==2.5.2
+pyparsing==2.4.7
+python-dateutil==2.8.1
+python-Levenshtein==0.12.0
 python-memcached==1.59
 pytz==2019.3
+scipy==1.4.1
+seaborn==0.10.1
 six==1.13.0
 sqlparse==0.3.0
 traitlets==4.3.3

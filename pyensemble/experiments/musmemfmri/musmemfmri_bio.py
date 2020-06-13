@@ -197,15 +197,29 @@ def assign_face_stim(request,*args,**kwargs):
 
 
     #grab all previous subs who have participated
-    all_prev_subids = Response.objects.filter(experiment_id=session.experiment.id,).values_list('subject_id',flat=True).distinct()
-    all_prev_subs = Subject.objects.filter(subject_id__in=all_prev_subids)
-    prev_subs = all_prev_subs.exclude(subject_id__in=params['ignore_subs'])
-        
+    #grab subs who have entry in attrXattr (subs have that before anything is logged into the response table)
+    triallAttrIDs = [format(x, '02d') for x in params['encoding_trials_1-20']]
+    triallAttrs = Attribute.objects.filter(id__in=triallAttrIDs,attribute_class='bio_trials').values_list('name',flat=True)
+    OurSubAxAentries = AttributeXAttribute.objects.filter(parent_id__in=triallAttrIDs,parent__attribute_class='bio_trials').exclude(mapping_name__in=params['ignore_subs']).values_list('mapping_name',flat=True).distinct()
 
-    #OK, so let's just try and just get em assigned once, so it's easier to test the db
+    all_prev_subs = Subject.objects.filter(subject_id__in=OurSubAxAentries)
+    prev_subs = all_prev_subs.exclude(subject_id__in=params['ignore_subs'])
+    
     curr_face_stims = face_stims #need to remove faces once's we've assigned one
     triallAttrIDsRun1 = params['encoding_trials_1-20']
-    for itrial in range(0,len(triallAttrIDsRun1)):
+
+    #need to start with trial 20 and go backwards sometimes for CB purposes...
+    #frees up all face pic options for trial 20
+    if (len(prev_subs) % 2) == 0:
+        oddnum = False
+        trials2loopover = range(0,len(triallAttrIDsRun1))
+    else:
+        oddnum = True
+        trials2loopover = range(len(triallAttrIDsRun1)-1,-1,-1)
+
+    pdb.set_trace()
+    #for itrial in range(0,len(triallAttrIDsRun1)):
+    for itrial in trials2loopover:
 
         currentTrial = Attribute.objects.get(id=str(triallAttrIDsRun1[itrial]))
 
