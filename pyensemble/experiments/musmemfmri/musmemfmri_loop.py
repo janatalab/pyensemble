@@ -194,7 +194,14 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
             FlagsOnRun = False #if this is true by end of run, buld run from begining again 
             if irun in 'run1_trials':
                 curr_loop_stims = uloop_stim_names #need to remove faces once's we've assigned one
+
+                #if this is an odd numbere participant, reverse the trial assignment order 
+                if (len(prev_sess)%2 == 0):
+                    useThisTrialRange = range(0,len(params['run_params'][irun])) #use regular order (not reversed)
+                else:
+                    useThisTrialRange = range(len(params['run_params'][irun])-1,-1,-1)
             else:
+                useThisTrialRange = range(0,len(params['run_params'][irun])) #use regular order (not reversed)
                 #grab all the stims present in the first run (limit subsequent run CB to this set)
                 tmp_stims = AttributeXAttribute.objects.filter(parent__name__in=params['run_params']['run1_trials'],parent__attribute_class='loop_trials',mapping_name=str(session.id)).values_list('mapping_value_text',flat=True)
                 r1_loop_stims = []
@@ -204,8 +211,8 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
                 curr_loop_stims = [*set(r1_loop_stims), ]
 
             previous_runs.append(irun)
-
-            for itrial in range(0,len(params['run_params'][irun])):
+            pdb.set_trace()
+            for itrial in useThisTrialRange:
                 cantAdjust = False
                 currentTrial = Attribute.objects.get(name=params['run_params'][irun][itrial],attribute_class='loop_trials')
                 currentTrialPosition = Attribute.objects.get(name=params['run_params']['run1_trials'][itrial],attribute_class='loop_trials')
@@ -411,7 +418,6 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
                 #THIS is the end of the giant run while loop 
 
         # log all of the loop-trial configs
-        pdb.set_trace()
         if currRunDict:
             print(f'logging run: '+irun)
             tmp = logThisRun(session,currRunDict,params)
@@ -641,7 +647,6 @@ def clear_trial_sess_info(request,*args,**kwargs):
 def logThisRun(session,currRunDict,params):
     # Create our attribute X attribute entries for a specific bio
     #enter each trial-stim into attr x attr
-    pdb.set_trace()
     for itrial in currRunDict:
         mappingName = str(session.id)
         mappingValText = currRunDict[itrial]
