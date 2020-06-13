@@ -6,6 +6,7 @@ import pandas as pd
 import seaborn as sb
 from matplotlib.backends.backend_pdf import PdfPages
 
+import matplotlib.pyplot as plt
 import pdb
 import os, csv, glob
 import random
@@ -416,6 +417,79 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
                          performedMyBest,performedIntegrity,personImagery,personSpont,personExp,feedback])
     outDatCSV.close()
 
+def bio_cbPlots(expName,startMonthDay,endMonthDay):
+    #######################################################
+    # counterbalance plots 
+    # builds plots from DB for easy access
+    #
+    # face X trial (recog); face X name, face X location, 
+
+    # face X trial (response_order, recall); 
+    #
+    # Get our parameters
+    study_params = bp() 
+    params = study_params[expName] #'musmemfmri_bio_pilot'
+
+    study_year = 2020
+
+    startMonthDay = [5,1]
+    endMonthDay = [6,30]
+
+    #
+    #grab all previous subs who have been entered in attr X attr 
+    triallAttrIDs = [format(x, '02d') for x in params['encoding_trials_1-20']]
+    triallAttrs = Attribute.objects.filter(id__in=triallAttrIDs,attribute_class='bio_trials').values_list('name',flat=True)
+    OurSubAxAentries = AttributeXAttribute.objects.filter(parent_id__in=triallAttrIDs,parent__attribute_class='bio_trials').exclude(mapping_name__in=params['ignore_subs'])
+    OurSubAxAentries_name = OurSubAxAentries.filter(child__attribute_class='face_name')
+    OurSubAxAentries_location = OurSubAxAentries.filter(child__attribute_class='location')
+
+    uLocations = sorted(OurSubAxAentries_location.values_list('child__name',flat=True).distinct())
+    uFaces = sorted(OurSubAxAentries.filter(child__attribute_class='face_name').values_list('mapping_value_text',flat=True).distinct())
+    uNames = sorted(OurSubAxAentries_name.values_list('child__name',flat=True).distinct())
+    nSubs =  len(OurSubAxAentries.values_list('mapping_name',flat=True).distinct())
+
+    #pdb.set_trace()
+
+    # init DF to hold the stimXtrial counts 
+    StimXTrial = pd.DataFrame(0,index=uFaces,columns = triallAttrs)
+    for iface in uFaces:
+        for itrial in triallAttrs:
+            #loop through each stim entry in attrxattr and add count to df
+            tmp_entries = OurSubAxAentries_name.filter(parent__name=itrial,mapping_value_text=iface)
+            StimXTrial.at[iface,itrial] = len(tmp_entries)
+
+    # init DF to hold the stimXnames counts 
+    StimXName = pd.DataFrame(0,index=uFaces,columns = uNames)
+    for iface in uFaces:
+        for uname in uNames:
+            #loop through each stim entry in attrxattr and add count to df
+            tmp_entries = OurSubAxAentries_name.filter(child__name=uname,mapping_value_text=iface)
+            StimXName.at[iface,uname] = len(tmp_entries)
+
+    # init DF to hold the stimXlocation counts 
+    StimXLocation = pd.DataFrame(0,index=uFaces,columns = uLocations)
+    for iface in uFaces:
+        for uloc in uLocations:
+            #loop through each stim entry in attrxattr and add count to df
+            tmp_entries = OurSubAxAentries_location.filter(child__name=uloc,mapping_value_text=iface)
+            StimXLocation.at[iface,uloc] = len(tmp_entries)
+
+
+
+    with PdfPages(os.path.join(params['data_dump_path'],('CB_plots_'+'nSubs%02d'%nSubs)+'_'+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+'.pdf')) as pdf_pages:
+
+        plot1 = sb.heatmap(StimXTrial)
+        pdf_pages.savefig(plot1.figure)
+        plt.close()
+
+        plot2 = sb.heatmap(StimXName)
+        pdf_pages.savefig(plot2.figure)
+        plt.close()
+
+        plot3 = sb.heatmap(StimXLocation)
+        pdf_pages.savefig(plot3.figure)
+        plt.close()
+
 def bio_performancePlots(expName):
     #musmemfmri_bio_pilot
     #use csvs created in bio_dumpData, make some plots to help us assess performance
@@ -454,9 +528,20 @@ def bio_performancePlots(expName):
 
     #calculate total number of subjects 
     nsubs = len(recogDat.subject_id.unique())
-    pdb.set_trace()
 
     with PdfPages(os.path.join(params['data_dump_path'],('plotAll_'+'nSubs%02d'%nsubs)+'_'+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+'.pdf')) as pdf_pages:
+
+        #######################################################
+        # overall exposure times (include subject-data points)
+        pdb.set_trace()
+        tmp = statusDat.reset_index()
+        statusDat_long = pd.melt(tmp, id_vars=['subject_id'], value_vars=['Expo_Time', 'Survey_Time', 'Recall_Time','Total_Time'])
+
+        statusDat_scores = statusDat_long.rename(columns= {'variable': 'task','value':'total_minutes'})
+        plot1 = sb.catplot(x="total_minutes",y="task",kind='box',data=statusDat_scores)
+        plot1.set_xticklabels(rotation=45,horizontalalignment='right')
+        #plot5.savefig(os.path.join(params['data_dump_path'],'plot5.png'))
+        pdf_pages.savefig(plot1.fig)
 
         #######################################################
         # overall exposure score (include subject-data points)
@@ -475,30 +560,30 @@ def bio_performancePlots(expName):
         subScores = subRecogScores.append(subRecallScores)
 
         #pdb.set_trace()
-        plot1 = sb.catplot(x="score",y="task",kind='box',data=subScores)
+        plot2 = sb.catplot(x="score",y="task",kind='box',data=subScores)
         #plot1.savefig(os.path.join(params['data_dump_path'],'plot1.png'))
-        pdf_pages.savefig(plot1.fig)
-
-        #######################################################
-        # attractiveness X face (recog)
-        plot2 = sb.catplot(x="stimulus_id",y="attractivness",kind='box',data=recogDat)
-        plot2.set_xticklabels(rotation=45,horizontalalignment='right')
-        #plot2.savefig(os.path.join(params['data_dump_path'],'plot2.png'))
         pdf_pages.savefig(plot2.fig)
 
         #######################################################
-        # recall score X face 
-        plot3 = sb.catplot(x="stimulus_id",y="perc_recall",kind='box',data=recallDat)
+        # attractiveness X face (recog)
+        plot3 = sb.catplot(x="stimulus_id",y="attractivness",kind='box',data=recogDat)
         plot3.set_xticklabels(rotation=45,horizontalalignment='right')
-        #plot3.savefig(os.path.join(params['data_dump_path'],'plot3.png'))
+        #plot2.savefig(os.path.join(params['data_dump_path'],'plot2.png'))
         pdf_pages.savefig(plot3.fig)
 
         #######################################################
-        # recall score X trial
-        plot4 = sb.catplot(x="trial",y="perc_recall",kind='box',data=recallDat)
+        # recall score X face 
+        plot4 = sb.catplot(x="stimulus_id",y="perc_recall",kind='box',data=recallDat)
         plot4.set_xticklabels(rotation=45,horizontalalignment='right')
-        #plot4.savefig(os.path.join(params['data_dump_path'],'plot4.png'))
+        #plot3.savefig(os.path.join(params['data_dump_path'],'plot3.png'))
         pdf_pages.savefig(plot4.fig)
+
+        #######################################################
+        # recall score X trial
+        plot5 = sb.catplot(x="trial",y="perc_recall",kind='box',data=recallDat)
+        plot5.set_xticklabels(rotation=45,horizontalalignment='right')
+        #plot4.savefig(os.path.join(params['data_dump_path'],'plot4.png'))
+        pdf_pages.savefig(plot5.fig)
 
         #######################################################
         # recall score X feature type
@@ -508,10 +593,10 @@ def bio_performancePlots(expName):
         featureSubRecallScores = recallDat_long.groupby(['subject_id','variable'])['value'].mean()  #get subXfeat level score
         featureSubRecallScores = featureSubRecallScores.to_frame().reset_index()
         featureSubRecallScores = featureSubRecallScores.rename(columns= {'variable': 'feature','value':'perc_recall'})
-        plot5 = sb.catplot(x="feature",y="perc_recall",kind='box',data=featureSubRecallScores)
-        plot5.set_xticklabels(rotation=45,horizontalalignment='right')
+        plot6 = sb.catplot(x="feature",y="perc_recall",kind='box',data=featureSubRecallScores)
+        plot6.set_xticklabels(rotation=45,horizontalalignment='right')
         #plot5.savefig(os.path.join(params['data_dump_path'],'plot5.png'))
-        pdf_pages.savefig(plot5.fig)
+        pdf_pages.savefig(plot6.fig)
 
         #######################################################
         # recall score X feature exemplar: name
@@ -521,9 +606,9 @@ def bio_performancePlots(expName):
         featureSubRecallScores = recallDat_long.groupby(['subject_id','face_name_resp_CA'])['value'].mean()  #get subXfeat level score
         featureSubRecallScores = featureSubRecallScores.to_frame().reset_index()
         featureSubRecallScores = featureSubRecallScores.rename(columns= {'face_name_resp_CA':'face_name','value':'perc_recall'})
-        plot6 = sb.catplot(x="face_name",y="perc_recall",kind='box',data=featureSubRecallScores)
-        plot6.set_xticklabels(rotation=45,horizontalalignment='right')
-        pdf_pages.savefig(plot6.fig)
+        plot7 = sb.catplot(x="face_name",y="perc_recall",kind='box',data=featureSubRecallScores)
+        plot7.set_xticklabels(rotation=45,horizontalalignment='right')
+        pdf_pages.savefig(plot7.fig)
 
         #######################################################
         # recall score X feature exemplar: location
@@ -533,9 +618,9 @@ def bio_performancePlots(expName):
         featureSubRecallScores = recallDat_long.groupby(['subject_id','location_resp_CA'])['value'].mean()  #get subXfeat level score
         featureSubRecallScores = featureSubRecallScores.to_frame().reset_index()
         featureSubRecallScores = featureSubRecallScores.rename(columns= {'location_resp_CA':'location','value':'perc_recall'})
-        plot7 = sb.catplot(x="location",y="perc_recall",kind='box',data=featureSubRecallScores)
-        plot7.set_xticklabels(rotation=45,horizontalalignment='right')
-        pdf_pages.savefig(plot7.fig)
+        plot8 = sb.catplot(x="location",y="perc_recall",kind='box',data=featureSubRecallScores)
+        plot8.set_xticklabels(rotation=45,horizontalalignment='right')
+        pdf_pages.savefig(plot8.fig)
 
         #######################################################
         # recall score X feature exemplar: job
@@ -545,9 +630,9 @@ def bio_performancePlots(expName):
         featureSubRecallScores = recallDat_long.groupby(['subject_id','job_resp_CA'])['value'].mean()  #get subXfeat level score
         featureSubRecallScores = featureSubRecallScores.to_frame().reset_index()
         featureSubRecallScores = featureSubRecallScores.rename(columns= {'job_resp_CA':'job','value':'perc_recall'})
-        plot8 = sb.catplot(x="job",y="perc_recall",kind='box',data=featureSubRecallScores)
-        plot8.set_xticklabels(rotation=45,horizontalalignment='right')
-        pdf_pages.savefig(plot8.fig)
+        plot9 = sb.catplot(x="job",y="perc_recall",kind='box',data=featureSubRecallScores)
+        plot9.set_xticklabels(rotation=45,horizontalalignment='right')
+        pdf_pages.savefig(plot9.fig)
 
         #######################################################
         # recall score X feature exemplar: hobby
@@ -557,9 +642,9 @@ def bio_performancePlots(expName):
         featureSubRecallScores = recallDat_long.groupby(['subject_id','hobby_resp_CA'])['value'].mean()  #get subXfeat level score
         featureSubRecallScores = featureSubRecallScores.to_frame().reset_index()
         featureSubRecallScores = featureSubRecallScores.rename(columns= {'hobby_resp_CA':'hobby','value':'perc_recall'})
-        plot9 = sb.catplot(x="hobby",y="perc_recall",kind='box',data=featureSubRecallScores)
-        plot9.set_xticklabels(rotation=45,horizontalalignment='right')
-        pdf_pages.savefig(plot9.fig)
+        plot10 = sb.catplot(x="hobby",y="perc_recall",kind='box',data=featureSubRecallScores)
+        plot10.set_xticklabels(rotation=45,horizontalalignment='right')
+        pdf_pages.savefig(plot10.fig)
 
         #######################################################
         # recall score X feature exemplar: relation
@@ -569,9 +654,9 @@ def bio_performancePlots(expName):
         featureSubRecallScores = recallDat_long.groupby(['subject_id','relation_resp_CA'])['value'].mean()  #get subXfeat level score
         featureSubRecallScores = featureSubRecallScores.to_frame().reset_index()
         featureSubRecallScores = featureSubRecallScores.rename(columns= {'relation_resp_CA':'relation','value':'perc_recall'})
-        plot10 = sb.catplot(x="relation",y="perc_recall",kind='box',data=featureSubRecallScores)
-        plot10.set_xticklabels(rotation=45,horizontalalignment='right')
-        pdf_pages.savefig(plot10.fig)
+        plot11 = sb.catplot(x="relation",y="perc_recall",kind='box',data=featureSubRecallScores)
+        plot11.set_xticklabels(rotation=45,horizontalalignment='right')
+        pdf_pages.savefig(plot11.fig)
 
         #######################################################
         # recall score X feature exemplar: relation_name
@@ -581,32 +666,11 @@ def bio_performancePlots(expName):
         featureSubRecallScores = recallDat_long.groupby(['subject_id','relation_name_resp_CA'])['value'].mean()  #get subXfeat level score
         featureSubRecallScores = featureSubRecallScores.to_frame().reset_index()
         featureSubRecallScores = featureSubRecallScores.rename(columns= {'relation_name_resp_CA':'relation_name','value':'perc_recall'})
-        plot11 = sb.catplot(x="relation_name",y="perc_recall",kind='box',data=featureSubRecallScores)
-        plot11.set_xticklabels(rotation=45,horizontalalignment='right')
-        pdf_pages.savefig(plot11.fig)
-
-        #######################################################
-        # overall exposure times (include subject-data points)
-        pdb.set_trace()
-        tmp = statusDat.reset_index()
-        statusDat_long = pd.melt(tmp, id_vars=['subject_id'], value_vars=['Expo_Time', 'Survey_Time', 'Recall_Time','Total_Time'])
-
-        statusDat_scores = statusDat_long.rename(columns= {'variable': 'task','value':'total_minutes'})
-        plot12 = sb.catplot(x="total_minutes",y="task",kind='box',data=statusDat_scores)
+        plot12 = sb.catplot(x="relation_name",y="perc_recall",kind='box',data=featureSubRecallScores)
         plot12.set_xticklabels(rotation=45,horizontalalignment='right')
-        #plot5.savefig(os.path.join(params['data_dump_path'],'plot5.png'))
         pdf_pages.savefig(plot12.fig)
 
-        #######################################################
-        # counterbalance plots IDEALLY< USE HEATMAPS? 
-        # face X trial (recog); face X trial (response_order, recall); 
-        #tmpCounts = recallDat.groupby(['stimulus_id','trial'])['perc_recall'].count()
-
-        #tmpCounts = tmpCounts.to_frame().reset_index()
-        #tmpCounts = tmpCounts.rename(columns= {'perc_recall': 'count'})
-        #plot6 = sb.catplot(x='trial',y='stimulus_id',kind='bar',data=tmpCounts)
-        #plot6 = sb.catplot(x='trial',kind='count',hue='stimulus_id',data=tmpCounts,orient="h")
-        #plot6.savefig(os.path.join(params['data_dump_path'],'plot6.png'))
+        
 
 
 
