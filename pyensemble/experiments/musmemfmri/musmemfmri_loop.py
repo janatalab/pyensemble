@@ -4,7 +4,7 @@ from . import loop_params as lp #for some reason this needs "from . " in the _bi
 import pdb
 import os, csv, re
 import random
-#import json
+import json
 
 from django.conf import settings
 from django.db.models import Q, Count, Min
@@ -108,8 +108,6 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
     #This function figures out which key version to use and assigns loops to trials
     #in the attr X attr table
 
-    NotAPracticeTrial = True #set this flag
-
     # Extract our session ID
     session_id = kwargs['session_id']
 
@@ -119,14 +117,8 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
     # Get our parameters
     params = study_params[session.experiment.title]
 
-    # Get our experiment session info
-    #expsessinfo = request.session['experiment_%d'%(session.experiment.id)]
-
     # Get our subject
     subject = session.subject
-
-    #get the session var
-    #expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
 
     #grab all previous subs who have participated
     all_prev_subids = Response.objects.filter(experiment_id=session.experiment.id).values_list('subject_id',flat=True).distinct()
@@ -211,7 +203,7 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
                 curr_loop_stims = [*set(r1_loop_stims), ]
 
             previous_runs.append(irun)
-            pdb.set_trace()
+            #pdb.set_trace()
             for itrial in useThisTrialRange:
                 cantAdjust = False
                 currentTrial = Attribute.objects.get(name=params['run_params'][irun][itrial],attribute_class='loop_trials')
@@ -423,14 +415,12 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
             tmp = logThisRun(session,currRunDict,params)
             #otherwise it's already been logged 
             
-        
-    pdb.set_trace()    
-
 
     timeline = [{'nothing':'nothing'}] #pass dummy along
 
     return(timeline,'')
 
+"""
 def present_rest_message(request,*args,**kwargs):
     #DOESN"T WORK !
     # present a string describing progress through task 
@@ -481,7 +471,9 @@ def present_rest_message(request,*args,**kwargs):
     #import pdb; pdb.set_trace() #test if it ges here if time4rest is false (doesn't)
 
     return(timeline, '')
+"""
 
+"""
 def time4rest(request,*args,**kwargs):
     #return True when it's time for a rest form to be presented
     #should be based on the trial param in the session info
@@ -525,7 +517,9 @@ def time4rest(request,*args,**kwargs):
         time2rest = False
 
     return time2rest
+"""
 
+"""
 def select_stim(request,*args,**kwargs):
     # script selects previoulsy assembled face bios from the attr x attr table 
 
@@ -602,7 +596,9 @@ def select_stim(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     return(timeline, thisStim.id) 
+"""
 
+"""
 def addParams2Session(currBioDic,TrialAttribute,request,session_id,params):
     #add the bio info to the session data to later write out in response table
     #add name of the form we want (which feature question are we answering)
@@ -626,7 +622,9 @@ def addParams2Session(currBioDic,TrialAttribute,request,session_id,params):
     expsessinfo['currPostBioQ'] = params['bioFeature_names'][random.randrange(0,len(params['bioFeature_names']))]
     #import pdb; pdb.set_trace()
     request.session.modified = True 
+"""
 
+"""
 def clear_trial_sess_info(request,*args,**kwargs):
     # Extract our session ID
     session_id = kwargs['session_id']
@@ -643,6 +641,184 @@ def clear_trial_sess_info(request,*args,**kwargs):
     timeline = [{'nothing':'nothing'}] #pass dummy along
 
     return(timeline,'')
+"""
+
+def setUpLoopRecog(request,*args,**kwargs):
+    #we want to create a list of stims to present (in order) and save it to the session var for this task
+    #take all the loops they heard in run 1 and add 20 loops they didn't hear (the foils) (make sure order is randomized)
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our subject
+    subject = session.subject
+
+    # Grab stim - trial mappings for this subject
+    triallAttrs = Attribute.objects.filter(name__in=params['run_params']['run1_trials'],attribute_class='loop_trials').values_list('name',flat=True)
+    OurSubAxAentries = AttributeXAttribute.objects.filter(parent__name__in=triallAttrs,parent__attribute_class='loop_trials',mapping_name=str(session_id))
+    target_names = OurSubAxAentries.values_list('mapping_value_text',flat=True)
+
+    # get the unique names (minus key info at end), loop through each of these
+    uTargStims = []
+    sloop_stim_names = []
+    for iloop in target_names:
+        #remove key info part of string
+        sloop_stim_names.append(re.sub('_.*', '', iloop))
+    uTargStims = sorted([*set(sloop_stim_names), ])
+
+    # Get stims this subject hasn't seen
+    all_loops = Stimulus.objects.filter(stimulusxattribute__attribute_id__name=params['loop_attribute']).values_list('name',flat=True)
+    
+    # get the unique names (minus key info at end), loop through each of these
+    uFoilStims = []
+    sloop_stim_names = []
+    for iloop in all_loops.values_list('name',flat=True):
+        if re.sub('_.*', '', iloop) not in uTargStims:
+            #add this foil
+            sloop_stim_names.append(re.sub('_.*', '', iloop))
+    uFoilStims = sorted([*set(sloop_stim_names), ])
+    uFoilStims = random.sample(uFoilStims,20) #choose random subset of 20 foils (21 options total)
+
+
+    # now assign keys for the foils (making sure an equal amount from each key are presented)
+    #little diff then above approach. sort existing into 3rds and then append keys to each set.
+    keyoptions = [item for sublist in [params['loop_keys']]*round(params['nUniqueLoops']/3) for item in sublist]
+    random.shuffle(keyoptions)
+    foil_names = []
+    for ifoil in range(0,len(uFoilStims)):
+        foil_names.append(uFoilStims[ifoil]+'_'+keyoptions[ifoil])
+        #litt
+
+    all_loop_names = [*target_names,]+foil_names
+
+    trialDict = {}
+    #{'trial01': { 
+    #    'type': 'target',
+    #    'loop':'Misc51_e'}
+    #}    
+    # While loop: make sure loop isn't preceded by a loop it followed during exposure
+    #make sure we present no more than 3 targets in a row. 
+    trialNames = params['run_params']['run1_trials']+params['run_params']['run2_trials']
+    ready2go = False
+    targetCount = 0
+    while not ready2go:
+        pdb.set_trace()
+        random.shuffle(all_loop_names) # rand. order of all loops, 
+
+        for itrial in range(0,len(all_loop_names)):
+            trialReady = False
+            while not trialReady:
+                currStimName = all_loop_names[itrial]
+                currTrial = trialNames[itrial]
+
+                if currStimName in target_names:
+                    targetCount = targetCount + 1
+                else:
+                    targetCount = 0
+
+                if not itrial==0:
+                    #need to start checking for preceding stims in expo
+                    #for this stim, get the past trials for this subject
+                    thisLoopPrevTrial = AttributeXAttribute.objects.filter(mapping_name__in=[str(session.id)],mapping_value_text=currStimName).values_list('parent__name',flat=True).distinct()
+
+                    if thisLoopPrevTrial:
+                        #not a foil, there are prev trials
+                        #List 1: for this subject, increment each trial -1 and get the stimid of the loop
+                        #presented before the current stim on previous trials. 
+                        trials2check = []
+                        for itp in thisLoopPrevTrial:
+                            tmpTrialNum = int(itp[-2:]) # grab the lst two char (numbers) in the attr. name
+                            tmpTrialNum = tmpTrialNum - 1 # increment them by 1 and put back into the string
+                            trials2check.append('trial'+'%02d'%(tmpTrialNum))
+                        prevPrecedingLoops = AttributeXAttribute.objects.filter(parent__name__in=trials2check,parent__attribute_class='loop_trials',mapping_name=str(session.id)).values_list('mapping_value_text',flat=True)
+                        
+                        #List 2: for this subject, get the last trial and get the stimid. 
+                        tmpTrialNum = int(re.sub('^[a-zA-Z]*','',currTrial))#int(currentTrial.name[-2:]) re.sub('^[a-zA-Z]*','',currentTrial.name)
+                        tmpTrialNum = tmpTrialNum - 1
+                        trial2check = 'trial'+'%02d'%(tmpTrialNum)
+                        #pdb.set_trace()
+                        currPrecedingLoop = trialDict[trial2check]['loop']
+                        #currPrecedingLoop = AttributeXAttribute.objects.filter(parent__name=trial2check,parent__attribute_class='loop_trials',mapping_name=str(session.id)).values_list('mapping_value_text',flat=True)
+                        #pdb.set_trace()
+                        #if list 2 stimid (only 1) is in List 1, then choose another current stimulus
+                        #so that we don't reproduce the order within subject. 
+                        noDup = False
+                        if currPrecedingLoop in prevPrecedingLoops:
+                            if itrial==len(trialNames)-1:
+                                #last trial, have to start run over and try again
+                                ready2go = False
+                                noDup = False
+                                print(f'Have to restart the run, preceding loop at end')
+                            else:
+                                noDup = False
+                                print(f'Have to restart the trial, preceding loop duplicate')
+                                tmpitem = all_loop_names.pop(itrial)
+                                all_loop_names.insert(random.randrange(itrial+1,len(all_loop_names)),tmpitem)
+                        else:
+                            noDup = True
+                    else:
+                        noDup = True
+                    if targetCount>3:
+                        if itrial==len(trialNames)-1:
+                            #last trial, have to start run over and try again
+                            ready2go = False
+                            print(f'Have to restart the run, too many targets at end')
+                        else:
+                            #too many targets in a row, change this assignment 
+                            trialReady = False
+                            print(f'Have to restart the trial, too many targets')
+                            tmpitem = all_loop_names.pop(itrial)
+                            all_loop_names.insert(random.randrange(itrial+1,len(all_loop_names)),tmpitem)
+                    elif itrial==len(trialNames)-1:
+                        trialReady = True
+                        ready2go = True
+
+                    elif noDup:
+                        trialReady = True
+                        
+                else:
+                    trialReady = True
+                    
+            if currStimName in foil_names:
+                trialDict[currTrial] = {'type': 'foil','loop': currStimName}
+            elif currStimName in target_names:
+                trialDict[currTrial] = {'type': 'targ','loop': currStimName}
+            
+    pdb.set_trace()
+    # now log this trial dict in the session info to access later. 
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    expsessinfo['currTrialName'] = 'trial01'
+    expsessinfo['recogTrialDic'] = json.dumps(trialDict)
+
+    request.session.modified = True
+    
+
+    timeline = [{'nothing':'nothing'}] #pass dummy along
+
+    return(timeline,'')
+
+def select_recog_loop(request,*args,**kwargs):
+    #we want to create a list of stims to present (in order) and save it to the session var for this task
+    #take all the loops they heard in run 1 and add 20 loops they didn't hear (the foils) (make sure order is randomized)
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our subject
+    subject = session.subject
+
 
 def logThisRun(session,currRunDict,params):
     # Create our attribute X attribute entries for a specific bio

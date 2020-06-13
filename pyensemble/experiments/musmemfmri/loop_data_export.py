@@ -45,7 +45,6 @@ def loop_cbPlots(expName,startMonthDay,endMonthDay):
 
     #
     #grab all previous subs who have been entered in attr X attr 
-
     triallAttrs = Attribute.objects.filter(name__in=params['run_params']['run1_trials'],attribute_class='loop_trials').values_list('name',flat=True)
     OurSubAxAentries = AttributeXAttribute.objects.filter(parent__name__in=triallAttrs,parent__attribute_class='loop_trials').exclude(mapping_name__in=params['ignore_subs'])
 

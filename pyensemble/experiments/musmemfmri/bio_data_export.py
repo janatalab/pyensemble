@@ -478,15 +478,15 @@ def bio_cbPlots(expName,startMonthDay,endMonthDay):
 
     with PdfPages(os.path.join(params['data_dump_path'],('CB_plots_'+'nSubs%02d'%nSubs)+'_'+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+'.pdf')) as pdf_pages:
 
-        plot1 = sb.heatmap(StimXTrial)
+        plot1 = sb.heatmap(StimXTrial,square=True)
         pdf_pages.savefig(plot1.figure)
         plt.close()
 
-        plot2 = sb.heatmap(StimXName)
+        plot2 = sb.heatmap(StimXName,square=True)
         pdf_pages.savefig(plot2.figure)
         plt.close()
 
-        plot3 = sb.heatmap(StimXLocation)
+        plot3 = sb.heatmap(StimXLocation,square=True)
         pdf_pages.savefig(plot3.figure)
         plt.close()
 
