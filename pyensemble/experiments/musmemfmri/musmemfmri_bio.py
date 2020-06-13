@@ -217,7 +217,6 @@ def assign_face_stim(request,*args,**kwargs):
         oddnum = True
         trials2loopover = range(len(triallAttrIDsRun1)-1,-1,-1)
 
-    pdb.set_trace()
     #for itrial in range(0,len(triallAttrIDsRun1)):
     for itrial in trials2loopover:
 
