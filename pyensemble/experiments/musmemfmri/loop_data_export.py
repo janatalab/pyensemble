@@ -8,7 +8,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 import matplotlib.pyplot as plt
 import pdb
-import os, csv, glob
+import os, csv, glob, re
 import random
 import json
 
@@ -25,7 +25,7 @@ from pyensemble.models import Question, Form, Subject, Response, Session, Stimul
 rootdir = 'musmemfmristims'
 stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
 
-def bio_cbPlots(expName,startMonthDay,endMonthDay):
+def loop_cbPlots(expName,startMonthDay,endMonthDay):
     #######################################################
     # counterbalance plots 
     # builds plots from DB for easy access
@@ -45,60 +45,50 @@ def bio_cbPlots(expName,startMonthDay,endMonthDay):
 
     #
     #grab all previous subs who have been entered in attr X attr 
-    triallAttrIDs = [format(x, '02d') for x in params['encoding_trials_1-20']]
-    triallAttrs = Attribute.objects.filter(id__in=triallAttrIDs,attribute_class='bio_trials').values_list('name',flat=True)
-    OurSubAxAentries = AttributeXAttribute.objects.filter(parent_id__in=triallAttrIDs,parent__attribute_class='bio_trials').exclude(mapping_name__in=params['ignore_subs'])
-    OurSubAxAentries_name = OurSubAxAentries.filter(child__attribute_class='face_name')
-    OurSubAxAentries_location = OurSubAxAentries.filter(child__attribute_class='location')
 
-    uLocations = sorted(OurSubAxAentries_location.values_list('child__name',flat=True).distinct())
-    uFaces = sorted(OurSubAxAentries.filter(child__attribute_class='face_name').values_list('mapping_value_text',flat=True).distinct())
-    uNames = sorted(OurSubAxAentries_name.values_list('child__name',flat=True).distinct())
+    triallAttrs = Attribute.objects.filter(name__in=params['run_params']['run1_trials'],attribute_class='loop_trials').values_list('name',flat=True)
+    OurSubAxAentries = AttributeXAttribute.objects.filter(parent__name__in=triallAttrs,parent__attribute_class='loop_trials').exclude(mapping_name__in=params['ignore_subs'])
+
+    loop_stims_long = Stimulus.objects.filter(stimulusxattribute__attribute_id__name=params['loop_attribute'])
+    # get the unique names (minus key info at end), loop through each of these
+    uStims = []
+    sloop_stim_names = []
+    for iloop in loop_stims_long.values_list('name',flat=True):
+        #remove key info part of string
+        sloop_stim_names.append(re.sub('_.*', '', iloop))
+    uStims = sorted([*set(sloop_stim_names), ])
+
     nSubs =  len(OurSubAxAentries.values_list('mapping_name',flat=True).distinct())
 
     #pdb.set_trace()
 
-    # init DF to hold the stimXtrial counts 
-    StimXTrial = pd.DataFrame(0,index=uFaces,columns = triallAttrs)
-    for iface in uFaces:
+     # init DF to hold the stimXtrial counts (combining all key versions of loops into 1)
+    StimXTrial = pd.DataFrame(0,index=uStims,columns = triallAttrs)
+    for iloop in uStims:
         for itrial in triallAttrs:
             #loop through each stim entry in attrxattr and add count to df
-            tmp_entries = OurSubAxAentries_name.filter(parent__name=itrial,mapping_value_text=iface)
-            StimXTrial.at[iface,itrial] = len(tmp_entries)
+            tmp_entries = OurSubAxAentries.filter(parent__name=itrial,mapping_value_text__iregex=r'^%s_'%(iloop))
+            StimXTrial.at[iloop,itrial] = len(tmp_entries)
 
-    # init DF to hold the stimXnames counts 
-    StimXName = pd.DataFrame(0,index=uFaces,columns = uNames)
-    for iface in uFaces:
-        for uname in uNames:
+    # init DF to hold the stimXtrial counts (combining all key versions of loops into 1)
+    StimXKey = pd.DataFrame(0,index=uStims,columns = params['loop_keys'])
+    for iloop in uStims:
+        for ikey in params['loop_keys']:
             #loop through each stim entry in attrxattr and add count to df
-            tmp_entries = OurSubAxAentries_name.filter(child__name=uname,mapping_value_text=iface)
-            StimXName.at[iface,uname] = len(tmp_entries)
+            tmp_entries = OurSubAxAentries.filter(mapping_value_text='%s_'%(iloop)+ikey)
+            StimXKey.at[iloop,ikey] = len(tmp_entries)
 
-    # init DF to hold the stimXlocation counts 
-    StimXLocation = pd.DataFrame(0,index=uFaces,columns = uLocations)
-    for iface in uFaces:
-        for uloc in uLocations:
-            #loop through each stim entry in attrxattr and add count to df
-            tmp_entries = OurSubAxAentries_location.filter(child__name=uloc,mapping_value_text=iface)
-            StimXLocation.at[iface,uloc] = len(tmp_entries)
+    with PdfPages(os.path.join(params['data_dump_path'],('loop_CB_plots_'+'nSubs%02d'%nSubs)+'_'+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+'.pdf')) as pdf_pages:
 
-
-
-    with PdfPages(os.path.join(params['data_dump_path'],('CB_plots_'+'nSubs%02d'%nSubs)+'_'+str("%02d"%timezone.now().month)+"-"+str("%02d"%timezone.now().day)+'.pdf')) as pdf_pages:
-
-        plot1 = sb.heatmap(StimXTrial)
+        plot1 = sb.heatmap(StimXTrial,square=True)
         pdf_pages.savefig(plot1.figure)
         plt.close()
 
-        plot2 = sb.heatmap(StimXName)
+        plot2 = sb.heatmap(StimXKey,square=True)
         pdf_pages.savefig(plot2.figure)
         plt.close()
 
-        plot3 = sb.heatmap(StimXLocation)
-        pdf_pages.savefig(plot3.figure)
-        plt.close()
-
-def bio_participantStatus(expName,startMonthDay,endMonthDay):
+def loop_participantStatus(expName,startMonthDay,endMonthDay):
     # Grab data from this experiment from subjects who participated between specified dates
     # if dates are specified, grab all reponses from the experiment 
     # filters out subjects that are also not being included in the counterbalancing (see params)
