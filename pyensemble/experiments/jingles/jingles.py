@@ -709,7 +709,7 @@ def jingles_study1_feedback(request,*args,**kwargs):
 
     # This gives us the stim names for fam responses >= 3
     #stim_names_gte3 = Stimulus.objects.filter(id__in = stim_ids_gte3).values_list('name')
-    
+
     # Get the modality count for stims with fam responses >= 3
     modality_gte3 = Counter(StimulusXAttribute.objects.filter(stimulus__in = stim_ids_gte3, attribute__name = 'Media Type').values_list('attribute_value_text'))
     max_modality_gte3 = max(modality_gte3, key=modality_gte3.get)
@@ -768,16 +768,29 @@ def jingles_study1_feedback(request,*args,**kwargs):
     # Use the index to look up the first and last age values in thie age range
     agerange_gte3 = age_ranges[max_index]
 
-    #add proper html here !!!
-    'Congratulations! you’re a' + phrase
-    modality + 'hold the greatest power for you.'
-    'You identified' + modality_gte3['jingle'] + 'jingles, ' + modality_gte3['logo'] + 'logos, and' + modality_gte3['slogan'] + 'slogans as familiar.'
-    'You recognized the most advertisements from the period when you were' + agerange_gte3[0] + 'to' + agerange_gte3[1] + 'years of age.' 
-    'Thank you for contributing to science! If you have any further questions about this study, you can email us at janatalab@gmail.com'
+    
+    # Format and present the text
+    document.innerHTML( )
+    
+    <html>
+    <body>
+    <p><div onload="document.innerHTML('Congratulations! you’re a' + phrase)">
+    </p>
+    <p><div onload="document.innerHTML(modality + 'hold the greatest power for you.')">
+    </p>
+    <p><div onload="document.innerHTML('You identified' + modality_gte3['jingle'] + 'jingles, ' + modality_gte3['logo'] + 'logos, and' + modality_gte3['slogan'] + 'slogans as familiar.')">
+    </p>
+    <p><div onload="document.innerHTML('You recognized the most advertisements from the period when you were' + agerange_gte3[0] + 'to' + agerange_gte3[1] + 'years of age.')">
+    </p>
+    <p><div onload="document.innerHTML('Thank you for contributing to science! If you have any further questions about this study, you can email us at janatalab@gmail.com')">
+    </p>
 
+    </body>
+    </html>
 
     form = ImportForm()
 
     context = {'form': form}
 
     return render(request, template, context)
+
