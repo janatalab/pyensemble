@@ -1,0 +1,14 @@
+{% extends "pyensemble/base.html" %}
+
+{% load staticfiles %}
+
+{% load crispy_forms_tags %}
+
+{% block main %}
+    {{form.header | safe}}
+
+<div class='py-3'>
+        <a href="{https://atonal.ucdavis.edu/projects/}" class="btn btn-primary btn-lg" role="button">Click here to learn more about past and current projects in our lab </a>
+    </div>
+    
+{% endblock %}
