@@ -774,17 +774,14 @@ def jingles_study1_feedback(request,*args,**kwargs):
     
     <html>
     <body>
-    <p><div onload="document.innerHTML('Congratulations! you’re a' + phrase)">
-    </p>
-    <p><div onload="document.innerHTML(modality + 'hold the greatest power for you.')">
-    </p>
-    <p><div onload="document.innerHTML('You identified' + modality_gte3['jingle'] + 'jingles, ' + modality_gte3['logo'] + 'logos, and' + modality_gte3['slogan'] + 'slogans as familiar.')">
-    </p>
-    <p><div onload="document.innerHTML('You recognized the most advertisements from the period when you were' + agerange_gte3[0] + 'to' + agerange_gte3[1] + 'years of age.')">
-    </p>
-    <p><div onload="document.innerHTML('Thank you for contributing to science! If you have any further questions about this study, you can email us at janatalab@gmail.com')">
-    </p>
+    <div id ="content"> </div>
 
+    <p>'Congratulations! you’re a' + phrase </p>
+    <p> modality + 'hold the greatest power for you.'</p>
+    <p><'You identified' + modality_gte3['jingle'] + 'jingles, ' + modality_gte3['logo'] + 'logos, and' + modality_gte3['slogan'] + 'slogans as familiar.'</p>
+    <p>'You recognized the most advertisements from the period when you were' + agerange_gte3[0] + 'to' + agerange_gte3[1] + 'years of age.'</p>
+    <p>'Thank you for contributing to science! If you have any further questions about this study, you can email us at janatalab@gmail.com'</p>
+    
     </body>
     </html>
 
