@@ -710,7 +710,6 @@ def setUpLoopRecog(request,*args,**kwargs):
         targetCount = 0
         foilCount = 0
         random.shuffle(all_loop_names) # rand. order of all loops, 
-        pdb.set_trace()
 
         for itrial in range(0,len(all_loop_names)):
             trialReady = False
@@ -794,7 +793,7 @@ def setUpLoopRecog(request,*args,**kwargs):
     pdb.set_trace()
     # now log this trial dict in the session info to access later. 
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
-    expsessinfo['currTrialName'] = 'trial01'
+    expsessinfo['currTrialName'] = 'trial00'
     expsessinfo['recogTrialDic'] = json.dumps(trialDict)
 
     request.session.modified = True
@@ -819,6 +818,58 @@ def select_recog_loop(request,*args,**kwargs):
 
     # Get our subject
     subject = session.subject
+
+    timeline = []
+
+    pdb.set_trace()
+
+    # Get the appropraite Trial attribute from the current session
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    lastTrialAttribute = expsessinfo['currTrialName']
+
+    expsessinfo['misc_info'] = 'NULL' #reset it for sanity 
+    print(f'last trial: '+lastTrialAttribute)
+
+    # grab the lst two char (numbers) in the attr. name
+    tmpTrialNum = int(lastTrialAttribute[-2:])
+    # increment them by 1 and put back into the string
+    tmpTrialNum = tmpTrialNum + 1
+    # grab the trial from the dict
+    recogTrialDic = json.loads(expsessinfo['recogTrialDic'])
+
+    currTrialInfo = recogTrialDic['trial%02d'%tmpTrialNum]
+
+    print(f'this trial: '+currTrialInfo['type']+'; '+currTrialInfo['loop'])
+
+
+
+    thisStim = Stimulus.objects.get(name=currTrialInfo['loop'])
+    #
+    # Now, set up the jsPsych trial (THIS INS"T WORKING)
+    #
+    #import pdb; pdb.set_trace()
+    trial = {
+            'type':  'audio-keyboard-response',
+            'stimulus': os.path.join(settings.MEDIA_URL,thisStim.location.url),
+            'choices': 'none',
+            'click_to_start': True,
+            'trial_ends_after_audio': True
+            #'trial_duration': params['loop_trial_duration_ms']
+        }
+    if trial['click_to_start']:
+        trial['prompt'] = '<a id="start_button" class="btn btn-primary" role="button"  href="#">Start sound</a>'
+    #import pdb; pdb.set_trace()
+    # Push the trial to the timeline
+    timeline.append(trial)
+
+    #save out info to write to response table and add the new trial nuber 
+    expsessinfo['misc_info'] = json.dumps(currTrialInfo)
+    expsessinfo['currTrialName'] = 'trial%02d'%tmpTrialNum
+    request.session.modified = True
+
+    #import pdb; pdb.set_trace()
+
+    return(timeline, thisStim.id) 
 
 
 def logThisRun(session,currRunDict,params):
