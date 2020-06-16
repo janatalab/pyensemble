@@ -1,5 +1,5 @@
 # musmemfmri_loop.py
-from . import loop_params as lp #for some reason this needs "from . " in the _bio??
+import loop_params as lp #for some reason this needs "from . " in the _bio??from . 
 
 import pdb
 import os, csv, re
@@ -81,6 +81,52 @@ def import_stims(stimin):
 
     return print('pyensemble/message.html',{'msg':'Successfully imported the stimuli'})
     #return render(request,'pyensemble/message.html',{'msg':'Successfully imported the stimuli'})
+
+def import_practice_stims(stimin):
+    #imports the loops for practicing tasks that i forgot to include...
+    #stimin='/var/www/html/ensemble/stimuli/musmemfmristims/practice_loops/' 
+    # Determine the number of subdirectories, corresponding to media types
+    mediadirs = []
+
+    with os.scandir(stimin) as dirlist:
+        for entry in dirlist:
+            if not entry.name.startswith('.') and entry.is_dir():
+                mediadirs.append(entry.name)
+    print(mediadirs)
+    for media_type in mediadirs:
+        if media_type == 'practice_loops':
+            # Get an attribute corresponding to this media type
+            attribute, ehn = Attribute.objects.get_or_create(name='Media Type', attribute_class='stimulus')
+            attribute2, ehn = Attribute.objects.get_or_create(name='practice_loop', attribute_class='stimulus')
+
+            #import pdb; pdb.set_trace()
+            print(f'Working on {media_type}s ...')
+
+            # Loop over files in the directory
+            with os.scandir(os.path.join(stimin,media_type)) as stimlist:
+                for stim in stimlist:
+                    if not stim.name.startswith('.') and stim.is_file():
+                        print(f'\tImporting {stim.name}')
+
+                        # Strip off the extension
+                        fstub,fext = os.path.splitext(stim.name)
+                        pdb.set_trace()
+                        # Create the stimulus object
+                        stimulus, _ = Stimulus.objects.get_or_create(
+                            name=fstub,
+                            playlist='Musmem practice',
+                            file_format=fext,
+                            location=os.path.join(rootdir,media_type,stim.name)
+                            )
+
+                        # Create a stimulusXattribute entry
+                        #pdb.set_trace()
+                        stimXattrib, _ = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attribute, attribute_value_text=media_type)
+                        stimXattrib2, _ = StimulusXAttribute.objects.get_or_create(stimulus=stimulus, attribute=attribute2, attribute_value_text=media_type)
+
+                       
+
+    return print('pyensemble/message.html',{'msg':'Successfully imported the stimuli'})
 
 def import_attributes(stimin):
     #stimin='/home/bmk/stims2upload/musmemfmri_looptrial_attrs.csv'
