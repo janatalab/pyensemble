@@ -31,6 +31,8 @@ from pyensemble.importers.forms import ImportForm
 
 from collections import Counter
 
+from django.template import loader
+
 import pdb
 
 # Specify the stimulus directory relative to the stimulus root
@@ -504,7 +506,7 @@ def select_study1(request,*args,**kwargs):
                     stimulusxattribute__attribute_value_double__lt=r[1])                
                 )
 
-        pdb.set_trace()
+        # pdb.set_trace()
         # Randomly pick an age range from those that actually have stimuli
         num_available_in_range = [r.count() for r in stims_x_agerange]
 
@@ -661,11 +663,9 @@ def select_study1(request,*args,**kwargs):
     return timeline, stimulus.id# jingle_study.py
 
 
-def jingles_study1_feedback(request,*args,**kwargs):
+def study1_feedback(request,*args,**kwargs):
 
     #specify form_feedback as the form handler
-    template = 'pyensemble/importers/form_feedback.html'
-
     timeline = []
 
     # Extract our session ID
@@ -693,7 +693,7 @@ def jingles_study1_feedback(request,*args,**kwargs):
     media_year_ranges = [((dob+timezone.timedelta(days=r[0]*365)).year,(dob+timezone.timedelta(days=r[1]*365)).year) for r in age_ranges]
 
     # Get our list of stimuli that this subject has already encountered
-    presented_stim_ids = Response.objects.filter(experiment=session.experiment, subject_id=subject, stimulus__isnull=False).values_list('stimulus',flat=True).distinct()
+    presented_stim_ids = Response.objects.filter(session=session, stimulus__isnull=False).values_list('stimulus',flat=True).distinct()
     presented_stims = Stimulus.objects.filter(id__in=presented_stim_ids)
 
 
@@ -702,10 +702,10 @@ def jingles_study1_feedback(request,*args,**kwargs):
     #fam_responses  = Response.objects.filter(session=session_id,form__name=form_name, question__text__contains='familiar').values_list('response_enum')
     
     # Get the familiarity responses from this session that are >= 3 
-    fam_responses_gte3 = Response.objects.filter(session=session_id,form__name=form_name, question__text__contains='familiar', response_enum__gte = 3)
+    fam_responses_gte3 = Response.objects.filter(session=session,form__name=form_name, question__text__contains='familiar', stimulus__isnull=False,response_enum__gte = 3)
 
     # This gives us the stim ids for fam responses >= 3
-    stim_ids_gte3 = Response.objects.filter(session=session_id,form__name=form_name, question__text__contains='familiar', response_enum__gte = 3).values_list('stimulus')
+    stim_ids_gte3 = fam_responses_gte3.values_list('stimulus')
 
     # This gives us the stim names for fam responses >= 3
     #stim_names_gte3 = Stimulus.objects.filter(id__in = stim_ids_gte3).values_list('name')
@@ -731,7 +731,6 @@ def jingles_study1_feedback(request,*args,**kwargs):
     # Determine the media year ranges
     age_ranges = params['age_ranges'] 
 
-
     # Get the first and last played attributes
     first_attrib = Attribute.objects.get(name='First Played')
     last_attrib = Attribute.objects.get(name='Last Played')
@@ -739,55 +738,53 @@ def jingles_study1_feedback(request,*args,**kwargs):
     # Get the possible stimuli within each year range
     stims_x_agerange_gte3 = []
 
-    for r in media_year_ranges:
-        stims_x_agerange_gte3.append(fam_responses_gte3
-            .filter(
-                stimulusxattribute__attribute=first_attrib, 
-                stimulusxattribute__attribute_value_double__gte=r[0])
-            .filter(
-                stimulusxattribute__attribute=first_attrib,
-                stimulusxattribute__attribute_value_double__lt=r[1]) 
-            | fam_responses_gte3
-            .filter(
-                stimulusxattribute__attribute=last_attrib,
-                stimulusxattribute__attribute_value_double__gte=r[0])
-            .filter(
-                stimulusxattribute__attribute=last_attrib,
-                stimulusxattribute__attribute_value_double__lt=r[1])                
-            )
+    # for r in media_year_ranges:
+    #     stims_x_agerange_gte3.append(fam_responses_gte3
+    #         .filter(
+    #             stimulusxattribute__attribute=first_attrib, 
+    #             stimulusxattribute__attribute_value_double__gte=r[0])
+    #         .filter(
+    #             stimulusxattribute__attribute=first_attrib,
+    #             stimulusxattribute__attribute_value_double__lt=r[1]) 
+    #         | fam_responses_gte3
+    #         .filter(
+    #             stimulusxattribute__attribute=last_attrib,
+    #             stimulusxattribute__attribute_value_double__gte=r[0])
+    #         .filter(
+    #             stimulusxattribute__attribute=last_attrib,
+    #             stimulusxattribute__attribute_value_double__lt=r[1])
+    #         )
 
-    # Get the stimxage count for stims with fam responses >= 3
-    stims_x_agerange_gte3_counts = [r.count() for r in stims_x_agerange]
+    # # Get the stimxage count for stims with fam responses >= 3
+    # stims_x_agerange_gte3_counts = [r.count() for r in stims_x_agerange]
 
-    # Which age range had the most fam responses >= 3?
-    max_stims_x_agerange_gte3 = max(stims_x_agerange_gte3_counts)
+    # # Which age range had the most fam responses >= 3?
+    # max_stims_x_agerange_gte3 = max(stims_x_agerange_gte3_counts)
 
-    # What is the index of this value in the list of age_ranges? 
-    max_index = stims_x_agerange_gte3_counts.index(max_stims_x_agerange_gte3)
+    # # What is the index of this value in the list of age_ranges? 
+    # max_index = stims_x_agerange_gte3_counts.index(max_stims_x_agerange_gte3)
 
-    # Use the index to look up the first and last age values in thie age range
-    agerange_gte3 = age_ranges[max_index]
-
+    # # Use the index to look up the first and last age values in thie age range
+    # agerange_gte3 = age_ranges[max_index]
     
     # Format and present the text
-    document.innerHTML( )
-    
-    <html>
-    <body>
-    <div id ="content"> </div>
+    template_name = 'jingles_study1_feedback.html'
+    template = loader.get_template(template_name)
 
-    <p>'Congratulations! you’re a' + phrase </p>
-    <p> modality + 'hold the greatest power for you.'</p>
-    <p><'You identified' + modality_gte3['jingle'] + 'jingles, ' + modality_gte3['logo'] + 'logos, and' + modality_gte3['slogan'] + 'slogans as familiar.'</p>
-    <p>'You recognized the most advertisements from the period when you were' + agerange_gte3[0] + 'to' + agerange_gte3[1] + 'years of age.'</p>
-    <p>'Thank you for contributing to science! If you have any further questions about this study, you can email us at janatalab@gmail.com'</p>
-    
-    </body>
-    </html>
+    context = {
+        'phrase': phrase,
+        'modality': modality,
+        'num_modality': {
+            'jingle': modality_gte3['jingle'],
+            'logo': modality_gte3['logo'],
+            'slogan': modality_gte3['slogan']
+        },
+        # 'age_range': {
+        #     'min': agerange_gte3[0],
+        #     'max': agerange_gte3[1]
+        # }
+    }
 
-    form = ImportForm()
-
-    context = {'form': form}
-
-    return render(request, template, context)
+    pdb.set_trace()
+    return template.render(context)
 
