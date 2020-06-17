@@ -3,9 +3,11 @@
 {% block main %}
     {{form.header | safe}}
 
+    {{feedback | safe }}
+
     {% if sona_url %}
-    <div class='py-3'>
-        <a href="{{sona_url}}" class="btn btn-primary btn-lg" role="button">Click here to get your SONA credit</a>
-    </div>
+        <div class='py-3'>
+            <a href="{{sona_url}}" class="btn btn-primary btn-lg" role="button">Click here to get your SONA credit</a>
+        </div>
     {% endif %}
 {% endblock %}

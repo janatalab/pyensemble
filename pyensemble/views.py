@@ -405,6 +405,7 @@ def serve_form(request, experiment_id=None):
     trialspec = {}
     timeline = []
     stimulus = None
+    feedback = None
 
     if request.method == 'POST':
         #
@@ -567,8 +568,6 @@ def serve_form(request, experiment_id=None):
 
         # Execute a stimulus selection script if one has been specified
         if currform.stimulus_script:
-            presents_stimulus = True
-
             # Use regexp to get the function name that we're calling
             funcdict = parse_function_spec(currform.stimulus_script)
             funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
@@ -576,10 +575,19 @@ def serve_form(request, experiment_id=None):
             # Get our selection function
             method = fetch_experiment_method(funcdict['func_name'])
 
-            # Call the select function with the parameters to get the trial timeline specification
-            timeline, stimulus_id  = method(request, *funcdict['args'],**funcdict['kwargs'])
+            if handler_name in ['form_feedback','form_end_session']:
+                presents_stimulus = False
 
-            expsessinfo['stimulus_id'] = stimulus_id
+                # Call the method to generate the feedback content
+                feedback = method(request, *funcdict['args'],**funcdict['kwargs'])
+
+            else:
+                presents_stimulus = True
+
+                # Call the select function with the parameters to get the trial timeline specification
+                timeline, stimulus_id  = method(request, *funcdict['args'],**funcdict['kwargs'])
+
+                expsessinfo['stimulus_id'] = stimulus_id
         else:
             timeline = {}
 
@@ -633,6 +641,7 @@ def serve_form(request, experiment_id=None):
         'timeline_json': json.dumps(timeline),
         'trialspec': trialspec,
         'stimulus': stimulus,
+        'feedback': feedback,
        }
 
     if settings.DEBUG:
