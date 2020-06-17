@@ -783,6 +783,5 @@ def study1_feedback(request,*args,**kwargs):
         }
     }
 
-    pdb.set_trace()
     return template.render(context)
 
