@@ -695,9 +695,6 @@ def study1_feedback(request,*args,**kwargs):
     media_year_ranges = [((dob+timezone.timedelta(days=r[0]*365)).year,(dob+timezone.timedelta(days=r[1]*365)).year) for r in age_ranges]
 
     # Get our list of stimuli that this subject has already encountered
-    # presented_stim_ids = Response.objects.filter(session=session, stimulus__isnull=False).values_list('stimulus',flat=True).distinct()
-    # presented_stims = Stimulus.objects.filter(id__in=presented_stim_ids)
-
     form_name='Jingle Project Familiarity'
     familiarity_criterion = 2
 
