@@ -39,6 +39,8 @@ import pdb
 rootdir = 'jinglestims'
 stimdir = os.path.join(settings.MEDIA_ROOT, rootdir)
 
+valid_media_types = ['jingle','slogan','logo']
+
 stims_to_change = ['139_Mazda_tagline2', '7_Subway_tagline2']
 
 study_params = {
@@ -693,43 +695,43 @@ def study1_feedback(request,*args,**kwargs):
     media_year_ranges = [((dob+timezone.timedelta(days=r[0]*365)).year,(dob+timezone.timedelta(days=r[1]*365)).year) for r in age_ranges]
 
     # Get our list of stimuli that this subject has already encountered
-    presented_stim_ids = Response.objects.filter(session=session, stimulus__isnull=False).values_list('stimulus',flat=True).distinct()
-    presented_stims = Stimulus.objects.filter(id__in=presented_stim_ids)
-
+    # presented_stim_ids = Response.objects.filter(session=session, stimulus__isnull=False).values_list('stimulus',flat=True).distinct()
+    # presented_stims = Stimulus.objects.filter(id__in=presented_stim_ids)
 
     form_name='Jingle Project Familiarity'
-    # Get the familiarity responses from this session
-    #fam_responses  = Response.objects.filter(session=session_id,form__name=form_name, question__text__contains='familiar').values_list('response_enum')
-    
-    # Get the familiarity responses from this session that are >= 3 
-    fam_responses_gte3 = Response.objects.filter(session=session,form__name=form_name, question__text__contains='familiar', stimulus__isnull=False,response_enum__gte = 3)
+    familiarity_criterion = 2
 
-    # This gives us the stim ids for fam responses >= 3
-    stim_ids_gte3 = fam_responses_gte3.values_list('stimulus')
+    # Get all responses that exceeded our familiarity criterion
+    familiar_responses_gte3 = Response.objects.filter(
+                session=session_id,
+                form__name=form_name, 
+                question__text__contains='familiar', 
+                stimulus__isnull=False,
+                response_enum__gte=familiarity_criterion)
 
-    # This gives us the stim names for fam responses >= 3
-    #stim_names_gte3 = Stimulus.objects.filter(id__in = stim_ids_gte3).values_list('name')
+    modality_gte3 = {}
+    for media_type in valid_media_types:
+        modality_gte3.update({media_type:
+            familiar_responses_gte3.filter(stimulus__stimulusxattribute__attribute_value_text=media_type)
+            })
 
-    # Get the modality count for stims with fam responses >= 3
-    modality_gte3 = Counter(StimulusXAttribute.objects.filter(stimulus__in = stim_ids_gte3, attribute__name = 'Media Type').values_list('attribute_value_text'))
-    max_modality_gte3 = max(modality_gte3, key=modality_gte3.get)
+    modality_counts = {modality: responses.count() for modality,responses in modality_gte3.items()}
+
+    max_modality_gte3 = max(modality_counts, key=modality_counts.get)
 
     if max_modality_gte3 == 'jingle':
         phrase = 'jingle genius!'
-        modality = 'Music'
+        best_modality = 'Music'
 
     if max_modality_gte3 == 'slogan':
         phrase = 'word wizard!'
-        modality = 'Words'
+        best_modality = 'Words'
 
     if max_modality_gte3 == 'logo':
         phrase = 'picture pro!'
-        modality = 'Images'
+        best_modality = 'Images'
 
     # Which lifetime period has the most fam ratings >= 3? 
-
-    # Determine the media year ranges
-    age_ranges = params['age_ranges'] 
 
     # Get the first and last played attributes
     first_attrib = Attribute.objects.get(name='First Played')
@@ -738,34 +740,34 @@ def study1_feedback(request,*args,**kwargs):
     # Get the possible stimuli within each year range
     stims_x_agerange_gte3 = []
 
-    # for r in media_year_ranges:
-    #     stims_x_agerange_gte3.append(fam_responses_gte3
-    #         .filter(
-    #             stimulusxattribute__attribute=first_attrib, 
-    #             stimulusxattribute__attribute_value_double__gte=r[0])
-    #         .filter(
-    #             stimulusxattribute__attribute=first_attrib,
-    #             stimulusxattribute__attribute_value_double__lt=r[1]) 
-    #         | fam_responses_gte3
-    #         .filter(
-    #             stimulusxattribute__attribute=last_attrib,
-    #             stimulusxattribute__attribute_value_double__gte=r[0])
-    #         .filter(
-    #             stimulusxattribute__attribute=last_attrib,
-    #             stimulusxattribute__attribute_value_double__lt=r[1])
-    #         )
+    for r in media_year_ranges:
+        stims_x_agerange_gte3.append(familiar_responses_gte3
+            .filter(
+                stimulus__stimulusxattribute__attribute=first_attrib, 
+                stimulus__stimulusxattribute__attribute_value_double__gte=r[0])
+            .filter(
+                stimulus__stimulusxattribute__attribute=first_attrib,
+                stimulus__stimulusxattribute__attribute_value_double__lt=r[1]) 
+            | familiar_responses_gte3
+            .filter(
+                stimulus__stimulusxattribute__attribute=last_attrib,
+                stimulus__stimulusxattribute__attribute_value_double__gte=r[0])
+            .filter(
+                stimulus__stimulusxattribute__attribute=last_attrib,
+                stimulus__stimulusxattribute__attribute_value_double__lt=r[1])
+            )
 
     # # Get the stimxage count for stims with fam responses >= 3
-    # stims_x_agerange_gte3_counts = [r.count() for r in stims_x_agerange]
+    stims_x_agerange_gte3_counts = [r.count() for r in stims_x_agerange_gte3]
 
     # # Which age range had the most fam responses >= 3?
-    # max_stims_x_agerange_gte3 = max(stims_x_agerange_gte3_counts)
+    max_stims_x_agerange_gte3 = max(stims_x_agerange_gte3_counts)
 
     # # What is the index of this value in the list of age_ranges? 
-    # max_index = stims_x_agerange_gte3_counts.index(max_stims_x_agerange_gte3)
+    max_index = stims_x_agerange_gte3_counts.index(max_stims_x_agerange_gte3)
 
     # # Use the index to look up the first and last age values in thie age range
-    # agerange_gte3 = age_ranges[max_index]
+    agerange_gte3 = age_ranges[max_index]
     
     # Format and present the text
     template_name = 'jingles_study1_feedback.html'
@@ -773,16 +775,12 @@ def study1_feedback(request,*args,**kwargs):
 
     context = {
         'phrase': phrase,
-        'modality': modality,
-        'num_modality': {
-            'jingle': modality_gte3['jingle'],
-            'logo': modality_gte3['logo'],
-            'slogan': modality_gte3['slogan']
-        },
-        # 'age_range': {
-        #     'min': agerange_gte3[0],
-        #     'max': agerange_gte3[1]
-        # }
+        'modality': best_modality,
+        'num_modality': modality_counts,
+        'age_range': {
+            'min': agerange_gte3[0],
+            'max': agerange_gte3[1]
+        }
     }
 
     pdb.set_trace()
