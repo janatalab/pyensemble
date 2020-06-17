@@ -1,5 +1,6 @@
 #USA CAN selection
 #chooses media type based on (1) available media types in age_range and (2) least frequently presented media type in session
+#presents feedback at the end of the session
 
 
 # jingle_study.py
@@ -754,16 +755,16 @@ def study1_feedback(request,*args,**kwargs):
                 stimulus__stimulusxattribute__attribute_value_double__lt=r[1])
             )
 
-    # # Get the stimxage count for stims with fam responses >= 3
+    # Get the stimxage count for stims with fam responses >= 3
     stims_x_agerange_gte3_counts = [r.count() for r in stims_x_agerange_gte3]
 
-    # # Which age range had the most fam responses >= 3?
+    # Which age range had the most fam responses >= 3?
     max_stims_x_agerange_gte3 = max(stims_x_agerange_gte3_counts)
 
-    # # What is the index of this value in the list of age_ranges? 
+    # What is the index of this value in the list of age_ranges? 
     max_index = stims_x_agerange_gte3_counts.index(max_stims_x_agerange_gte3)
 
-    # # Use the index to look up the first and last age values in thie age range
+    # Use the index to look up the first and last age values in thie age range
     agerange_gte3 = age_ranges[max_index]
     
     # Format and present the text
