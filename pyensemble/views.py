@@ -330,6 +330,13 @@ def run_experiment(request, experiment_id=None):
         if ticket.expired:
             return HttpResponseBadRequest('The ticket has expired')
 
+        # Get the SONA code if there is one
+        sona_code = request.GET.get('sona',None)
+
+        # Deal with the situation in which we are trying to access using a survey code from SONA, but no code has been set
+        if 'sona' in request.GET.keys() and not sona_code:
+            return render(request,'pyensemble/error.html',{'msg':'No SONA survey code was specified!','next':'/'})
+
         # Initialize a session in the PyEnsemble session table
         session = Session.objects.create(experiment=ticket.experiment, ticket=ticket)
 
@@ -347,7 +354,7 @@ def run_experiment(request, experiment_id=None):
             'last_in_loop': {},
             'visit_count': {},
             'running': True,
-            'sona': request.GET.get('sona',None)
+            'sona': sona_code,
             })
 
     # Set the experiment session info
@@ -397,6 +404,8 @@ def serve_form(request, experiment_id=None):
     # Initialize other context
     trialspec = {}
     timeline = []
+    stimulus = None
+    feedback = None
 
     if request.method == 'POST':
         #
@@ -559,8 +568,6 @@ def serve_form(request, experiment_id=None):
 
         # Execute a stimulus selection script if one has been specified
         if currform.stimulus_script:
-            presents_stimulus = True
-
             # Use regexp to get the function name that we're calling
             funcdict = parse_function_spec(currform.stimulus_script)
             funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
@@ -568,10 +575,19 @@ def serve_form(request, experiment_id=None):
             # Get our selection function
             method = fetch_experiment_method(funcdict['func_name'])
 
-            # Call the select function with the parameters to get the trial timeline specification
-            timeline, stimulus_id  = method(request, *funcdict['args'],**funcdict['kwargs'])
+            if handler_name in ['form_feedback','form_end_session']:
+                presents_stimulus = False
 
-            expsessinfo['stimulus_id'] = stimulus_id
+                # Call the method to generate the feedback content
+                feedback = method(request, *funcdict['args'],**funcdict['kwargs'])
+
+            else:
+                presents_stimulus = True
+
+                # Call the select function with the parameters to get the trial timeline specification
+                timeline, stimulus_id  = method(request, *funcdict['args'],**funcdict['kwargs'])
+
+                expsessinfo['stimulus_id'] = stimulus_id
         else:
             timeline = {}
 
@@ -585,8 +601,6 @@ def serve_form(request, experiment_id=None):
             else:
                 expsessinfo['curr_form_idx']+=1
 
-            pdb.set_trace()
-
             # Go to that next form
             request.session.modified=True
             return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
@@ -594,8 +608,13 @@ def serve_form(request, experiment_id=None):
         #
         # Reset our session stimulus_id variable if appropriate
         #
+        stimulus = None
         if not requires_stimulus:
             expsessinfo['stimulus_id'] = None
+        else:
+            stimulus_id = expsessinfo.get('stimulus_id',None)
+            if stimulus_id:
+                stimulus = Stimulus.objects.get(id=stimulus_id)
 
         #
         # Get our blank form
@@ -621,6 +640,8 @@ def serve_form(request, experiment_id=None):
         'timeline': timeline,
         'timeline_json': json.dumps(timeline),
         'trialspec': trialspec,
+        'stimulus': stimulus,
+        'feedback': feedback,
        }
 
     if settings.DEBUG:
@@ -656,7 +677,6 @@ def serve_form(request, experiment_id=None):
 def create_ticket(request):
     # Creates a ticket for an experiment.
     # Type can be master (multi-use) or user (single-use)
-    # pdb.set_trace()
 
     # Get our request data
     ticket_request = TicketCreationForm(request.POST)

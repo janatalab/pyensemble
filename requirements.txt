@@ -6,6 +6,7 @@ Django==2.2.7
 django-crispy-forms==1.8.1
 django-encrypted-model-fields==0.5.8
 django-sslserver==0.22
+fuzzywuzzy==0.18.0
 ipython==7.11.1
 ipython-genutils==0.2.0
 jedi==0.15.2
@@ -25,3 +26,4 @@ six==1.13.0
 sqlparse==0.3.0
 traitlets==4.3.3
 wcwidth==0.1.8
+pandas==1.0.4
