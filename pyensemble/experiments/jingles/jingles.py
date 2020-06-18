@@ -649,7 +649,7 @@ def select_study1(request,*args,**kwargs):
         contents = stimulus.location.open().read().decode('utf-8')
         trial = {
             'type': 'html-keyboard-response',
-            'stimulus': '<p style="font-size:30px;margin-top:200px">'+contents+'</p>',
+            'stimulus': '<p style="font-size:40px;margin-top:200px">'+contents+'</p>',
             'choices': 'none',
             'stimulus_duration': stim_duration,
             'trial_duration': stim_duration,
@@ -719,7 +719,7 @@ def study1_feedback(request,*args,**kwargs):
 
     if max_modality_gte3 == 'jingle':
         phrase = 'jingle genius!'
-        best_modality = 'Music'
+        best_modality = 'Songs'
 
     if max_modality_gte3 == 'slogan':
         phrase = 'word wizard!'
