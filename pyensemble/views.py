@@ -396,13 +396,7 @@ def serve_form(request, experiment_id=None):
     # Check to see whether we are dealing with a special form that requires different handling. This is largely to try to maintain backward compatibility with the legacy PHP version of Ensemble
     handler_name = os.path.splitext(currform.form_handler)[0]
 
-    # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
-    helper = QuestionModelFormSetHelper()
-    helper.add_input(Submit("submit", "Next"))
-    helper.template = 'pyensemble/partly_crispy/question_formset.html'
-
     # Initialize other context
-    trialspec = {}
     timeline = []
     stimulus = None
     feedback = None
@@ -625,11 +619,19 @@ def serve_form(request, experiment_id=None):
         else:
             formset = QuestionModelFormSet(queryset=form.questions.all().order_by('formxquestion__form_question_num'))
 
-    # Determine any other trial control parameters that are part of the JavaScript injection
-    trialspec.update({
-        'questions_after_media_finished': True,
-        'skip': skip_trial,
-        })
+    # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
+    helper = QuestionModelFormSetHelper()
+    helper.template = 'pyensemble/partly_crispy/question_formset.html'
+
+    # Add our submit button(s)
+    if currform.break_loop_button:
+        helper.add_input(Submit("submit", currform.break_loop_button_text,css_class='btn-secondary'))
+
+    continue_button_text = getattr(currform,'continue_button_text','')
+    if not continue_button_text:
+        continue_button_text = 'Next'
+
+    helper.add_input(Submit("submit",continue_button_text))
 
     # Create our context to pass to the template
     context = {
@@ -639,7 +641,7 @@ def serve_form(request, experiment_id=None):
         'helper': helper,
         'timeline': timeline,
         'timeline_json': json.dumps(timeline),
-        'trialspec': trialspec,
+        'skip_trial': skip_trial,
         'stimulus': stimulus,
         'feedback': feedback,
        }
