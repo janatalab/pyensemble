@@ -322,6 +322,17 @@ def imagined_jingle(request,*args,**kwargs):
 
     return int(last_response.response_text)>0
 
+def rated_familiar(request,*args,**kwargs):
+    #
+    # Get the form we want
+    form_name='Jingle Project Familiarity'
+
+    # Get the response corresponding to this stimulus
+    last_response = Response.objects.filter(session=kwargs['session_id'],form__name=form_name, question__text__contains='familiar', stimulus=stimulus_id).last()
+
+    # Check whether our enum matches
+    # pdb.set_trace()
+    return last_response.response_enum > 0
 
 def select_study1(request,*args,**kwargs):
     # Construct a jsPsych timeline
