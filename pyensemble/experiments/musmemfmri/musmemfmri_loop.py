@@ -104,7 +104,6 @@ def import_attributes(stimin):
 
     return print('pyensemble/message.html',{'msg':'Successfully imported the attributes'})
 
-
 def assign_loop_trials():#request,*args,**kwargs
     #This function figures out which key version to use and assigns loops to trials
     #in the attr X attr table
@@ -185,9 +184,9 @@ def assign_loop_trials():#request,*args,**kwargs
             if not currStim:
                 curr_stims_x_pres = [] #tally number of times loop was assigned to this trial (across subs)
                 print(f'Creating and loggin a new loop-trial')
-                #for each trial, find the face least often assigned across previous subs and
-                #choose that one
-                #grab all names of all stims presented on this trial (includes)
+                #for each trial, find the loop least often assigned across previous subs 
+                #grab all names of all stims presented on this trial 
+                # MAPPINGVALUETEXT - STIM NAME - NEED TO DROP THE KEY STRIN 
                 thisTrialPrevFaces = AttributeXAttribute.objects.filter(parent=currentTrial,parent__attribute_class='loop_trials',mapping_name__in=prev_subs).values_list('mapping_value_text',flat=True)
                 for iface in range(0,len(curr_loop_stims)):
                     if curr_loop_stims[iface].name in thisTrialPrevFaces:
