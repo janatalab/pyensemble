@@ -16,6 +16,12 @@
         {{ formset.management_form|crispy }}
     </div>
 
+    {% if timeline %}
+    <div>
+        <input type="hidden" name="jspsych_data" value="">
+    </div>
+    {% endif %}
+
     <div class="form-header">
         <!-- {{ form.header|safe }} -->
     </div>
