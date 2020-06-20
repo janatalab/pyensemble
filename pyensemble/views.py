@@ -480,15 +480,16 @@ def serve_form(request, experiment_id=None):
                     # Pre-process certain fields
                     response = question.cleaned_data.get('option','')
 
-                    if question.instance.html_field_type in ['radiogroup','menu']:
-                        response_enum = int(response)
-                        response_text = ''
-                    elif question.instance.html_field_type=='checkbox':
-                        # This is a HACK and needs to be fixed
-                        # checkbox should be enum
-                        # enums need to be stored in power of two format (like Ensemble), so that we can have multiple checkbox responses selected
-                        response_text = ','.join(response)
-                        response_enum = None
+                    if question.instance.data_format.df_type == 'enum':
+                        if question.instance.html_field_type=='checkbox':
+                            # This is a HACK and needs to be fixed
+                            # checkbox should be enum
+                            # enums need to be stored in power of two format (like Ensemble), so that we can have multiple checkbox responses selected
+                            response_text = ','.join(response)
+                            response_enum = None
+                        else:
+                            response_enum = int(response)
+                            response_text = ''
                     else:
                         response_text = response
                         response_enum = None
@@ -504,6 +505,12 @@ def serve_form(request, experiment_id=None):
                     else:
                         stimulus = None
 
+                    # Get jsPsych data if we have it, but only write it for the first question
+                    if not idx:
+                        jspsych_data = request.POST.get('jspsych_data','')
+                    else:
+                        jspsych_data = ''
+
                     responses.append(Response(
                         experiment=currform.experiment,
                         subject=Subject.objects.get(subject_id=expsessinfo['subject_id']),
@@ -517,6 +524,7 @@ def serve_form(request, experiment_id=None):
                         response_order=expsessinfo['response_order'],
                         response_text=response_text,
                         response_enum=response_enum,
+                        jspsych_data=jspsych_data,
                         decline=declined,
                         misc_info=misc_info,
                         )
@@ -632,6 +640,12 @@ def serve_form(request, experiment_id=None):
         continue_button_text = 'Next'
 
     helper.add_input(Submit("submit",continue_button_text))
+
+    # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
+    helper = QuestionModelFormSetHelper()
+    helper.template = 'pyensemble/partly_crispy/question_formset.html'
+
+    helper.add_input(Submit("submit", "Next"))
 
     # Create our context to pass to the template
     context = {
