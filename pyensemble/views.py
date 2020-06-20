@@ -396,11 +396,6 @@ def serve_form(request, experiment_id=None):
     # Check to see whether we are dealing with a special form that requires different handling. This is largely to try to maintain backward compatibility with the legacy PHP version of Ensemble
     handler_name = os.path.splitext(currform.form_handler)[0]
 
-    # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
-    helper = QuestionModelFormSetHelper()
-    helper.add_input(Submit("submit", "Next"))
-    helper.template = 'pyensemble/partly_crispy/question_formset.html'
-
     # Initialize other context
     trialspec = {}
     timeline = []
@@ -509,6 +504,12 @@ def serve_form(request, experiment_id=None):
                     else:
                         stimulus = None
 
+                    # Get jsPsych data if we have it, but only write it for the first question
+                    if not idx:
+                        jspsych_data = request.POST.get('jspsych_data','')
+                    else:
+                        jspsych_data = ''
+
                     responses.append(Response(
                         experiment=currform.experiment,
                         subject=Subject.objects.get(subject_id=expsessinfo['subject_id']),
@@ -522,6 +523,7 @@ def serve_form(request, experiment_id=None):
                         response_order=expsessinfo['response_order'],
                         response_text=response_text,
                         response_enum=response_enum,
+                        jspsych_data=jspsych_data,
                         decline=declined,
                         misc_info=misc_info,
                         )
@@ -622,6 +624,12 @@ def serve_form(request, experiment_id=None):
         'questions_after_media_finished': True,
         'skip': skip_trial,
         })
+
+    # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
+    helper = QuestionModelFormSetHelper()
+    helper.template = 'pyensemble/partly_crispy/question_formset.html'
+
+    helper.add_input(Submit("submit", "Next"))
 
     # Create our context to pass to the template
     context = {
