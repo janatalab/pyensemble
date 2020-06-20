@@ -480,15 +480,16 @@ def serve_form(request, experiment_id=None):
                     # Pre-process certain fields
                     response = question.cleaned_data.get('option','')
 
-                    if question.instance.html_field_type in ['radiogroup','menu']:
-                        response_enum = int(response)
-                        response_text = ''
-                    elif question.instance.html_field_type=='checkbox':
-                        # This is a HACK and needs to be fixed
-                        # checkbox should be enum
-                        # enums need to be stored in power of two format (like Ensemble), so that we can have multiple checkbox responses selected
-                        response_text = ','.join(response)
-                        response_enum = None
+                    if question.instance.data_format.df_type == 'enum':
+                        if question.instance.html_field_type=='checkbox':
+                            # This is a HACK and needs to be fixed
+                            # checkbox should be enum
+                            # enums need to be stored in power of two format (like Ensemble), so that we can have multiple checkbox responses selected
+                            response_text = ','.join(response)
+                            response_enum = None
+                        else:
+                            response_enum = int(response)
+                            response_text = ''
                     else:
                         response_text = response
                         response_enum = None
