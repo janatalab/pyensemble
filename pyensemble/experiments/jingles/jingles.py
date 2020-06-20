@@ -326,7 +326,11 @@ def imagined_jingle(request,*args,**kwargs):
     #return last_response.response_enum>0
 
 def rated_familiar(request,*args,**kwargs):
-    #
+    # Get the current stimulus ID
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=kwargs['session_id']).experiment.id))
+
+    stimulus_id = expsessinfo['stimulus_id']
+    
     # Get the form we want
     form_name='Jingle Project Familiarity'
 
@@ -334,7 +338,7 @@ def rated_familiar(request,*args,**kwargs):
     last_response = Response.objects.filter(session=kwargs['session_id'],form__name=form_name, question__text__contains='familiar', stimulus=stimulus_id).last()
 
     # Check whether our enum matches
-    # pdb.set_trace()
+    
     return last_response.response_enum > 0
 
 
@@ -636,7 +640,7 @@ def select_study1(request,*args,**kwargs):
     #
 
     # Determine the stimulus type
-
+    pdb.set_trace()
     # Get the name of the advertised item (called Product) for this stimulus
     item = StimulusXAttribute.objects.get(stimulus = stimulus, attribute__name = 'Product').attribute_value_text
 
@@ -657,7 +661,7 @@ def select_study1(request,*args,**kwargs):
 
     else: 
         stim_duration = StimulusXAttribute.objects.get(stimulus_id=jingle_ids[0], attribute__name = 'Duration').attribute_value_double
-    #if there's more than one jingle for this item (which is a strong possibility), use the longer jingle duration as the general stim duration 
+
 
     media_type = StimulusXAttribute.objects.get(stimulus = stimulus, attribute__name = 'Media Type').attribute_value_text
 
