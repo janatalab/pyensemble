@@ -35,6 +35,7 @@ from collections import Counter
 from django.template import loader
 
 import pdb
+import numpy as np
 
 # Specify the stimulus directory relative to the stimulus root
 rootdir = 'jinglestims'
@@ -314,6 +315,7 @@ def imagined_jingle(request,*args,**kwargs):
 
     # Get the form we want
     form = Form.objects.get(name='heard_jingle')
+
     last_response = Response.objects.filter(session=kwargs['session_id'], stimulus=stimulus_id, form=form, form_question_num=0).last()
     #pdb.set_trace()
 
@@ -321,6 +323,7 @@ def imagined_jingle(request,*args,**kwargs):
         return False
 
     return int(last_response.response_text)>0
+    #return last_response.response_enum>0
 
 def rated_familiar(request,*args,**kwargs):
     #
@@ -333,6 +336,7 @@ def rated_familiar(request,*args,**kwargs):
     # Check whether our enum matches
     # pdb.set_trace()
     return last_response.response_enum > 0
+
 
 def select_study1(request,*args,**kwargs):
     # Construct a jsPsych timeline
@@ -463,28 +467,76 @@ def select_study1(request,*args,**kwargs):
     elif session.experiment.title == 'jingle_stim_select_test':
         form_name = 'Jingle Project Familiarity'
 
-    repeats = ExperimentXForm.objects.get(experiment = session.experiment, form__name = form_name).repeat
-    
+    rand_region = np.random.choice(['Canada','USA'], 1, replace = False, p=[0.20, 0.80])
+
+    #repeats = ExperimentXForm.objects.get(experiment = session.experiment, form__name = form_name).repeat
     # Set the proportion/weight based on the number of trials
     # 10% of the total number of trials should be comprised of the Canadian foils 
-    num_can = int(.10 * (repeats))
-    num_USA = repeats - num_can
+    #num_can = int(.10 * (repeats))
+    #num_USA = repeats - num_can
 
     # Create a list of possible regions with the correct number of iterations
-    total_regions = ['USA'] * num_USA
-    canadian_additions = ['Canada'] * num_can
-    total_regions.extend(canadian_additions)
+    #total_regions = ['USA'] * num_USA
+    #canadian_additions = ['Canada'] * num_can
+    #total_regions.extend(canadian_additions)
 
     # Randomly choose a region from this list and remove it from the list of regions so it's not selected again
-    rand_region = random.choice(total_regions)
+    #rand_region = random.choice(total_regions)
     #print(rand_region)
-    total_regions.remove(rand_region)
+    #total_regions.remove(rand_region)
 
     CAN_stim_ids = StimulusXAttribute.objects.filter(attribute__name = 'Region', attribute_value_text = 'Canada').values_list('stimulus',flat=True).distinct()
     CAN_stims = Stimulus.objects.filter(id__in=CAN_stim_ids)
 
     USA_stim_ids = StimulusXAttribute.objects.filter(attribute__name = 'Region', attribute_value_text = 'USA').values_list('stimulus',flat=True).distinct()
     USA_stims = Stimulus.objects.filter(id__in=USA_stim_ids)    
+
+   
+   # if it's a Canadian advertisement, filter USA ads out of possible_stims
+    if rand_region == 'Canada':
+
+    #remove American stims from the list of possible stimuli
+        possible_stims = possible_stims.exclude(stimulusxattribute__attribute_value_text='USA')
+
+        #if there are no Canadian stims left to test, sample from the USA ads
+        if not possible_stims:
+            rand_region == 'USA'
+
+        else:
+
+            # Skip over lifetime period selection because there isn't a Canadian ad for each lifetime period 
+            # Set select_from_stims to possible_stims to achieve this
+            num_min = possible_stims.aggregate(Min('num_responses'))['num_responses__min']
+            select_from_stims = possible_stims.filter(num_responses=num_min)
+
+            #if there are no previous stims to calculate media_counts, randomly select a stim from select_from_stims
+            if len(media_counts) == 0:
+                stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
+
+            #otherwise, try to pick from the least presented modalities so far
+            else:
+                #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = (min(media_counts)))
+                #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type').exclude(stimulusxattribute__attribute_value_text = media_counts.most_common(1)[0][0])
+                least_used_modality = min(media_counts, key=media_counts.get)
+                most_used_modality = max(media_counts, key=media_counts.get)
+
+                #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = least_used_modality)
+                least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type').exclude(stimulusxattribute__attribute_value_text = most_used_modality)
+
+                print('number available:', len(least_used_modalities), 'least used modality:', least_used_modality)
+                #select_from_stims = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = min(media_counts)
+                
+                #if there are no stimuli from least_used_modalities, randomly select a stim from select_from_stims
+                if len(least_used_modalities) == 0:
+                    stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
+                else:
+                    #try to use the least presented modality in this session
+                    least_used_modality_stims = least_used_modalities.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = least_used_modality)
+                    #otherwise, use whatever is available from the two least frequently presented modality in this session
+                    if not least_used_modality_stims:
+                        stimulus = random.choice(least_used_modalities)
+                    else:
+                        stimulus = random.choice(least_used_modality_stims)
 
    # if it's an American advertisement, filter Canadian ads out of possible stims and proceed
     if rand_region == 'USA':
@@ -549,53 +601,35 @@ def select_study1(request,*args,**kwargs):
                 print('Of the %d stimuli in age range %d, none have the requested media type: %s'%(stims_x_agerange[age_idx].count(),age_idx,curr_media_type))    
             return None, None
 
-    # if it's a Canadian advertisement, filter USA ads out of possible_stims
-    if rand_region == 'Canada':
-
-    #remove American stims from the list of possible stimuli
-        possible_stims = possible_stims.exclude(stimulusxattribute__attribute_value_text='USA')
-
-        # Skip over lifetime period selection because there isn't a Canadian ad for each lifetime period 
-        # Set select_from_stims to possible_stims to achieve this
-        num_min = possible_stims.aggregate(Min('num_responses'))['num_responses__min']
-        select_from_stims = possible_stims.filter(num_responses=num_min)
-
-    # We've arrived at our stimulus
-    if not select_from_stims.count():
-        if settings.DEBUG:
-            print('No more stims')
-
-        return None, None
-    else:
-        #if there are no previous stims to calculate media_counts, randomly select a stim from select_from_stims
-        if len(media_counts) == 0:
-            stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
-
-        #otherwise, try to pick from the least presented modalities so far
         else:
-            #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = (min(media_counts)))
-            #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type').exclude(stimulusxattribute__attribute_value_text = media_counts.most_common(1)[0][0])
-            least_used_modality = min(media_counts, key=media_counts.get)
-            most_used_modality = max(media_counts, key=media_counts.get)
-
-            #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = least_used_modality)
-            least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type').exclude(stimulusxattribute__attribute_value_text = most_used_modality)
-
-            print('number available:', len(least_used_modalities), 'least used modality:', least_used_modality)
-            #select_from_stims = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = min(media_counts)
-            
-            #if there are no stimuli from least_used_modalities, randomly select a stim from select_from_stims
-            if len(least_used_modalities) == 0:
+            #if there are no previous stims to calculate media_counts, randomly select a stim from select_from_stims
+            if len(media_counts) == 0:
                 stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
+
+            #otherwise, try to pick from the least presented modalities so far
             else:
-                #try to use the least presented modality in this session
-                least_used_modality_stims = least_used_modalities.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = least_used_modality)
-                #otherwise, use whatever is available from the two least frequently presented modality in this session
-                if not least_used_modality_stims:
-                    stimulus = random.choice(least_used_modalities)
-                else:
-                    stimulus = random.choice(least_used_modality_stims)
+                #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = (min(media_counts)))
+                #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type').exclude(stimulusxattribute__attribute_value_text = media_counts.most_common(1)[0][0])
+                least_used_modality = min(media_counts, key=media_counts.get)
+                most_used_modality = max(media_counts, key=media_counts.get)
+
+                #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = least_used_modality)
+                least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type').exclude(stimulusxattribute__attribute_value_text = most_used_modality)
+
+                print('number available:', len(least_used_modalities), 'least used modality:', least_used_modality)
+                #select_from_stims = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = min(media_counts)
                 
+                #if there are no stimuli from least_used_modalities, randomly select a stim from select_from_stims
+                if len(least_used_modalities) == 0:
+                    stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
+                else:
+                    #try to use the least presented modality in this session
+                    least_used_modality_stims = least_used_modalities.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = least_used_modality)
+                    #otherwise, use whatever is available from the two least frequently presented modality in this session
+                    if not least_used_modality_stims:
+                        stimulus = random.choice(least_used_modalities)
+                    else:
+                        stimulus = random.choice(least_used_modality_stims)
                 
     #
     # Now, set up the jsPsych trial
