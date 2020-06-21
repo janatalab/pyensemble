@@ -332,7 +332,8 @@ def imagined_jingle(request,*args,**kwargs):
 def rated_familiar(request,*args,**kwargs):
     # Get the current stimulus ID
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=kwargs['session_id']).experiment.id))
-    stimulus_id = expsessinfo['stimulus_id']
+    #stimulus_id = expsessinfo['stimulus_id']
+    stimulus_id = stimulus.id
 
     # Get the form we want
     form_name='Jingle Project Familiarity'
@@ -343,6 +344,9 @@ def rated_familiar(request,*args,**kwargs):
     pdb.set_trace()
     # Check whether our enum matches
     
+    if last_response.response_enum == 0:
+        return False
+
     return last_response.response_enum > 0
 
 
@@ -637,32 +641,35 @@ def select_study1(request,*args,**kwargs):
 
     region_counts = Counter(StimulusXAttribute.objects.filter(stimulus__in=presented_stims,attribute__name='Region').values_list('attribute_value_text',flat=True))
 
-
-    # Jingle durations are used as the stim durations for the other two modalities associated with this advertised item
-    # Create a list of jingle ids for this item
-    jingle_ids = StimulusXAttribute.objects.filter(stimulus__name__contains='comm', attribute__name = 'Product', attribute_value_text = item).values_list('stimulus_id')
-
-    # There are often multiple jingles associated with an item
-    # If that's the case, find the longest jingle for this item and use it as the stim duration for other modalities associated with that item
-    if jingle_ids.count() > 1:
-        
-        durations = []
-
-        for jingle_id in jingle_ids: 
-            duration = StimulusXAttribute.objects.filter(stimulus_id=jingle_id, attribute__name = 'Duration').values_list('attribute_value_double')[0]
-            durations.append(duration)
-        stim_duration = max(durations)
-
-    else: 
-        stim_duration = StimulusXAttribute.objects.get(stimulus_id=jingle_ids[0], attribute__name = 'Duration').attribute_value_double
-
-    #take this line out during the real study
-    if not stim_duration:
-        print(stimulus.name)
-        stimulus = random.choice(least_used_modality_stims)
-
-
     media_type = StimulusXAttribute.objects.get(stimulus = stimulus, attribute__name = 'Media Type').attribute_value_text
+
+    if media_type == 'jingle':
+        stim_duration = StimulusXAttribute.objects.filter(stimulus_id=stimulus.id, attribute__name = 'Duration').values_list('attribute_value_double')[0]
+
+    else:
+        # Jingle durations are used as the stim durations for the other two modalities associated with this advertised item
+        # Create a list of jingle ids for this item
+        jingle_ids = StimulusXAttribute.objects.filter(stimulus__name__contains='comm', attribute__name = 'Product', attribute_value_text = item).values_list('stimulus_id')
+
+        # There are often multiple jingles associated with an item
+        # If that's the case, find the longest jingle for this item and use it as the stim duration for other modalities associated with that item
+        if jingle_ids.count() > 1:
+            
+            durations = []
+
+            for jingle_id in jingle_ids: 
+                duration = StimulusXAttribute.objects.filter(stimulus_id=jingle_id, attribute__name = 'Duration').values_list('attribute_value_double')[0]
+                durations.append(duration)
+            stim_duration = max(durations)
+
+        else: 
+            stim_duration = StimulusXAttribute.objects.get(stimulus_id=jingle_ids[0], attribute__name = 'Duration').attribute_value_double
+
+        #take this line out during the real study
+        if not stim_duration:
+            print(stimulus.name)
+            stimulus = random.choice(least_used_modality_stims)
+
 
     # Specify the trial based on the jsPsych definition for the corresponding media type
     if media_type == 'jingle':
