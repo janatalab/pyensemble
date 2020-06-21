@@ -31,6 +31,8 @@ from pyensemble.models import Session, Attribute, Stimulus, StimulusXAttribute, 
 from pyensemble.importers.forms import ImportForm
 
 from collections import Counter
+from random import random as rand
+from random import randrange
 
 from django.template import loader
 
@@ -51,12 +53,14 @@ study_params = {
         'logo_duration_ms': 15000,
         'slogan_duration_ms': 15000,
         'jingle_duration_ms': 15000,
+        'region_criterion': 0.1
     },
     'jingle_stim_select_test': {
         'age_ranges':[(6,16),(17,30),(31,64),(65,120)],
         'logo_duration_ms': 2000,
         'slogan_duration_ms': 2000,
         'jingle_duration_ms': 2000,
+        'region_criterion': 0.1
     }
 }
 
@@ -328,15 +332,15 @@ def imagined_jingle(request,*args,**kwargs):
 def rated_familiar(request,*args,**kwargs):
     # Get the current stimulus ID
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=kwargs['session_id']).experiment.id))
-
     stimulus_id = expsessinfo['stimulus_id']
-    
+
     # Get the form we want
     form_name='Jingle Project Familiarity'
 
     # Get the response corresponding to this stimulus
     last_response = Response.objects.filter(session=kwargs['session_id'],form__name=form_name, question__text__contains='familiar', stimulus=stimulus_id).last()
 
+    pdb.set_trace()
     # Check whether our enum matches
     
     return last_response.response_enum > 0
@@ -469,25 +473,9 @@ def select_study1(request,*args,**kwargs):
     if session.experiment.title == 'jingle_project_study1':
         form_name = 'Emotion Ratings'
     elif session.experiment.title == 'jingle_stim_select_test':
-        form_name = 'Jingle Project Familiarity'
+        #form_name = 'Jingle Project Familiarity'
+        form_name = 'Emotion Ratings'
 
-    rand_region = np.random.choice(['Canada','USA'], 1, replace = False, p=[0.20, 0.80])
-
-    #repeats = ExperimentXForm.objects.get(experiment = session.experiment, form__name = form_name).repeat
-    # Set the proportion/weight based on the number of trials
-    # 10% of the total number of trials should be comprised of the Canadian foils 
-    #num_can = int(.10 * (repeats))
-    #num_USA = repeats - num_can
-
-    # Create a list of possible regions with the correct number of iterations
-    #total_regions = ['USA'] * num_USA
-    #canadian_additions = ['Canada'] * num_can
-    #total_regions.extend(canadian_additions)
-
-    # Randomly choose a region from this list and remove it from the list of regions so it's not selected again
-    #rand_region = random.choice(total_regions)
-    #print(rand_region)
-    #total_regions.remove(rand_region)
 
     CAN_stim_ids = StimulusXAttribute.objects.filter(attribute__name = 'Region', attribute_value_text = 'Canada').values_list('stimulus',flat=True).distinct()
     CAN_stims = Stimulus.objects.filter(id__in=CAN_stim_ids)
@@ -495,16 +483,20 @@ def select_study1(request,*args,**kwargs):
     USA_stim_ids = StimulusXAttribute.objects.filter(attribute__name = 'Region', attribute_value_text = 'USA').values_list('stimulus',flat=True).distinct()
     USA_stims = Stimulus.objects.filter(id__in=USA_stim_ids)    
 
+    #randomly select a region for the stim based on 10% likelihood of getting Canadian stims (specified in params)
+    if rand() < params['region_criterion']:
+        use_region = 'Canada'
+    else:
+        use_region = 'USA'
    
-   # if it's a Canadian advertisement, filter USA ads out of possible_stims
-    if rand_region == 'Canada':
-
-    #remove American stims from the list of possible stimuli
+    # if it's a Canadian advertisement, filter USA ads out of possible_stims
+    if use_region == 'Canada':
+        #remove American stims from the list of possible stimuli
         possible_stims = possible_stims.exclude(stimulusxattribute__attribute_value_text='USA')
 
         #if there are no Canadian stims left to test, sample from the USA ads
         if not possible_stims:
-            rand_region == 'USA'
+            use_region == 'USA'
 
         else:
 
@@ -543,7 +535,7 @@ def select_study1(request,*args,**kwargs):
                         stimulus = random.choice(least_used_modality_stims)
 
    # if it's an American advertisement, filter Canadian ads out of possible stims and proceed
-    if rand_region == 'USA':
+    if use_region == 'USA':
 
         #remove Canadian stims from the list of possible stimuli
         possible_stims = possible_stims.exclude(stimulusxattribute__attribute_value_text='Canada')
@@ -640,9 +632,11 @@ def select_study1(request,*args,**kwargs):
     #
 
     # Determine the stimulus type
-    pdb.set_trace()
     # Get the name of the advertised item (called Product) for this stimulus
     item = StimulusXAttribute.objects.get(stimulus = stimulus, attribute__name = 'Product').attribute_value_text
+
+    region_counts = Counter(StimulusXAttribute.objects.filter(stimulus__in=presented_stims,attribute__name='Region').values_list('attribute_value_text',flat=True))
+
 
     # Jingle durations are used as the stim durations for the other two modalities associated with this advertised item
     # Create a list of jingle ids for this item
@@ -661,6 +655,11 @@ def select_study1(request,*args,**kwargs):
 
     else: 
         stim_duration = StimulusXAttribute.objects.get(stimulus_id=jingle_ids[0], attribute__name = 'Duration').attribute_value_double
+
+    #take this line out during the real study
+    if not stim_duration:
+        print(stimulus.name)
+        stimulus = random.choice(least_used_modality_stims)
 
 
     media_type = StimulusXAttribute.objects.get(stimulus = stimulus, attribute__name = 'Media Type').attribute_value_text
@@ -710,7 +709,10 @@ def select_study1(request,*args,**kwargs):
     # Push the trial to the timeline
     timeline.append(trial)
 
+    pdb.set_trace()
+
     print("# jingles:", media_counts['jingle'], "# slogans:", media_counts['slogan'], "# logos:", media_counts['logo'])
+    print("# Canadian ads:", region_counts['Canada'], "# USA ads:", region_counts['USA'])
 
     return timeline, stimulus.id# jingle_study.py
 
