@@ -466,7 +466,7 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
 
     return(timeline,'')
 
-"""
+
 def present_rest_message(request,*args,**kwargs):
     #DOESN"T WORK !
     # present a string describing progress through task 
@@ -486,17 +486,12 @@ def present_rest_message(request,*args,**kwargs):
 
     # Get the appropraite Trial attribute from the current session
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
-    lastTrialAttribute = expsessinfo['currTrialAttribute']
+    lastTrialAttribute = expsessinfo['currTrialName']
 
     # grab the lst two char (numbers) in the attr. name
-    if lastTrialAttribute=='NULL':
-        tmpTrialNum = 10 #means we are in recall task.
-        # how many trials total? (40)
-        currprog = (tmpTrialNum/20)*100
-    else:
-        tmpTrialNum = int(lastTrialAttribute[-2:])
-        # how many trials total? (40)
-        currprog = (tmpTrialNum/40)*100
+    tmpTrialNum = int(lastTrialAttribute[-2:])
+    # how many trials total? (40)
+    currprog = (tmpTrialNum/40)*100
 
     # increment them by 1 and put back into the string
     currpromt = 'Great work so far! You have completed %02d%% of the task.'%(currprog)
@@ -517,9 +512,7 @@ def present_rest_message(request,*args,**kwargs):
     #import pdb; pdb.set_trace() #test if it ges here if time4rest is false (doesn't)
 
     return(timeline, '')
-"""
 
-"""
 def time4rest(request,*args,**kwargs):
     #return True when it's time for a rest form to be presented
     #should be based on the trial param in the session info
@@ -538,32 +531,22 @@ def time4rest(request,*args,**kwargs):
 
     # Get the appropraite Trial attribute from the current session
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
-    lastTrialAttribute = expsessinfo['currTrialAttribute']
-
-    #get trial counter for final recall task (trial IDs randomized)
-    try:
-        breaknum = expsessinfo['curr_recall_trial']
-    except:
-        breaknum = 999
+    lastTrialAttribute = expsessinfo['currTrialName']
     
     #clear misc_info etc. 
     expsessinfo['misc_info'] = ''
-    expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
     request.session.modified = True 
-
 
     #import pdb; pdb.set_trace()
     # if it's practice_trial, go ahead and present trial01
     if lastTrialAttribute in params['breakAfterTheseTrials']:
         #take a break! 
         time2rest = True
-    elif breaknum in ['10']:
-        time2rest = True
     else:
         time2rest = False
 
     return time2rest
-"""
+
 
 """
 def select_stim(request,*args,**kwargs):
@@ -805,7 +788,15 @@ def setUpLoopRecog(request,*args,**kwargs):
                                 noDup = False
                                 print(f'Have to restart the trial, preceding loop duplicate')
                                 tmpitem = all_loop_names.pop(itrial)
-                                all_loop_names.insert(random.randrange(itrial+1,len(all_loop_names)),tmpitem)
+                                try:
+                                    #if this fails, most likely last trial and no other loop to pick here
+                                    #e.g., empty range for randrange() (39,39, 0)
+                                    all_loop_names.insert(random.randrange(itrial+1,len(all_loop_names)),tmpitem)
+                                except:
+                                    pdb.set_trace()
+                                    ready2go = False
+
+
                         else:
                             noDup = True
                     else:
@@ -899,15 +890,15 @@ def select_recog_loop(request,*args,**kwargs):
             'stimulus': os.path.join(settings.MEDIA_URL,thisStim.location.url),
             'choices': 'none',
             'click_to_start': True,
-            'trial_ends_after_audio': True
-            #'trial_duration': params['loop_trial_duration_ms']
+            'trial_ends_after_audio': True,
+            'trial_duration': params['loop_trial_duration_ms']
         }
     if trial['click_to_start']:
         trial['prompt'] = '<a id="start_button" class="btn btn-primary" role="button"  href="#">Start sound</a>'
     #import pdb; pdb.set_trace()
     # Push the trial to the timeline
     timeline.append(trial)
-
+    currTrialInfo['currTrial'] = 'trial%02d'%tmpTrialNum #add this info to misc_info
     #save out info to write to response table and add the new trial nuber 
     expsessinfo['misc_info'] = json.dumps(currTrialInfo)
     expsessinfo['currTrialName'] = 'trial%02d'%tmpTrialNum
@@ -916,6 +907,61 @@ def select_recog_loop(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     return(timeline, thisStim.id) 
+
+def IRMIsong1FollowUp(request,*args,**kwargs):
+    #if they recognized the loop, as them about INMI
+    #still want to ask even if it's a foil. nice to get the INMI FA rates
+    #
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our subject
+    subject = session.subject
+
+    # grab the last response
+    hearBeforeResp = Response.objects.filter(session_id=session_id,question__text__contains='Have you heard this music excerpt before?').order_by('date_time') #- most recent is last?
+
+    if hearBeforeResp.reverse()[0].response_enum==0:
+        presentThisForm = True
+    else:
+        presentThisForm = False 
+
+    return presentThisForm
+
+def IRMIsong2FollowUp(request,*args,**kwargs):
+    #if they reported INMI, follow up some more
+    #
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our subject
+    subject = session.subject
+
+    # grab the last response
+    hadINMIResp = Response.objects.filter(session_id=session_id,question__text__contains='Have you experienced this musical loop as involuntary repetitive musical imagery while participating in the study today?').order_by('date_time') #- most recent is last?
+
+    # grab the last response
+    hearBeforeResp = Response.objects.filter(session_id=session_id,question__text__contains='Have you heard this music excerpt before?').order_by('date_time') #- most recent is last?
+
+
+    if hadINMIResp.reverse()[0].response_enum>0 and hearBeforeResp.reverse()[0].response_enum==0:
+        presentThisForm = True
+    else:
+        presentThisForm = False 
+
+    return presentThisForm
 
 
 def logThisRun(session,currRunDict,params):

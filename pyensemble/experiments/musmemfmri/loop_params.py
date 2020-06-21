@@ -10,7 +10,7 @@ def loop_params():
         'musmemfmri_loop_pilot': {
             'experiment_id': 6,
             'ignore_subs': ['01mtt90011'],#
-            'breakAfterTheseTrials': ['trial20','trial40','trial60','trial80','trial100','trial120'],
+            'breakAfterTheseTrials': ['trial10','trial20','trial30'],
             'prac_loop_stim_id': 99999,
             'loop_attribute': 'loopsV1',
             'nUniqueLoops': nuLoops,
