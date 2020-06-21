@@ -547,14 +547,11 @@ def time4rest(request,*args,**kwargs):
 
     return time2rest
 
+def select_ftap_stim(request,*args,**kwargs):
+    # script selects previoulsy assembled stim trials from attr x attr and presents
+    # jspsych trial that records tapping responses (fixation cross)
 
-"""
-def select_stim(request,*args,**kwargs):
-    # script selects previoulsy assembled face bios from the attr x attr table 
-
-    # Construct a jsPsych timeline
-    # https://www.jspsych.org/overview/timeline/
-    #
+    # Init jsPsych timeline
     timeline = []
 
     # Extract our session ID
@@ -603,17 +600,17 @@ def select_stim(request,*args,**kwargs):
     #
     #import pdb; pdb.set_trace()
     #try to add some html markup to get the bio to not spread so far
-    currBio_html = '<div style="margin-top:00%; margin-left:30%; margin-right:30%; display:inline-block; vertical-align:top;">'+currBio+'</div>'
     trial = {
-            'type': 'image-keyboard-response',
+            'type':  'audio-keyboard-response',
             'stimulus': os.path.join(settings.MEDIA_URL,thisStim.location.url),
-            'stimulus_height': None,
-            'stimulus_width': None,
             'choices': 'none',
-            'stimulus_duration': params['encoding_bio_duration_ms'],
-            'trial_duration': params['encoding_bio_duration_ms'],
-            'prompt': currBio_html
+            'click_to_start': True,
+            'trial_ends_after_audio': True,
+            'trial_duration': params['expo_trial_duration_ms']
         }
+    if trial['click_to_start']:
+        trial['prompt'] = '<a id="start_button" class="btn btn-primary" role="button"  href="#">Start sound</a>'
+    
     #import pdb; pdb.set_trace()
     # Push the trial to the timeline
     timeline.append(trial)
@@ -625,7 +622,7 @@ def select_stim(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     return(timeline, thisStim.id) 
-"""
+
 
 """
 def addParams2Session(currBioDic,TrialAttribute,request,session_id,params):
@@ -891,7 +888,7 @@ def select_recog_loop(request,*args,**kwargs):
             'choices': 'none',
             'click_to_start': True,
             'trial_ends_after_audio': True,
-            'trial_duration': params['loop_trial_duration_ms']
+            'trial_duration': params['recog_trial_duration_ms']
         }
     if trial['click_to_start']:
         trial['prompt'] = '<a id="start_button" class="btn btn-primary" role="button"  href="#">Start sound</a>'

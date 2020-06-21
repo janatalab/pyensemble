@@ -22,7 +22,8 @@ def loop_params():
                             'run5_trials': [str('trial%02d'%i) for i in range((nuLoops*4)+1,81+nuLoops)],#_81-100
                             'run6_trials': [str('trial%02d'%i) for i in range((nuLoops*5)+1,101+nuLoops)]#_101-120
                             },
-            'loop_trial_duration_ms': 16000,#3200=4 loop reps
+            'expo_trial_duration_ms': 16000,#3200=4 loop reps
+            'recog_trial_duration_ms': 8000,
             'encoding_rest_duration_ms': 10000,
             
             'form_names': ['post_bio_q2_face_name','post_bio_q2_location','post_bio_q2_job',
