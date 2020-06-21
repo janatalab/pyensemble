@@ -209,7 +209,8 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
                                 recallResponses[iresp].correct_answer = json.loads(recallResponses[iresp].misc_info)[ipname]
                      
             else:
-                print(f'WARNING: mismatched number of expo trials for sub:'+isub.subject_if)
+                print(f'WARNING: mismatched number of expo trials for sub:'+isub.subject_id)
+                pdb.set_trace()
 
             #we want a row for every trial, so let's loop through the trials
             # be better to match the trials to verify
