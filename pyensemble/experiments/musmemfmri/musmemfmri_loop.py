@@ -1,5 +1,5 @@
 # musmemfmri_loop.py
-import loop_params as lp #for some reason this needs "from . " in the _bio??from . 
+from . import loop_params as lp #for some reason this needs "from . " in the _bio??from . 
 
 import pdb
 import os, csv, re
@@ -836,7 +836,7 @@ def setUpLoopRecog(request,*args,**kwargs):
             elif currStimName in target_names:
                 trialDict[currTrial] = {'type': 'targ','loop': currStimName}
             
-    pdb.set_trace()
+    #pdb.set_trace()
     # now log this trial dict in the session info to access later. 
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
     expsessinfo['currTrialName'] = 'trial00'
