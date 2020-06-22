@@ -150,6 +150,86 @@ def import_attributes(stimin):
 
     return print('pyensemble/message.html',{'msg':'Successfully imported the attributes'})
 
+def present_rest_message(request,*args,**kwargs):
+    #DOESN"T WORK !
+    # present a string describing progress through task 
+    timeline = []
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our subject
+    subject = session.subject
+
+    # Get the appropraite Trial attribute from the current session
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    lastTrialAttribute = expsessinfo['currTrialName']
+
+    # grab the lst two char (numbers) in the attr. name
+    tmpTrialNum = int(lastTrialAttribute[-2:])
+    # how many trials total? (40)
+    currprog = (tmpTrialNum/40)*100
+
+    # increment them by 1 and put back into the string
+    currpromt = 'Great work so far! You have completed %02d%% of the task.'%(currprog)
+
+    trial = {
+            'type': 'image-keyboard-response',
+            'stimulus': '',
+            'stimulus_height': None,
+            'stimulus_width': None,
+            'choices': 'none',
+            'stimulus_duration': params['encoding_rest_duration_ms'],
+            'trial_duration': params['encoding_rest_duration_ms'],
+            'prompt': currpromt
+        }
+
+    # Push the trial to the timeline
+    timeline.append(trial)
+    #import pdb; pdb.set_trace() #test if it ges here if time4rest is false (doesn't)
+
+    return(timeline, '')
+
+def time4rest(request,*args,**kwargs):
+    #return True when it's time for a rest form to be presented
+    #should be based on the trial param in the session info
+    #also clears the misc info after each trial 
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our subject
+    subject = session.subject
+
+    # Get the appropraite Trial attribute from the current session
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+    lastTrialAttribute = expsessinfo['currTrialName']
+    
+    #clear misc_info etc. 
+    expsessinfo['misc_info'] = ''
+    request.session.modified = True 
+
+    #import pdb; pdb.set_trace()
+    # if it's practice_trial, go ahead and present trial01
+    if lastTrialAttribute in params['breakAfterTheseTrials']:
+        #take a break! 
+        time2rest = True
+    else:
+        time2rest = False
+
+    return time2rest
+
 def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
     #This function figures out which key version to use and assigns loops to trials
     #in the attr X attr table
@@ -466,10 +546,9 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
 
     return(timeline,'')
 
-
-def present_rest_message(request,*args,**kwargs):
-    #DOESN"T WORK !
-    # present a string describing progress through task 
+def ftap_practice_trial(request,*args,**kwargs):
+    #present practice trial with practice audio for freetap task 
+    # Init jsPsych timeline
     timeline = []
 
     # Extract our session ID
@@ -484,39 +563,29 @@ def present_rest_message(request,*args,**kwargs):
     # Get our subject
     subject = session.subject
 
-    # Get the appropraite Trial attribute from the current session
-    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
-    lastTrialAttribute = expsessinfo['currTrialName']
-
-    # grab the lst two char (numbers) in the attr. name
-    tmpTrialNum = int(lastTrialAttribute[-2:])
-    # how many trials total? (40)
-    currprog = (tmpTrialNum/40)*100
-
-    # increment them by 1 and put back into the string
-    currpromt = 'Great work so far! You have completed %02d%% of the task.'%(currprog)
+    # Get the practice loop
+    pracLoop = Stimulus.objects.get(name=params['practice_loop_name'],stimulusxattribute__attribute_id__name='practice_loop')
 
     trial = {
-            'type': 'image-keyboard-response',
-            'stimulus': '',
-            'stimulus_height': None,
-            'stimulus_width': None,
+            'type':  'audio-keyboard-response',
+            'stimulus': os.path.join(settings.MEDIA_URL,pracLoop.location.url),
             'choices': 'none',
-            'stimulus_duration': params['encoding_rest_duration_ms'],
-            'trial_duration': params['encoding_rest_duration_ms'],
-            'prompt': currpromt
+            'prompt': '<div style="font-size:60px;text-align: center">+</div>',
+            'click_to_start': True,
+            'trial_ends_after_audio': True,
+            'trial_duration': params['prac_trial_duration_ms']
         }
-
+    if trial['click_to_start']:
+        trial['prompt'] += '<a id="start_button" class="btn btn-primary" role="button"  href="#">Start sound</a>'
+    
     # Push the trial to the timeline
     timeline.append(trial)
-    #import pdb; pdb.set_trace() #test if it ges here if time4rest is false (doesn't)
 
-    return(timeline, '')
+    return(timeline, pracLoop.id)
 
-def time4rest(request,*args,**kwargs):
-    #return True when it's time for a rest form to be presented
-    #should be based on the trial param in the session info
-    #also clears the misc info after each trial 
+def practice_stim_feedback(request,*args,**kwargs):
+    #did they tap enough times?
+
     # Extract our session ID
     session_id = kwargs['session_id']
 
@@ -526,30 +595,22 @@ def time4rest(request,*args,**kwargs):
     # Get our parameters
     params = study_params[session.experiment.title]
 
-    # Get our subject
-    subject = session.subject
+    #grab the js psych data from the last practice trial and count how many times they responded
+    pdb.set_trace()
 
-    # Get the appropraite Trial attribute from the current session
-    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
-    lastTrialAttribute = expsessinfo['currTrialName']
-    
-    #clear misc_info etc. 
-    expsessinfo['misc_info'] = ''
-    request.session.modified = True 
+    ntaps = 20 #this needs to grab the last entry in response table (jspsych_data)
 
-    #import pdb; pdb.set_trace()
-    # if it's practice_trial, go ahead and present trial01
-    if lastTrialAttribute in params['breakAfterTheseTrials']:
-        #take a break! 
-        time2rest = True
-    else:
-        time2rest = False
+    if ntaps>params['nprac_taps']:
+        good2go = True #should be False
+    else: 
+        good2go = True
 
-    return time2rest
+    return(good2go)
 
-def select_ftap_stim(request,*args,**kwargs):
+def select_ftap_block(request,*args,**kwargs):
     # script selects previoulsy assembled stim trials from attr x attr and presents
     # jspsych trial that records tapping responses (fixation cross)
+    # build an entire run at 1 time (each trial is a different stim) 
 
     # Init jsPsych timeline
     timeline = []
@@ -570,54 +631,61 @@ def select_ftap_stim(request,*args,**kwargs):
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
     lastTrialAttribute = expsessinfo['currTrialAttribute']
 
-    expsessinfo['misc_info'] = 'NULL' #reset it for sanity 
+    #expsessinfo['misc_info'] = 'NULL' #reset it for sanity 
 
-    
-    # if it's practice_trial, go ahead and present trial01
-    if lastTrialAttribute == 'trial_practice':
-        currTrialAttribute = Attribute.objects.get(name='trial01')
+    #find the current task-run number 
+    #increase by 1
 
-    else:
-        # grab the lst two char (numbers) in the attr. name
-        tmpTrialNum = int(lastTrialAttribute[-2:])
-        # increment them by 1 and put back into the string
-        tmpTrialNum = tmpTrialNum + 1
-        # grab the attribute for the new trial 
-        currTrialAttribute = Attribute.objects.get(name='trial%02d'%tmpTrialNum)
+    rnum = 1
+
+    currTrials = params['runs2task']['ftap'][rnum]
+    #loop through the trials in the current run
+    for iTrial in currTrials: 
+        # grab the attribute for the trial 
+        currTrialAttribute = Attribute.objects.get(name=iTrial, attribute_class='loop_trials')
 
 
-    # Check to see if we already assigned a bio for this trial 
-    currBioDic, currBio = doesThisBioExist(subject,currTrialAttribute,params)
-    if not currBioDic:
-        print(f'SOMETHING IS WRONG. CANNOT FIND TRIAL')
-        import pdb; pdb.set_trace()
-        # Something went wrong, bio should already exist 
+        # Check to see if we already assigned a bio for this trial 
+        currStim = doesThisTrialExist(session,currTrialAttribute)
+        if not currStim:
+            print(f'SOMETHING IS WRONG. CANNOT FIND TRIAL')
+            import pdb; pdb.set_trace()
+            # Something went wrong, bio should already exist 
 
+        #
+        # Now, set up the jsPsych trials
+        #
+        trial = {
+                'type':  'audio-keyboard-response',
+                'stimulus': os.path.join(settings.MEDIA_URL,thisStim.location.url),
+                'choices': 'none',
+                'prompt': '<div style="font-size:60px;text-align: center">+</div>',
+                'click_to_start': False,
+                'trial_ends_after_audio': True,
+                'trial_duration': params['expo_trial_duration_ms']
+            }
+        if trial['click_to_start']:
+            trial['prompt'] = '<a id="start_button" class="btn btn-primary" role="button"  href="#">Start sound</a>'
+        
+        #import pdb; pdb.set_trace()
+        # Push the trial to the timeline
+        timeline.append(trial)
 
-    thisStim = currBioDic['picture']
-    #
-    # Now, set up the jsPsych trial
-    #
-    #import pdb; pdb.set_trace()
-    #try to add some html markup to get the bio to not spread so far
-    trial = {
-            'type':  'audio-keyboard-response',
-            'stimulus': os.path.join(settings.MEDIA_URL,thisStim.location.url),
-            'choices': 'none',
-            'click_to_start': True,
-            'trial_ends_after_audio': True,
-            'trial_duration': params['expo_trial_duration_ms']
-        }
-    if trial['click_to_start']:
-        trial['prompt'] = '<a id="start_button" class="btn btn-primary" role="button"  href="#">Start sound</a>'
-    
-    #import pdb; pdb.set_trace()
-    # Push the trial to the timeline
-    timeline.append(trial)
+        #add the silent jitter between loops
+        trial = {
+                'type': 'html-keyboard-response',
+                'stimulus': '<div style="font-size:60px;">+</div>',
+                'choices': jsPsych.NO_KEYS,
+                'trial_duration': params['expo_jitter_dur']
+            }
+
+        #import pdb; pdb.set_trace()
+        # Push the trial to the timeline
+        timeline.append(trial)
 
     # NOTE THAT THIS DOESN"T RECORD A STIMULUS IN THE RESPONSE TABLE
     #but if we have the trial attributes assigned we can use those.
-    addParams2Session(currBioDic,currTrialAttribute,request,session_id,params)
+    #addParams2Session(currBioDic,currTrialAttribute,request,session_id,params)
 
     #import pdb; pdb.set_trace()
 

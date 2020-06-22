@@ -12,7 +12,10 @@ def loop_params():
             'ignore_subs': ['01mtt90011'],#
             'breakAfterTheseTrials': ['trial10','trial20','trial30'],
             'prac_loop_stim_id': 99999,
+            'nprac_taps': 30,
+            'nprac_targs': 10, 
             'loop_attribute': 'loopsV1',
+            'practice_loop_name': 'Jazz7',
             'nUniqueLoops': nuLoops,
             'loop_keys': ['C','E','Ab'],
             'run_params': {'run1_trials': [str('trial%02d'%i) for i in range(1,1+nuLoops)],
@@ -22,9 +25,13 @@ def loop_params():
                             'run5_trials': [str('trial%02d'%i) for i in range((nuLoops*4)+1,81+nuLoops)],#_81-100
                             'run6_trials': [str('trial%02d'%i) for i in range((nuLoops*5)+1,101+nuLoops)]#_101-120
                             },
+            'runs2task': {'vdev':['run1_trials','run2_trials'],'adev': ['run3_trials','run4_trials'],
+                            'ftap': ['run5_trials','run6_trials']},
+            'prac_trial_duration_ms': 24000,
             'expo_trial_duration_ms': 16000,#3200=4 loop reps
             'recog_trial_duration_ms': 8000,
             'encoding_rest_duration_ms': 10000,
+            'expo_jitter_dur': 2000,
             
             'form_names': ['post_bio_q2_face_name','post_bio_q2_location','post_bio_q2_job',
                     'post_bio_q2_hobby','post_bio_q2_relation','post_bio_q2_relation_name'],
