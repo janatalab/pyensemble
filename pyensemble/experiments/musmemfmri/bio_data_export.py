@@ -47,7 +47,7 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
     study_year = 2020
 
     startMonthDay = [5,1]
-    endMonthDay = [6,30]
+    endMonthDay = [7,30]
 
     #grab all previous subs who have been entered in attr X attr 
     triallAttrIDs = [format(x, '02d') for x in params['encoding_trials_1-20']]+[format(x, '02d') for x in params['encoding_trials_21-40']]
@@ -153,7 +153,7 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
     study_year = 2020
 
     startMonthDay = [5,1]
-    endMonthDay = [6,30]
+    endMonthDay = [7,30]
 
     #grab all previous subs who have been entered in attr X attr 
     triallAttrIDs = [format(x, '02d') for x in params['encoding_trials_1-20']]+[format(x, '02d') for x in params['encoding_trials_21-40']]
@@ -186,28 +186,36 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
         for isub in prev_subs_finished:
             attracResponses = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form__id='7')
             recallResponses = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form__name__in=params['form_names'])
-
+            #actually, can we exclude practice trials based on the stim type? 
+            attracResponses = attracResponses.exclude(stimulus__name__in=['M1_cartoon','F1_cartoon'])
+            recallResponses = recallResponses.exclude(stimulus__name__in=['M1_cartoon','F1_cartoon'])
             #append all the relevant info to each entry (stored in misc_info)
             #[json.loads(x.trial_name)['trial_attribute_name'] for x in attracResponses]
-            if len(attracResponses)==len(recallResponses):
+            if len(attracResponses) == len(recallResponses):
                 for iresp in range(0,len(attracResponses)):
+                    #better way to do this, iterate over attrac responses and 
+                    #then find the recall resps with the same trial attr
+
                     attracResponses[iresp].trial_name = json.loads(attracResponses[iresp].misc_info)['trial_attribute_name']
-                    recallResponses[iresp].trial_name = json.loads(recallResponses[iresp].misc_info)['trial_attribute_name']
                     
-                    #['currPostBioQ']not saved out, but the form answered is the feature
-                    whichQuestion = Form.objects.get(id=recallResponses[iresp].form_id).name
-                    #this sucks but just loop
-                    for ipname in params['bioFeature_names']:
-                        if ipname in whichQuestion:
-                            if ipname in ['relation']:
-                                #pdb.set_trace()
-                                if json.loads(recallResponses[iresp].misc_info)[ipname] in params['alt_feature_answers'].keys():
-                                    recallResponses[iresp].correct_answer = [json.loads(recallResponses[iresp].misc_info)[ipname],params['alt_feature_answers'][json.loads(recallResponses[iresp].misc_info)[ipname]]]
+                    if attracResponses[iresp].trial_name not in ['trial_practice']:
+
+                        recallResponses[iresp].trial_name = json.loads(recallResponses[iresp].misc_info)['trial_attribute_name']
+                        
+                        #['currPostBioQ']not saved out, but the form answered is the feature
+                        whichQuestion = Form.objects.get(id=recallResponses[iresp].form_id).name
+                        #this sucks but just loop
+                        for ipname in params['bioFeature_names']:
+                            if ipname in whichQuestion:
+                                if ipname in ['relation']:
+                                    #pdb.set_trace()
+                                    if json.loads(recallResponses[iresp].misc_info)[ipname] in params['alt_feature_answers'].keys():
+                                        recallResponses[iresp].correct_answer = [json.loads(recallResponses[iresp].misc_info)[ipname],params['alt_feature_answers'][json.loads(recallResponses[iresp].misc_info)[ipname]]]
+                                    else:
+                                        recallResponses[iresp].correct_answer = json.loads(recallResponses[iresp].misc_info)[ipname]
                                 else:
                                     recallResponses[iresp].correct_answer = json.loads(recallResponses[iresp].misc_info)[ipname]
-                            else:
-                                recallResponses[iresp].correct_answer = json.loads(recallResponses[iresp].misc_info)[ipname]
-                     
+                         
             else:
                 print(f'WARNING: mismatched number of expo trials for sub:'+isub.subject_id)
                 pdb.set_trace()
@@ -215,33 +223,34 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
             #we want a row for every trial, so let's loop through the trials
             # be better to match the trials to verify
             for itrial in range(0,len(attracResponses)):
-                resptime = str(attracResponses[itrial].date_time.month)+'/'+str(attracResponses[itrial].date_time.day)+'/'+str(attracResponses[itrial].date_time.year)+'_'+str(attracResponses[itrial].date_time.hour)+':'+str(attracResponses[itrial].date_time.minute)
-                #NEED TO ADD SOMETHING HERE THAT GETS SYNONYMS AND ANTONYMS (e.g., father/dad; mom/son?)
-                #now do some fuzzy matching to see if it's correct
-                if len(recallResponses[itrial].correct_answer)==2: 
-                    matchScore1 = fuzz.ratio(recallResponses[itrial].response_text.lower(), recallResponses[itrial].correct_answer[0].lower())
-                    matchScore2 = fuzz.ratio(recallResponses[itrial].response_text.lower(), recallResponses[itrial].correct_answer[1].lower())
-                    if matchScore1 >= matchScore2:
-                        matchScore = matchScore1
+                if attracResponses[itrial].trial_name not in ['trial_practice']:
+                    resptime = str(attracResponses[itrial].date_time.month)+'/'+str(attracResponses[itrial].date_time.day)+'/'+str(attracResponses[itrial].date_time.year)+'_'+str(attracResponses[itrial].date_time.hour)+':'+str(attracResponses[itrial].date_time.minute)
+                    #NEED TO ADD SOMETHING HERE THAT GETS SYNONYMS AND ANTONYMS (e.g., father/dad; mom/son?)
+                    #now do some fuzzy matching to see if it's correct
+                    if len(recallResponses[itrial].correct_answer)==2: 
+                        matchScore1 = fuzz.ratio(recallResponses[itrial].response_text.lower(), recallResponses[itrial].correct_answer[0].lower())
+                        matchScore2 = fuzz.ratio(recallResponses[itrial].response_text.lower(), recallResponses[itrial].correct_answer[1].lower())
+                        if matchScore1 >= matchScore2:
+                            matchScore = matchScore1
+                        else:
+                            matchScore = matchScore2
                     else:
-                        matchScore = matchScore2
-                else:
+                        #pdb.set_trace()
+                        matchScore = fuzz.ratio(recallResponses[itrial].response_text.lower(), recallResponses[itrial].correct_answer.lower())
+                    if matchScore >= 90:
+                        hit = '1'
+                        verify = '-'
+                    elif matchScore >= 70:
+                        hit = '1'
+                        verify = 'verify'
+                    else:
+                        hit = '0'
+                        verify = '-'
                     #pdb.set_trace()
-                    matchScore = fuzz.ratio(recallResponses[itrial].response_text.lower(), recallResponses[itrial].correct_answer.lower())
-                if matchScore >= 90:
-                    hit = '1'
-                    verify = '-'
-                elif matchScore >= 70:
-                    hit = '1'
-                    verify = 'verify'
-                else:
-                    hit = '0'
-                    verify = '-'
-                #pdb.set_trace()
-                writer.writerow([attracResponses[itrial].subject_id, str(attracResponses[itrial].experiment_id),resptime,
-                    str(attracResponses[itrial].response_order), attracResponses[itrial].trial_name, str(attracResponses[itrial].stimulus_id),
-                    str(attracResponses[itrial].response_enum), recallResponses[itrial].response_text, recallResponses[itrial].correct_answer,
-                    hit, verify])
+                    writer.writerow([attracResponses[itrial].subject_id, str(attracResponses[itrial].experiment_id),resptime,
+                        str(attracResponses[itrial].response_order), attracResponses[itrial].trial_name, str(attracResponses[itrial].stimulus_id),
+                        str(attracResponses[itrial].response_enum), recallResponses[itrial].response_text, recallResponses[itrial].correct_answer,
+                        hit, verify])
 
     outDatCSV.close()
 
@@ -434,7 +443,7 @@ def bio_cbPlots(expName,startMonthDay,endMonthDay):
     study_year = 2020
 
     startMonthDay = [5,1]
-    endMonthDay = [6,30]
+    endMonthDay = [7,30]
 
     #
     #grab all previous subs who have been entered in attr X attr 

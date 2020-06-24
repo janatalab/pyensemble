@@ -3,6 +3,13 @@
 #### make sure the name of each dictionary matches the name of the experiment in pyensemble! 
 #that's how it pics the right ones...
 
+#07nnc01171 - errored on last recall trial
+#10jso99021 = error after 40 expo trials
+#10zoc94141 - error after 17 recall trials
+
+#12lrm98131 - keeping in, but had a weird glith during expo practice where the first recall response was
+#logged to form 6 (person_attention_practice)...
+
 def bio_params():
     study_params = {
         #params for the first bio pilot study
@@ -10,10 +17,10 @@ def bio_params():
             'experiment_id': 1,
             'ignore_subs': ['01mtt01011','01mtt89011','01ttf67012','04ttt89211','04ktb89211','01mtt89012','01ttt89011',
                             '01ttt89011','02weh90191','01mtt90011','01mtt91011','01ttt69011','02wem90191','04ktb20211',
-                            '01ttt72011','04ttt80211','04ttt99211','01ttt44011','01ttt72012',
+                            '01ttt72011','04ttt80211','04ttt99211','01ttt44011','01ttt72012','01ttt89012','10zoc94141',
                             '06asm20041','07coa00241','07oal99251','09hsr97191','11eia97261','11kyp96161','11tod99211',
-                            '01gah01011','01vlm00061','03jis99161','03tss91111','05yuk98101','01ttt30071','',
-                            '06pae00241','06snr00011','07hom01111','07prj92121','01tyt79011'],#07coa00241','06asm20041',
+                            '01gah01011','01vlm00061','03jis99161','03tss91111','05yuk98101','01ttt30071','10jso99021',
+                            '06pae00241','06snr00011','07hom01111','07prj92121','01tyt79011','07nnc01171'],#07coa00241','06asm20041',
             'breakAfterTheseTrials': ['trial10','trial20','trial30'],
             'practice_face_stim_ids': [840, 841],
             'face_stim_ids': [range(820,820+20)],
