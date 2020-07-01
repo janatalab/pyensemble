@@ -88,6 +88,8 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
 
             #did this sub make it through the survey task? (start time at form 14; ending 23)
             survey_start_resp = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form='14',question='3')
+            if len(survey_start_resp)==0:
+                survey_start_resp = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form='15',question='343')
             survey_end_resp = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=isub,form='23',question='127')
             try:
                 surveyTime = survey_end_resp[0].date_time - survey_start_resp[0].date_time
@@ -126,10 +128,14 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
                 textResp = recallResponses[0].response_text
             except:
                 textResp = '-'
-            #pdb.set_trace() 
+
+           
+            if isub.subject_id =='03jgj99271':
+                pdb.set_trace() 
+                
 
             writer.writerow([isub.name_last,isub.name_first,str(isub.date_entered),isub.subject_id,nexpoTrials,mexpoTime,msurveyTime,nrecallTrials,mrecalltime,mtotalTime,textResp])
-            print(isub.name_last+', '+isub.name_first+'\t'+str(isub.date_entered)+'\t'+isub.subject_id+'\t'+nexpoTrials+'\t'+nrecallTrials+'\t'+mtotalTime+'\t'+textResp+'\n')
+            print(isub.name_last+', '+isub.name_first+'\t'+str(isub.date_entered)+'\t'+isub.subject_id+'\t'+nexpoTrials+'\t'+nrecallTrials+'\t'+mtotalTime+'\t'+'\n')
                 #'Has Trials\tExpo Time\tSurvey Time\tRecallT Time\tComments\n')
     outDatCSV.close()
 

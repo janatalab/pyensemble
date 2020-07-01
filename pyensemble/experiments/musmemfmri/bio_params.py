@@ -3,12 +3,30 @@
 #### make sure the name of each dictionary matches the name of the experiment in pyensemble! 
 #that's how it pics the right ones...
 
-#07nnc01171 - errored on last recall trial
+#07nnc01171 - error on last recall trial
 #10jso99021 = error after 40 expo trials
-#10zoc94141 - error after 17 recall trials
+#10zoc94141 - error after 17 recall trials 
+#03mil97181 - error after 40 expo trials
+#05wrd01241 - error after 40 expo trials
+
+#11dra01011 - error on last recall trial?!
+
+#01haf01111 = error after 40 expo trials
+#05rsj00211 - error after 17 recall trials (ACTUALLY: he seems to have done the study 2x?s)
+
 
 #12lrm98131 - keeping in, but had a weird glith during expo practice where the first recall response was
 #logged to form 6 (person_attention_practice)...
+
+#08eam00311 - something weird happened here. e.g. 
+#-look at these reponses in expo task: 23202-23203 (same trial recall (27) submitted 2xs?! )
+#-look at these reponses in recall task: 23519-23525
+
+#11mem98201 - also repeat expo response? this time extra attrictive response, says they saw M1_asian_chinese during practice? id: 24289
+
+#03jgj99271 - for some reason just never got the hearing form and skipped right to the PANAS
+
+#on last day, now 2 particpants who can't get past the script that assigns face-trials 
 
 def bio_params():
     study_params = {
@@ -20,7 +38,8 @@ def bio_params():
                             '01ttt72011','04ttt80211','04ttt99211','01ttt44011','01ttt72012','01ttt89012','10zoc94141',
                             '06asm20041','07coa00241','07oal99251','09hsr97191','11eia97261','11kyp96161','11tod99211',
                             '01gah01011','01vlm00061','03jis99161','03tss91111','05yuk98101','01ttt30071','10jso99021',
-                            '06pae00241','06snr00011','07hom01111','07prj92121','01tyt79011','07nnc01171'],#07coa00241','06asm20041',
+                            '06pae00241','06snr00011','07hom01111','07prj92121','01tyt79011','07nnc01171','03mil97181',
+                            '05wrd01241','11dra01011','01haf01111','05rsj00211','08eam00311','11mem98201'],#07coa00241','06asm20041',
             'breakAfterTheseTrials': ['trial10','trial20','trial30'],
             'practice_face_stim_ids': [840, 841],
             'face_stim_ids': [range(820,820+20)],
