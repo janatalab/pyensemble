@@ -411,6 +411,16 @@ def serve_form(request, experiment_id=None):
             # form = Form.objects.get(form_id=currform.form_id)
             formset = QuestionModelFormSet(request.POST)
 
+        # Pull in any miscellaneous info that has been set by the experiment 
+        # This can be an arbitrary string, though json-encoded strings are recommended
+        misc_info = expsessinfo.get('misc_info','')
+
+        if expsessinfo['stimulus_id']:
+            stimulus = Stimulus.objects.get(pk=expsessinfo['stimulus_id'])
+        else:
+            stimulus = None
+
+
         if formset.is_valid():
             expsessinfo['response_order']+=1
 
@@ -475,60 +485,75 @@ def serve_form(request, experiment_id=None):
                 # Save responses to the Response table
                 #
                 responses = []
-                for idx,question in enumerate(formset.forms):
-            
-                    # Pre-process certain fields
-                    response = question.cleaned_data.get('option','')
 
-                    if question.instance.data_format.df_type == 'enum':
-                        if question.instance.html_field_type=='checkbox':
-                            # This is a HACK and needs to be fixed
-                            # checkbox should be enum
-                            # enums need to be stored in power of two format (like Ensemble), so that we can have multiple checkbox responses selected
-                            response_text = ','.join(response)
-                            response_enum = None
-                        else:
-                            response_enum = int(response)
-                            response_text = ''
-                    else:
-                        response_text = response
-                        response_enum = None
+                if form.name == 'ftap_expo_instructions_practice':
+                    pdb.set_trace()
 
-                    declined=question.cleaned_data.get('decline',False)
-
-                    # Pull in any miscellaneous info that has been set by the experiment 
-                    # This can be an arbitrary string, though json-encoded strings are recommended
-                    misc_info = expsessinfo.get('misc_info','')
-
-                    if expsessinfo['stimulus_id']:
-                        stimulus = Stimulus.objects.get(pk=expsessinfo['stimulus_id'])
-                    else:
-                        stimulus = None
-
-                    # Get jsPsych data if we have it, but only write it for the first question
-                    if not idx:
-                        jspsych_data = request.POST.get('jspsych_data','')
-                    else:
-                        jspsych_data = ''
-
+                # Check below to see if we presented a stim and collected only jspsych responses (no pyensemble question)
+                if not formset.forms and request.POST.get('jspsych_data',''):
                     responses.append(Response(
-                        experiment=currform.experiment,
-                        subject=Subject.objects.get(subject_id=expsessinfo['subject_id']),
-                        session=Session.objects.get(id=expsessinfo['session_id']),
-                        form=currform.form,
-                        form_order=form_idx,
-                        stimulus=stimulus,
-                        question=question.instance,
-                        form_question_num=idx,
-                        question_iteration=1, # this needs to be modified to reflect original Ensemble intent
-                        response_order=expsessinfo['response_order'],
-                        response_text=response_text,
-                        response_enum=response_enum,
-                        jspsych_data=jspsych_data,
-                        decline=declined,
-                        misc_info=misc_info,
+                                experiment=currform.experiment,
+                                subject=Subject.objects.get(subject_id=expsessinfo['subject_id']),
+                                session=Session.objects.get(id=expsessinfo['session_id']),
+                                form=currform.form,
+                                form_order=form_idx,
+                                stimulus=stimulus,
+                                #form_question_num=0,
+                                question_id=0,
+                                question_iteration=0, # this needs to be modified to reflect original Ensemble intent
+                                response_order=0,
+                                jspsych_data=request.POST.get('jspsych_data',''),
+                                misc_info=misc_info,
+                                )
+                            )
+
+                else:
+                    for idx,question in enumerate(formset.forms):
+                
+                        # Pre-process certain fields
+                        response = question.cleaned_data.get('option','')
+
+                        if question.instance.data_format.df_type == 'enum':
+                            if question.instance.html_field_type=='checkbox':
+                                # This is a HACK and needs to be fixed
+                                # checkbox should be enum
+                                # enums need to be stored in power of two format (like Ensemble), so that we can have multiple checkbox responses selected
+                                response_text = ','.join(response)
+                                response_enum = None
+                            else:
+                                response_enum = int(response)
+                                response_text = ''
+                        else:
+                            response_text = response
+                            response_enum = None
+
+                        declined=question.cleaned_data.get('decline',False)
+
+
+                        # Get jsPsych data if we have it, but only write it for the first question
+                        if not idx:
+                            jspsych_data = request.POST.get('jspsych_data','')
+                        else:
+                            jspsych_data = ''
+
+                        responses.append(Response(
+                            experiment=currform.experiment,
+                            subject=Subject.objects.get(subject_id=expsessinfo['subject_id']),
+                            session=Session.objects.get(id=expsessinfo['session_id']),
+                            form=currform.form,
+                            form_order=form_idx,
+                            stimulus=stimulus,
+                            question=question.instance,
+                            form_question_num=idx,
+                            question_iteration=1, # this needs to be modified to reflect original Ensemble intent
+                            response_order=expsessinfo['response_order'],
+                            response_text=response_text,
+                            response_enum=response_enum,
+                            jspsych_data=jspsych_data,
+                            decline=declined,
+                            misc_info=misc_info,
+                            )
                         )
-                    )
 
                 if responses:
                     Response.objects.bulk_create(responses)
@@ -545,6 +570,9 @@ def serve_form(request, experiment_id=None):
             # Move to the next form by calling ourselves
             return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
             
+        
+
+
         # If the form was not valid and we have to present it again, skip the trial running portion of it, so that we only present the questions
         skip_trial = True
 
