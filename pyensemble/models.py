@@ -134,7 +134,6 @@ class Response(models.Model):
     response_order = models.PositiveSmallIntegerField(null=False,default=None)
     response_text = models.TextField(blank=True)
     response_enum = models.IntegerField(blank=True, null=True)
-    jspsych_data = models.TextField(blank=True)
     decline = models.BooleanField(default=False)
     misc_info = models.TextField(blank=True)
 
@@ -314,6 +313,7 @@ class ExperimentXForm(models.Model):
         ('form_end_session','form_end_session'),
         ('form_subject_register','form_subject_register'),
         ('form_image_s','form_image_s'),
+        ('form_subject_email','form_subject_email'),
     ]
 
     form_handler = models.CharField(max_length=50, blank=True, default='form_generic')
@@ -324,7 +324,6 @@ class ExperimentXForm(models.Model):
     stimulus_script = models.CharField(max_length=100, blank=True)
     break_loop_button = models.BooleanField(default=False)
     break_loop_button_text = models.CharField(max_length=50, blank=True)
-    continue_button_text = models.CharField(max_length=50, blank=True, default='Next')
 
     class Meta:
         unique_together = (("experiment", "form", "form_order"),)
@@ -489,9 +488,10 @@ class ExperimentXForm(models.Model):
         num_visits = expsessinfo['visit_count'][form_idx]
 
         # See whether a break loop flag was set
-        if currform.break_loop_button and currform.break_loop_button_text == request.POST['submit']:
+        if expsessinfo['break_loop']:
             # If the user chose to exit the loop
             expsessinfo['curr_form_idx'] += 1
+            expsessinfo['break_loop']=False
 
         elif num_repeats and num_visits == num_repeats:
             # If the repeat value is set and we have visited it this number of times, then move on

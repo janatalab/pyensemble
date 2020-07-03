@@ -470,6 +470,31 @@ def serve_form(request, experiment_id=None):
                 # Move to the next form by calling ourselves
                 return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
+            elif handler_name == 'form_subject_email':
+                # Get our subject entry
+                subject = Subject.objects.get(subject_id=subject_id)
+
+                # Update the email info
+                subject.email = formset.cleaned_data['email']
+
+                # Save the subject
+                subject.save()
+
+                # Close out our session
+                session = Session.objects.get(id=expsessinfo['session_id'])
+                session.end_datetime = timezone.now()
+                session.save()
+
+                # Check whether we have a SONA redirect to handle
+                sona_code = expsessinfo['sona']
+
+                # Remove our cached session info
+                request.session.pop(expsess_key,None)
+
+                # Redirect to the SONA site to grant credit if we have a code
+                if sona_code:
+                    context['sona_url'] = Experiment.objects.get(id=experiment_id).sona_url.replace('XXXX',sona_code)
+
             else:
                 #
                 # Save responses to the Response table
@@ -577,7 +602,7 @@ def serve_form(request, experiment_id=None):
             # Get our selection function
             method = fetch_experiment_method(funcdict['func_name'])
 
-            if handler_name in ['form_feedback','form_end_session']:
+            if handler_name in ['form_feedback','form_end_session','form_subject_email']:
                 presents_stimulus = False
 
                 # Call the method to generate the feedback content
@@ -640,12 +665,6 @@ def serve_form(request, experiment_id=None):
         continue_button_text = 'Next'
 
     helper.add_input(Submit("submit",continue_button_text))
-
-    # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
-    helper = QuestionModelFormSetHelper()
-    helper.template = 'pyensemble/partly_crispy/question_formset.html'
-
-    helper.add_input(Submit("submit", "Next"))
 
     # Create our context to pass to the template
     context = {

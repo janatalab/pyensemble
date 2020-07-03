@@ -332,8 +332,8 @@ def imagined_jingle(request,*args,**kwargs):
 def rated_familiar(request,*args,**kwargs):
     # Get the current stimulus ID
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=kwargs['session_id']).experiment.id))
-    #stimulus_id = expsessinfo['stimulus_id']
-    stimulus_id = stimulus.id
+    
+    stimulus_id = expsessinfo['stimulus_id']
 
     # Get the form we want
     form_name='Jingle Project Familiarity'
