@@ -569,11 +569,12 @@ def ftap_practice_trial(request,*args,**kwargs):
     trial = {
             'type':  'audio-keyboard-response',
             'stimulus': os.path.join(settings.MEDIA_URL,pracLoop.location.url),
-            'choices': 'none',
+            'choices': ['b','m'],
             'prompt': '<div style="font-size:60px;text-align: center">+</div>',
             'click_to_start': True,
             'trial_ends_after_audio': True,
-            'trial_duration': params['prac_trial_duration_ms']
+            'trial_duration': params['prac_trial_duration_ms'],
+            'response_ends_trial': False
         }
     if trial['click_to_start']:
         trial['prompt'] += '<a id="start_button" class="btn btn-primary" role="button"  href="#">Start sound</a>'
@@ -598,10 +599,10 @@ def practice_stim_feedback(request,*args,**kwargs):
     #grab the js psych data from the last practice trial and count how many times they responded
     pdb.set_trace()
 
-    ntaps = 20 #this needs to grab the last entry in response table (jspsych_data)
+    ntaps = 2 #this needs to grab the last entry in response table (jspsych_data)
 
     if ntaps>params['nprac_taps']:
-        good2go = True #should be False
+        good2go = False #should be False
     else: 
         good2go = True
 
