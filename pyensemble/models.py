@@ -134,6 +134,7 @@ class Response(models.Model):
     response_order = models.PositiveSmallIntegerField(null=False,default=None)
     response_text = models.TextField(blank=True)
     response_enum = models.IntegerField(blank=True, null=True)
+    jspsych_data = models.TextField(blank=True)
     decline = models.BooleanField(default=False)
     misc_info = models.TextField(blank=True)
 
@@ -313,6 +314,7 @@ class ExperimentXForm(models.Model):
         ('form_end_session','form_end_session'),
         ('form_subject_register','form_subject_register'),
         ('form_image_s','form_image_s'),
+        ('form_subject_email','form_subject_email'),
     ]
 
     form_handler = models.CharField(max_length=50, blank=True, default='form_generic')

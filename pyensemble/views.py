@@ -24,7 +24,7 @@ from django.views.generic.edit import CreateView, UpdateView, FormView
 
 from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
 
-from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm
+from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm
 
 from .tasks import get_expsess_key, fetch_subject_id
 
@@ -407,6 +407,8 @@ def serve_form(request, experiment_id=None):
         #
         if handler_name == 'form_subject_register':
             formset = RegisterSubjectForm(request.POST)
+        elif handler_name == 'form_subject_email':
+            formset = SubjectEmailForm(request.POST)
         else:
             # form = Form.objects.get(form_id=currform.form_id)
             formset = QuestionModelFormSet(request.POST)
@@ -472,7 +474,7 @@ def serve_form(request, experiment_id=None):
 
             elif handler_name == 'form_subject_email':
                 # Get our subject entry
-                subject = Subject.objects.get(subject_id=subject_id)
+                subject = Subject.objects.get(subject_id=expsessinfo['subject_id'])
 
                 # Update the email info
                 subject.email = formset.cleaned_data['email']
@@ -634,6 +636,9 @@ def serve_form(request, experiment_id=None):
         if handler_name == 'form_subject_register':
             form = RegisterSubjectForm()
             formset = None
+        elif handler_name== 'form_subject_email':
+            # Technically, this is not a formset consisting of question forms, but we want to preserve the ability to display a custom form header.
+            formset = SubjectEmailForm()
         else:
             formset = QuestionModelFormSet(queryset=form.questions.all().order_by('formxquestion__form_question_num'))
 
