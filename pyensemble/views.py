@@ -480,21 +480,6 @@ def serve_form(request, experiment_id=None):
                 # Save the subject
                 subject.save()
 
-                # Close out our session
-                session = Session.objects.get(id=expsessinfo['session_id'])
-                session.end_datetime = timezone.now()
-                session.save()
-
-                # Check whether we have a SONA redirect to handle
-                sona_code = expsessinfo['sona']
-
-                # Remove our cached session info
-                request.session.pop(expsess_key,None)
-
-                # Redirect to the SONA site to grant credit if we have a code
-                if sona_code:
-                    context['sona_url'] = Experiment.objects.get(id=experiment_id).sona_url.replace('XXXX',sona_code)
-
             else:
                 #
                 # Save responses to the Response table

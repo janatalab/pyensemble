@@ -841,3 +841,28 @@ def study1_feedback(request,*args,**kwargs):
 
     return template.render(context)
 
+def study1_email(request,*args,**kwargs):
+
+    timeline = []
+
+    # Extract our session ID
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    experiment = Experiment.objects.get(title='jingle_project_study1')
+
+    # Get our experiment session info
+    expsessinfo = request.session['experiment_%d'%(session.experiment.id)]
+
+    # Get our subject
+    subject = session.subject
+
+    sona_code = request.GET.get('sona', None)
+
+    <label for="email_input">If you would like to be entered in our lottery to win one of 3 $25 Amazon giftcards, please enter your e-mail address:</label>
+    <input type="email" name="email" id="email_input" placeholder="Your Email">
+
+    #present this form if the study is accessed through a non-SONA code
+    return not sona_code
