@@ -589,7 +589,7 @@ def serve_form(request, experiment_id=None):
             # Get our selection function
             method = fetch_experiment_method(funcdict['func_name'])
 
-            if handler_name in ['form_feedback','form_end_session','form_subject_email']:
+            if handler_name in ['form_feedback','form_end_session']:
                 presents_stimulus = False
 
                 # Call the method to generate the feedback content
