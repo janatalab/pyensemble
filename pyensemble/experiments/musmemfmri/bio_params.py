@@ -15,7 +15,7 @@ def bio_params():
                             '01gah01011','01vlm00061','03jis99161','03tss91111','05yuk98101','01ttt30071','10jso99021',
                             '06pae00241','06snr00011','07hom01111','07prj92121','01tyt79011','07nnc01171','03mil97181',
                             '05wrd01241','11dra01011','01haf01111','05rsj00211','08eam00311','11mem98201','01tbt78011',
-                            '01btb89011','01tbt79011','01tbt80011','01tbt81011','01tbt82011','02prn00141'],
+                            '01btb89011','01tbt79011','01tbt80011','01tbt81011','01tbt82011','02prn00141','01tbt84011'],
             'breakAfterTheseTrials': ['trial10','trial20','trial30'],
             'practice_face_stim_ids': [840, 841],
             'face_stim_ids': [range(820,820+20)],
