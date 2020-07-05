@@ -63,7 +63,7 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [],
-        'APP_DIRS': True,
+        'APP_DIRS': False, # we actually explicitly turn this on in loaders option
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.debug',
@@ -72,6 +72,10 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.media', 
             ],
+            'loaders': [
+                ('django.template.loaders.app_directories.Loader'),
+                ('pyensemble.experiments.loaders.Loader',),
+            ]
         },
     },
 ]

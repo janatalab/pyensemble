@@ -25,9 +25,13 @@
 
     <script>
         $(document).ready(function () {
-            $('#trialrunner').removeClass('d-none');
-            var timeline_json={{ timeline_json|safe }};
-            start_trial(timeline_json);
+            {% if skip_trial %}
+                $('#questions').removeClass('d-none');
+            {% else %}
+                $('#trialrunner').removeClass('d-none');
+                var timeline_json={{ timeline_json|safe }};
+                start_trial(timeline_json);
+            {% endif %}
         });
     </script>
 {% endblock %}

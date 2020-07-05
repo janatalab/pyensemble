@@ -24,7 +24,7 @@ from django.views.generic.edit import CreateView, UpdateView, FormView
 
 from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
 
-from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm
+from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm
 
 from .tasks import get_expsess_key, fetch_subject_id
 
@@ -397,9 +397,9 @@ def serve_form(request, experiment_id=None):
     handler_name = os.path.splitext(currform.form_handler)[0]
 
     # Initialize other context
-    trialspec = {}
     timeline = []
     stimulus = None
+    feedback = None
 
     if request.method == 'POST':
         #
@@ -407,6 +407,8 @@ def serve_form(request, experiment_id=None):
         #
         if handler_name == 'form_subject_register':
             formset = RegisterSubjectForm(request.POST)
+        elif handler_name == 'form_subject_email':
+            formset = SubjectEmailForm(request.POST)
         else:
             # form = Form.objects.get(form_id=currform.form_id)
             formset = QuestionModelFormSet(request.POST)
@@ -469,6 +471,16 @@ def serve_form(request, experiment_id=None):
 
                 # Move to the next form by calling ourselves
                 return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
+
+            elif handler_name == 'form_subject_email':
+                # Get our subject entry
+                subject = Subject.objects.get(subject_id=expsessinfo['subject_id'])
+
+                # Update the email info
+                subject.email = formset.cleaned_data['email']
+
+                # Save the subject
+                subject.save()
 
             else:
                 #
@@ -570,8 +582,6 @@ def serve_form(request, experiment_id=None):
 
         # Execute a stimulus selection script if one has been specified
         if currform.stimulus_script:
-            presents_stimulus = True
-
             # Use regexp to get the function name that we're calling
             funcdict = parse_function_spec(currform.stimulus_script)
             funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
@@ -579,10 +589,19 @@ def serve_form(request, experiment_id=None):
             # Get our selection function
             method = fetch_experiment_method(funcdict['func_name'])
 
-            # Call the select function with the parameters to get the trial timeline specification
-            timeline, stimulus_id  = method(request, *funcdict['args'],**funcdict['kwargs'])
+            if handler_name in ['form_feedback','form_end_session']:
+                presents_stimulus = False
 
-            expsessinfo['stimulus_id'] = stimulus_id
+                # Call the method to generate the feedback content
+                feedback = method(request, *funcdict['args'],**funcdict['kwargs'])
+
+            else:
+                presents_stimulus = True
+
+                # Call the select function with the parameters to get the trial timeline specification
+                timeline, stimulus_id  = method(request, *funcdict['args'],**funcdict['kwargs'])
+
+                expsessinfo['stimulus_id'] = stimulus_id
         else:
             timeline = {}
 
@@ -617,20 +636,25 @@ def serve_form(request, experiment_id=None):
         if handler_name == 'form_subject_register':
             form = RegisterSubjectForm()
             formset = None
+        elif handler_name== 'form_subject_email':
+            # Technically, this is not a formset consisting of question forms, but we want to preserve the ability to display a custom form header.
+            formset = SubjectEmailForm()
         else:
             formset = QuestionModelFormSet(queryset=form.questions.all().order_by('formxquestion__form_question_num'))
-
-    # Determine any other trial control parameters that are part of the JavaScript injection
-    trialspec.update({
-        'questions_after_media_finished': True,
-        'skip': skip_trial,
-        })
 
     # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
     helper = QuestionModelFormSetHelper()
     helper.template = 'pyensemble/partly_crispy/question_formset.html'
 
-    helper.add_input(Submit("submit", "Next"))
+    # Add our submit button(s)
+    if currform.break_loop_button:
+        helper.add_input(Submit("submit", currform.break_loop_button_text,css_class='btn-secondary'))
+
+    continue_button_text = getattr(currform,'continue_button_text','')
+    if not continue_button_text:
+        continue_button_text = 'Next'
+
+    helper.add_input(Submit("submit",continue_button_text))
 
     # Create our context to pass to the template
     context = {
@@ -640,8 +664,9 @@ def serve_form(request, experiment_id=None):
         'helper': helper,
         'timeline': timeline,
         'timeline_json': json.dumps(timeline),
-        'trialspec': trialspec,
+        'skip_trial': skip_trial,
         'stimulus': stimulus,
+        'feedback': feedback,
        }
 
     if settings.DEBUG:
