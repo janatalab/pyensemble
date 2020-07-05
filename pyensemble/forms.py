@@ -253,8 +253,11 @@ class SubjectEmailForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        super(SubjectEmailForm, self).__init__(*args, **kwargs)
+
+        self.fields['email'].required = False
+
         self.helper = FormHelper()
         self.helper.form_method = 'post'
 
         self.helper.add_input(Submit('submit', 'Submit'))
-        super(SubjectEmailForm, self).__init__(*args, **kwargs)
