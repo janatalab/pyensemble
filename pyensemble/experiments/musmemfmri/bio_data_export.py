@@ -46,7 +46,7 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
     study_year = 2020
 
     startMonthDay = [5,1]
-    endMonthDay = [6,30]
+    endMonthDay = [7,30]
 
     #grab all previous subs who have been entered in attr X attr 
     triallAttrIDs = [format(x, '02d') for x in params['encoding_trials_1-20']]+[format(x, '02d') for x in params['encoding_trials_21-40']]
