@@ -805,7 +805,7 @@ def setUpLoopRecog(request,*args,**kwargs):
         targetCount = 0
         foilCount = 0
         random.shuffle(all_loop_names) # rand. order of all loops, 
-
+        pdb.set_trace()
         for itrial in range(0,len(all_loop_names)):
             trialReady = False
             while not trialReady:
@@ -876,6 +876,7 @@ def setUpLoopRecog(request,*args,**kwargs):
                             #too many targets in a row, change this assignment 
                             trialReady = False
                             print(f'Have to restart the trial, too many targets')
+                            #breaks here now? 
                             tmpitem = all_loop_names.pop(itrial)
                             all_loop_names.insert(random.randrange(itrial+1,len(all_loop_names)),tmpitem)
                     elif itrial==len(trialNames)-1:
@@ -924,7 +925,6 @@ def select_recog_loop(request,*args,**kwargs):
 
     timeline = []
 
-    pdb.set_trace()
 
     # Get the appropraite Trial attribute from the current session
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
@@ -932,6 +932,27 @@ def select_recog_loop(request,*args,**kwargs):
 
     expsessinfo['misc_info'] = 'NULL' #reset it for sanity 
     print(f'last trial: '+lastTrialAttribute)
+
+    # Insert a check to make sure we present the right stim. check session info and the response table
+    # if they don't match, assign next trial based on the last trial in response table. 
+    if int(lastTrialAttribute[-2:])>0:
+        # Here we want to grab the last response to verify we haven't missed a trial for some reason
+        recogResponses = Response.objects.filter(experiment_id=params['experiment_id'],session_id=session_id,form__name='music_listening_hrdsong', question__text__contains='Have you heard this music excerpt before?').order_by('date_time') #- for descending order
+
+        if not recogResponses:
+            #didn't find last response, but it's not the first trial?!
+            #just present the first trial again. 
+            lastTrialAttribute = 'trial00'
+        else:
+            #grab the last stim based on last response
+            lastRecogResponse = json.loads(recogResponses[recogResponses.count()-1].misc_info)['currTrial']
+            #grab the last stim based on sess info (lastTrialAttribute)
+
+        if lastRecogResponse not in lastTrialAttribute:
+            #something is off here, use the last response rather than session info
+            lastTrialAttribute = lastRecogResponse
+
+
 
     # grab the lst two char (numbers) in the attr. name
     tmpTrialNum = int(lastTrialAttribute[-2:])
@@ -944,11 +965,9 @@ def select_recog_loop(request,*args,**kwargs):
 
     print(f'this trial: '+currTrialInfo['type']+'; '+currTrialInfo['loop'])
 
-
-
     thisStim = Stimulus.objects.get(name=currTrialInfo['loop'])
     #
-    # Now, set up the jsPsych trial (THIS INS"T WORKING)
+    # Now, set up the jsPsych trial 
     #
     #import pdb; pdb.set_trace()
     trial = {
@@ -973,6 +992,35 @@ def select_recog_loop(request,*args,**kwargs):
     #import pdb; pdb.set_trace()
 
     return(timeline, thisStim.id) 
+
+def lastRecogTrial(request,*args,**kwargs):
+    #this function makes sure the recog forms repeat until we've presented all 40
+
+    session_id = kwargs['session_id']
+
+    # Get our session
+    session = Session.objects.get(pk=session_id)
+
+    # Get our parameters
+    params = study_params[session.experiment.title]
+
+    # Get our subject
+    subject = session.subject
+
+    expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
+
+    nextSessTrialNum = int(expsessinfo['currTrialName'][-2:])
+
+    # Here we want to grab the last response to verify we haven't missed a trial for some reason
+    recogResponses = Response.objects.filter(experiment_id=params['experiment_id'],session_id=session_id,form__name='music_listening_hrdsong', question__text__contains='Have you heard this music excerpt before?').order_by('date_time') #- for descending order
+
+    if nextSessTrialNum == 40 and recogResponses.count() >= 40:
+        #we have all the files, move on
+        repeatRecall = False
+    else:
+        repeatRecall = True
+
+    return(repeatRecall)
 
 def IRMIsong1FollowUp(request,*args,**kwargs):
     #if they recognized the loop, as them about INMI
@@ -1021,11 +1069,11 @@ def IRMIsong2FollowUp(request,*args,**kwargs):
     # grab the last response
     hearBeforeResp = Response.objects.filter(session_id=session_id,question__text__contains='Have you heard this music excerpt before?').order_by('date_time') #- most recent is last?
 
-
-    if hadINMIResp.reverse()[0].response_enum>0 and hearBeforeResp.reverse()[0].response_enum==0:
-        presentThisForm = True
-    else:
-        presentThisForm = False 
+    presentThisForm = False 
+    if hadINMIResp and hearBeforeResp:
+        if hadINMIResp.reverse()[0].response_enum>0 and hearBeforeResp.reverse()[0].response_enum==0:
+            presentThisForm = True
+        
 
     return presentThisForm
 
