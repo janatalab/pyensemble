@@ -443,8 +443,8 @@ def select_stim(request,*args,**kwargs):
     request.session.modified = True 
 
     # Here we want to grab the last response to verify we haven't missed a trial for some reason
-    expoResponsesAtr = Response.objects.filter(experiment_id=params['experiment_id'],session_id=session_id,form__name='present_bio', question__text__contains='How attractive was the person you just met?').order_by('id') #- for descending order
-    expoResponsesFeat = Response.objects.filter(experiment_id=params['experiment_id'],session_id=session_id,form__name__in=params['form_names']).order_by('id') #- for descending order
+    expoResponsesAtr = Response.objects.filter(session_id=session_id,form__name='present_bio', question__text__contains='How attractive was the person you just met?') #- order_by('id') is implic
+    expoResponsesFeat = Response.objects.filter(session_id=session_id,form__name__in=params['form_names']) #- order_by('id') is implic
 
     lastExpoResponseAtr = json.loads(expoResponsesAtr[expoResponsesAtr.count()-1].misc_info)['trial_attribute_name']
     lastExpoResponseFeat = json.loads(expoResponsesFeat[expoResponsesFeat.count()-1].misc_info)['trial_attribute_name']
@@ -728,8 +728,8 @@ def lastExpoTrial(request,*args,**kwargs):
     lastTrialAttribute = expsessinfo['currTrialAttribute']
 
     # Here we want to grab the last response to verify we haven't missed a trial for some reason
-    expoResponsesAtr = Response.objects.filter(experiment_id=params['experiment_id'],session_id=session_id,form__name='present_bio', question__text__contains='How attractive was the person you just met?').order_by('id') #- for descending order
-    expoResponsesFeat = Response.objects.filter(experiment_id=params['experiment_id'],session_id=session_id,form__name__in=params['form_names']).order_by('id') #- for descending order
+    expoResponsesAtr = Response.objects.filter(session_id=session_id,form__name='present_bio', question__text__contains='How attractive was the person you just met?') #- for descending order
+    expoResponsesFeat = Response.objects.filter(session_id=session_id,form__name__in=params['form_names'])#- for descending order
 
     lastExpoResponseAtr = json.loads(expoResponsesAtr[expoResponsesAtr.count()-1].misc_info)['trial_attribute_name']
     lastExpoResponseFeat = json.loads(expoResponsesFeat[expoResponsesFeat.count()-1].misc_info)['trial_attribute_name']
@@ -884,7 +884,7 @@ def select_recall_stim(request,*args,**kwargs):
 
     if int(expsessinfo['curr_recall_trial'])>0:
         # Here we want to grab the last response to verify we haven't missed a trial for some reason
-        recallResponses = Response.objects.filter(experiment_id=params['experiment_id'],session_id=session_id,form__name='post_freetype_qs', question__text__contains='What did this person do for work?').order_by('id') #- for descending order
+        recallResponses = Response.objects.filter(session_id=session_id,form__name='post_freetype_qs', question__text__contains='What did this person do for work?') #- for descending order implicit
 
         if not recallResponses and int(expsessinfo['curr_recall_trial'])>0:
             #didn't find last response, but it's not the first trial?!
@@ -950,7 +950,7 @@ def lastRecallTrial(request,*args,**kwargs):
     nextSessTrialNum = int(expsessinfo['curr_recall_trial'])
 
     # Here we want to grab the last response to verify we haven't missed a trial for some reason
-    recallResponses = Response.objects.filter(experiment_id=params['experiment_id'],session_id=session_id,form__name='post_freetype_qs', question__text__contains='What did this person do for work?').order_by('id') #- for descending order
+    recallResponses = Response.objects.filter(session_id=session_id,form__name='post_freetype_qs', question__text__contains='What did this person do for work?') #- for descending order implcit
 
     if nextSessTrialNum == params['total_recall_trials'] and recallResponses.count() >= params['total_recall_trials']:
 
