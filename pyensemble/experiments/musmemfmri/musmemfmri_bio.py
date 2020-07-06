@@ -344,7 +344,7 @@ def present_rest_message(request,*args,**kwargs):
     lastTrialAttribute = expsessinfo['currTrialAttribute']
 
     # grab the lst two char (numbers) in the attr. name
-    if lastTrialAttribute=='NULL' or lastTrialAttribute=='trial_practice':
+    if not lastTrialAttribute or lastTrialAttribute==params['practice_trial_name']:
         tmpTrialNum = 10 #means we are in recall task.
         # how many trials total? (40)
         currprog = (tmpTrialNum/20)*100
@@ -400,7 +400,7 @@ def time4rest(request,*args,**kwargs):
     
     #clear misc_info etc. 
     expsessinfo['misc_info'] = ''
-    expsessinfo['currPostBioQ'] = 'NULL' #mark it as used for sanity 
+    expsessinfo['currPostBioQ'] = '' #mark it as used for sanity 
     request.session.modified = True 
 
 
@@ -439,12 +439,12 @@ def select_stim(request,*args,**kwargs):
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
     lastTrialAttribute = expsessinfo['currTrialAttribute']
 
-    expsessinfo['misc_info'] = 'NULL' #reset it for sanity  ####THIS DOESN"T RESET IT!
+    expsessinfo['misc_info'] = '' #reset it for sanity  ####THIS DOESN"T RESET IT!
     request.session.modified = True 
 
     # Here we want to grab the last response to verify we haven't missed a trial for some reason
-    expoResponsesAtr = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=subject.subject_id,form__name='present_bio', question__text__contains='How attractive was the person you just met?').order_by('date_time') #- for descending order
-    expoResponsesFeat = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=subject.subject_id,form__name__in=params['form_names']).order_by('date_time') #- for descending order
+    expoResponsesAtr = Response.objects.filter(experiment_id=params['experiment_id'],session_id=session_id,form__name='present_bio', question__text__contains='How attractive was the person you just met?').order_by('id') #- for descending order
+    expoResponsesFeat = Response.objects.filter(experiment_id=params['experiment_id'],session_id=session_id,form__name__in=params['form_names']).order_by('id') #- for descending order
 
     lastExpoResponseAtr = json.loads(expoResponsesAtr[expoResponsesAtr.count()-1].misc_info)['trial_attribute_name']
     lastExpoResponseFeat = json.loads(expoResponsesFeat[expoResponsesFeat.count()-1].misc_info)['trial_attribute_name']
@@ -460,7 +460,7 @@ def select_stim(request,*args,**kwargs):
 
     print(f'last trial: '+lastTrialAttribute)
     # if it's practice_trial, go ahead and present trial01
-    if lastTrialAttribute == 'trial_practice':
+    if lastTrialAttribute == params['practice_trial_name']:
         currTrialAttribute = Attribute.objects.get(name='trial01',attribute_class='bio_trials')
 
     else:
@@ -475,10 +475,11 @@ def select_stim(request,*args,**kwargs):
 
     # Check to see if we already assigned a bio for this trial 
     currBioDic, currBio = doesThisBioExist(subject,currTrialAttribute,params)
-    if not currBioDic:
-        print(f'SOMETHING IS WRONG. CANNOT FIND TRIAL')
-        pdb.set_trace()
-        # Something went wrong, bio should already exist 
+    if settings.DEBUG:
+        if not currBioDic:
+            print(f'SOMETHING IS WRONG. CANNOT FIND TRIAL')
+            pdb.set_trace()
+            # Something went wrong, bio should already exist 
 
 
     thisStim = currBioDic['picture']
@@ -560,10 +561,11 @@ def stim_feedback(request,*args,**kwargs):
 
     # Grab the face and bio again to present with feedback
     currBioDic, currBio = doesThisBioExist(subject,Attribute.objects.get(name=lastTrialAttribute),params)
-    if not currBioDic:
-        print(f'SOMETHING IS WRONG. CANNOT FIND TRIAL')
-        pdb.set_trace()
-        # Something went wrong, bio should already exist 
+    if settings.DEBUG:
+        if not currBioDic:
+            print(f'SOMETHING IS WRONG. CANNOT FIND TRIAL')
+            pdb.set_trace()
+            # Something went wrong, bio should already exist 
 
     thisStim = currBioDic['picture']
     #
@@ -631,7 +633,7 @@ def select_practice_stim(request,*args,**kwargs):
     thisStim = practice_stims.filter(stimulusxattribute__attribute__id=sexAttributes.id)
 
     # Get the appropraite Trial attribute
-    TrialAttribute = Attribute.objects.get(name='trial_practice')
+    TrialAttribute = Attribute.objects.get(name=params['practice_trial_name'])
 
     # Check to see if we already assigned a bio for this trial 
     currBioDic, practice_bio = doesThisBioExist(subject,TrialAttribute,params)
@@ -726,13 +728,13 @@ def lastExpoTrial(request,*args,**kwargs):
     lastTrialAttribute = expsessinfo['currTrialAttribute']
 
     # Here we want to grab the last response to verify we haven't missed a trial for some reason
-    expoResponsesAtr = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=subject.subject_id,form__name='present_bio', question__text__contains='How attractive was the person you just met?').order_by('date_time') #- for descending order
-    expoResponsesFeat = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=subject.subject_id,form__name__in=params['form_names']).order_by('date_time') #- for descending order
+    expoResponsesAtr = Response.objects.filter(experiment_id=params['experiment_id'],session_id=session_id,form__name='present_bio', question__text__contains='How attractive was the person you just met?').order_by('id') #- for descending order
+    expoResponsesFeat = Response.objects.filter(experiment_id=params['experiment_id'],session_id=session_id,form__name__in=params['form_names']).order_by('id') #- for descending order
 
     lastExpoResponseAtr = json.loads(expoResponsesAtr[expoResponsesAtr.count()-1].misc_info)['trial_attribute_name']
     lastExpoResponseFeat = json.loads(expoResponsesFeat[expoResponsesFeat.count()-1].misc_info)['trial_attribute_name']
 
-    if lastTrialAttribute == 'trial40' and lastExpoResponseAtr == 'trial40' and lastExpoResponseFeat == 'trial40':
+    if lastTrialAttribute == 'trial%d'%params['total_expo_trials'] and lastExpoResponseAtr == 'trial%d'%params['total_expo_trials'] and lastExpoResponseFeat == 'trial%d'%params['total_expo_trials']:
         #we have all the files, move on
         repeatRecall = False
     else:
@@ -768,7 +770,7 @@ def clear_trial_sess_info(request,*args,**kwargs):
 
     #clear misc_info etc. 
     expsessinfo = request.session.get('experiment_%d'%(Session.objects.get(id=session_id).experiment.id))
-    expsessinfo['currTrialAttribute'] = 'NULL'
+    expsessinfo['currTrialAttribute'] = ''
     expsessinfo['misc_info'] = ''
     expsessinfo['currPostBioQ'] = ''
     request.session.modified = True 
@@ -882,7 +884,7 @@ def select_recall_stim(request,*args,**kwargs):
 
     if int(expsessinfo['curr_recall_trial'])>0:
         # Here we want to grab the last response to verify we haven't missed a trial for some reason
-        recallResponses = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=subject.subject_id,form__name='post_freetype_qs', question__text__contains='What did this person do for work?').order_by('date_time') #- for descending order
+        recallResponses = Response.objects.filter(experiment_id=params['experiment_id'],session_id=session_id,form__name='post_freetype_qs', question__text__contains='What did this person do for work?').order_by('id') #- for descending order
 
         if not recallResponses and int(expsessinfo['curr_recall_trial'])>0:
             #didn't find last response, but it's not the first trial?!
@@ -948,9 +950,9 @@ def lastRecallTrial(request,*args,**kwargs):
     nextSessTrialNum = int(expsessinfo['curr_recall_trial'])
 
     # Here we want to grab the last response to verify we haven't missed a trial for some reason
-    recallResponses = Response.objects.filter(experiment_id=params['experiment_id'],subject_id=subject.subject_id,form__name='post_freetype_qs', question__text__contains='What did this person do for work?').order_by('date_time') #- for descending order
+    recallResponses = Response.objects.filter(experiment_id=params['experiment_id'],session_id=session_id,form__name='post_freetype_qs', question__text__contains='What did this person do for work?').order_by('id') #- for descending order
 
-    if nextSessTrialNum == 20 and recallResponses.count() >= 20:
+    if nextSessTrialNum == params['total_recall_trials'] and recallResponses.count() >= params['total_recall_trials']:
 
         #we have all the files, move on
         repeatRecall = False
