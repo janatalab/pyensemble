@@ -274,7 +274,7 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
     trial position in a run (e.g., not the 1st stim in two runs) and 2) loops never follow the 
     same loops more than once. 
 
-    The problem is, in the later runs there is a small chance that we run out of face options by 
+    The problem is, in the later runs there is a small chance that we run out of loop options by 
     the last trial attribute wtihin a run (e.g., the 20th trial in a run). The way to get around 
     this would be to start the CBing for the run over until it works out correctly. 
 
@@ -329,7 +329,7 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
                 curr_loop_stims = [*set(r1_loop_stims), ]
 
             previous_runs.append(irun)
-            #pdb.set_trace()
+
             for itrial in useThisTrialRange:
                 cantAdjust = False
                 currentTrial = Attribute.objects.get(name=params['run_params'][irun][itrial],attribute_class='loop_trials')
@@ -359,7 +359,7 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
                         #CB based on the run 1 assignments across subjects
                         thisTrialPrevLoops = AttributeXAttribute.objects.filter(parent=currentTrial,mapping_name__in=prev_sess,mapping_value_text__iregex=r'^%s_'%(curr_loop_stims)).values_list('mapping_value_text',flat=True)
 
-                    #trip the thisTrialPrevLoops of key ending
+                    #strip the thisTrialPrevLoops of key ending
                     thisTrialStrpdPrevLoops = []
                     for iloop in thisTrialPrevLoops:
                         #remove key info part of string
@@ -376,7 +376,7 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
                     
                     #this is idx from curr_stims_x_pres of the stims presented least often
                     min_loop_idxs = [i for i, x in enumerate(curr_stims_x_pres) if x == min(curr_stims_x_pres)]
-
+                    #min_loop_idxs = [i for i, x in enumerate([0, 0, 0, 0]) if x == min([0, 0, 0, 0])]
                     #pdb.set_trace() 
                     if irun not in 'run1_trials':
                         #need to make sure stim isn't present in the same location as in a previous run
@@ -411,7 +411,9 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
                         if itrial>0:
                             while not good2go:
                                 #randomly select the loop, 
+                                #NOTE: must get stuck in this loop, it would flag it above if it was coming in fresh
                                 choose_this_loop_idx = final_loop_idxs[random.randrange(0,len(final_loop_idxs))]
+
                                 currStimName = curr_loop_stims[choose_this_loop_idx]
 
                                 #for this stim, get the past trials for this subject
@@ -443,8 +445,16 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
                                         FlagsOnRun = True
                                         good2go = True
                                     else:
-                                        final_loop_idxs.remove(choose_this_loop_idx)
-                                        good2go = False
+                                        if len(final_loop_idxs)==1:
+                                            #nothing left to try here, gota start the run over
+                                            print(f'WARNING: ran out of loops when filtering for prev stim!!!')
+                                            #break out but flag the run
+                                            FlagsOnRun = True
+                                            good2go = True
+                                        else:
+                                            #try another
+                                            final_loop_idxs.remove(choose_this_loop_idx)
+                                            good2go = False
                                 else:
                                     good2go = True
 
@@ -520,6 +530,7 @@ def assign_loop_trials(request,*args,**kwargs):#request,*args,**kwargs
                 else:
                     #remove the face incase we need to assign more trials 
                     #need to ensure it doesn't get picked in a subsequent step
+                    print(f'Already assigned stim moving on.')
                     if re.sub('_.*', '', currStim.name) in curr_loop_stims: curr_loop_stims.remove(re.sub('_.*', '', currStim.name))
 
                 #print('currentTrial')
@@ -790,9 +801,8 @@ def setUpLoopRecog(request,*args,**kwargs):
         foil_names.append(uFoilStims[ifoil]+'_'+keyoptions[ifoil])
         #litt
 
-    all_loop_names = [*target_names,]+foil_names
 
-    trialDict = {}
+    
     #{'trial01': { 
     #    'type': 'target',
     #    'loop':'Misc51_e'}
@@ -804,10 +814,14 @@ def setUpLoopRecog(request,*args,**kwargs):
     while not ready2go:
         targetCount = 0
         foilCount = 0
+        FlagsOnRun = False
+        trialDict = {}
+        all_loop_names = [*target_names,]+foil_names
         random.shuffle(all_loop_names) # rand. order of all loops, 
-        pdb.set_trace()
         for itrial in range(0,len(all_loop_names)):
+            print(f'working on trial: '+str(itrial))
             trialReady = False
+            giveUpTooManyTies = 0
             while not trialReady:
                 currStimName = all_loop_names[itrial]
                 currTrial = trialNames[itrial]
@@ -847,20 +861,31 @@ def setUpLoopRecog(request,*args,**kwargs):
                         if currPrecedingLoop in prevPrecedingLoops:
                             if itrial==len(trialNames)-1:
                                 #last trial, have to start run over and try again
-                                ready2go = False
-                                noDup = False
+                                FlagsOnRun = True
+                                break
                                 print(f'Have to restart the run, preceding loop at end')
                             else:
                                 noDup = False
                                 print(f'Have to restart the trial, preceding loop duplicate')
                                 tmpitem = all_loop_names.pop(itrial)
+                                if giveUpTooManyTies > 20:
+                                    #give up and start run over
+                                    print(f'giving up and starting run again')
+                                    pdb.set_trace()
+                                    FlagsOnRun = True
+                                    #trialReady = False
+                                    break
+
+                                giveUpTooManyTies = giveUpTooManyTies + 1
                                 try:
                                     #if this fails, most likely last trial and no other loop to pick here
                                     #e.g., empty range for randrange() (39,39, 0)
                                     all_loop_names.insert(random.randrange(itrial+1,len(all_loop_names)),tmpitem)
                                 except:
                                     pdb.set_trace()
-                                    ready2go = False
+                                    FlagsOnRun = True
+                                    #trialReady = False
+                                    break
 
 
                         else:
@@ -870,7 +895,7 @@ def setUpLoopRecog(request,*args,**kwargs):
                     if targetCount>3:
                         if itrial==len(trialNames)-1:
                             #last trial, have to start run over and try again
-                            ready2go = False
+                            FlagsOnRun = False
                             print(f'Have to restart the run, too many targets at end')
                         else:
                             #too many targets in a row, change this assignment 
@@ -878,6 +903,14 @@ def setUpLoopRecog(request,*args,**kwargs):
                             print(f'Have to restart the trial, too many targets')
                             #breaks here now? 
                             tmpitem = all_loop_names.pop(itrial)
+                            if giveUpTooManyTies > 20:
+                                #give up and start run over
+                                pdb.set_trace()
+                                FlagsOnRun = True
+                                #this break doesn't work right. makes trials stil go, just miss 1
+                                break
+                            giveUpTooManyTies = giveUpTooManyTies + 1
+
                             all_loop_names.insert(random.randrange(itrial+1,len(all_loop_names)),tmpitem)
                     elif itrial==len(trialNames)-1:
                         trialReady = True
@@ -888,6 +921,11 @@ def setUpLoopRecog(request,*args,**kwargs):
                         
                 else:
                     trialReady = True
+
+            if FlagsOnRun:
+                #gotta restart the run
+                print(f'giving up and starting run again')
+                break
                     
             if currStimName in foil_names:
                 trialDict[currTrial] = {'type': 'foil','loop': currStimName}
