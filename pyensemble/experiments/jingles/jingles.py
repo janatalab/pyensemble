@@ -326,7 +326,7 @@ def imagined_jingle(request,*args,**kwargs):
     if not last_response:
         return False
 
-    return int(last_response.response_text)>0
+    return int(last_response.response_enum)>0
     #return last_response.response_enum>0
 
 def rated_familiar(request,*args,**kwargs):
@@ -651,6 +651,14 @@ def select_study1(request,*args,**kwargs):
         # Create a list of jingle ids for this item
         jingle_ids = StimulusXAttribute.objects.filter(stimulus__name__contains='comm', attribute__name = 'Product', attribute_value_text = item).values_list('stimulus_id')
 
+        if jingle_ids.count() == 1:
+            stim_duration = StimulusXAttribute.objects.get(stimulus_id=jingle_ids[0], attribute__name = 'Duration').attribute_value_double
+
+            if not stim_duration:
+                stimulus = random.choice(least_used_modality_stims)
+                jingle_ids = StimulusXAttribute.objects.filter(stimulus__name__contains='comm', attribute__name = 'Product', attribute_value_text = item).values_list('stimulus_id')
+
+
         # There are often multiple jingles associated with an item
         # If that's the case, find the longest jingle for this item and use it as the stim duration for other modalities associated with that item
         if jingle_ids.count() > 1:
@@ -661,14 +669,6 @@ def select_study1(request,*args,**kwargs):
                 duration = StimulusXAttribute.objects.filter(stimulus_id=jingle_id, attribute__name = 'Duration').values_list('attribute_value_double')[0]
                 durations.append(duration)
             stim_duration = max(durations)
-
-        else: 
-            stim_duration = StimulusXAttribute.objects.get(stimulus_id=jingle_ids[0], attribute__name = 'Duration').attribute_value_double
-
-        #take this line out during the real study
-        if not stim_duration:
-            print(stimulus.name)
-            stimulus = random.choice(least_used_modality_stims)
 
 
     # Specify the trial based on the jsPsych definition for the corresponding media type
