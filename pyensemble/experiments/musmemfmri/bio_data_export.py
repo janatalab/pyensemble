@@ -130,8 +130,8 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
                 textResp = '-'
 
            
-            if isub.subject_id =='03jgj99271':
-                pdb.set_trace() 
+            #if isub.subject_id =='03jgj99271':
+            #    pdb.set_trace() #what was i doing here?
                 
 
             writer.writerow([isub.name_last,isub.name_first,str(isub.date_entered),isub.subject_id,nexpoTrials,mexpoTime,msurveyTime,nrecallTrials,mrecalltime,mtotalTime,textResp])
