@@ -326,8 +326,7 @@ def imagined_jingle(request,*args,**kwargs):
     if not last_response:
         return False
 
-    return int(last_response.response_enum)>0
-    #return last_response.response_enum>0
+    return last_response.response_enum>0
 
 def rated_familiar(request,*args,**kwargs):
     # Get the current stimulus ID
