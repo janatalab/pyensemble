@@ -229,6 +229,10 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
             #we want a row for every trial, so let's loop through the trials
             # be better to match the trials to verify
             for itrial in range(0,len(attracResponses)):
+                try:
+                    attracResponses[itrial].trial_name
+                except:
+                    pdb.set_trace()
                 if attracResponses[itrial].trial_name not in ['trial_practice']:
                     resptime = str(attracResponses[itrial].date_time.month)+'/'+str(attracResponses[itrial].date_time.day)+'/'+str(attracResponses[itrial].date_time.year)+'_'+str(attracResponses[itrial].date_time.hour)+':'+str(attracResponses[itrial].date_time.minute)
                     #NEED TO ADD SOMETHING HERE THAT GETS SYNONYMS AND ANTONYMS (e.g., father/dad; mom/son?)
@@ -558,6 +562,7 @@ def bio_performancePlots(expName):
         plot1.set_xticklabels(rotation=45,horizontalalignment='right')
         #plot5.savefig(os.path.join(params['data_dump_path'],'plot5.png'))
         pdf_pages.savefig(plot1.fig)
+        plt.close()
 
         #######################################################
         # overall exposure score (include subject-data points)
@@ -579,6 +584,7 @@ def bio_performancePlots(expName):
         plot2 = sb.catplot(x="score",y="task",kind='box',data=subScores)
         #plot1.savefig(os.path.join(params['data_dump_path'],'plot1.png'))
         pdf_pages.savefig(plot2.fig)
+        plt.close()
 
         #######################################################
         # attractiveness X face (recog)
@@ -586,6 +592,7 @@ def bio_performancePlots(expName):
         plot3.set_xticklabels(rotation=45,horizontalalignment='right')
         #plot2.savefig(os.path.join(params['data_dump_path'],'plot2.png'))
         pdf_pages.savefig(plot3.fig)
+        plt.close()
 
         #######################################################
         # recall score X face 
@@ -593,6 +600,7 @@ def bio_performancePlots(expName):
         plot4.set_xticklabels(rotation=45,horizontalalignment='right')
         #plot3.savefig(os.path.join(params['data_dump_path'],'plot3.png'))
         pdf_pages.savefig(plot4.fig)
+        plt.close()
 
         #######################################################
         # recall score X trial
@@ -600,6 +608,7 @@ def bio_performancePlots(expName):
         plot5.set_xticklabels(rotation=45,horizontalalignment='right')
         #plot4.savefig(os.path.join(params['data_dump_path'],'plot4.png'))
         pdf_pages.savefig(plot5.fig)
+        plt.close()
 
         #######################################################
         # recall score X feature type
@@ -613,78 +622,89 @@ def bio_performancePlots(expName):
         plot6.set_xticklabels(rotation=45,horizontalalignment='right')
         #plot5.savefig(os.path.join(params['data_dump_path'],'plot5.png'))
         pdf_pages.savefig(plot6.fig)
+        plt.close()
 
         #######################################################
+        pdb.set_trace() 
+        #below need to average across subs nhits/nobs
         # recall score X feature exemplar: name
         #need to convert columns to rows. 
         tmp = recallDat.reset_index()
         recallDat_long = pd.melt(tmp, id_vars=['subject_id','trial','face_name_resp_CA'], value_vars=['face_name_hit'])
-        featureSubRecallScores = recallDat_long.groupby(['subject_id','face_name_resp_CA'])['value'].mean()  #get subXfeat level score
-        featureSubRecallScores = featureSubRecallScores.to_frame().reset_index()
-        featureSubRecallScores = featureSubRecallScores.rename(columns= {'face_name_resp_CA':'face_name','value':'perc_recall'})
-        plot7 = sb.catplot(x="face_name",y="perc_recall",kind='box',data=featureSubRecallScores)
-        plot7.set_xticklabels(rotation=45,horizontalalignment='right')
-        pdf_pages.savefig(plot7.fig)
+        featureFeatRecallScores = recallDat_long.groupby(['face_name_resp_CA'])['value'].mean()  #get subXfeat level score
+        featureFeatRecallScores = featureFeatRecallScores.to_frame().reset_index()
+        featureFeatRecallScores = featureFeatRecallScores.rename(columns= {'face_name_resp_CA':'face_name','value':'perc_recall_across_subs'})
+        
+        plot7 = sb.barplot(x="face_name",y="perc_recall_across_subs",data=featureFeatRecallScores)
+        plot7.set_xticklabels(rotation=45,horizontalalignment='right',labels=featureFeatRecallScores['face_name'])
+        pdf_pages.savefig(plot7.figure)
+        plt.close()
 
         #######################################################
         # recall score X feature exemplar: location
         #need to convert columns to rows. 
         tmp = recallDat.reset_index()
         recallDat_long = pd.melt(tmp, id_vars=['subject_id','trial','location_resp_CA'], value_vars=['location_hit'])
-        featureSubRecallScores = recallDat_long.groupby(['subject_id','location_resp_CA'])['value'].mean()  #get subXfeat level score
-        featureSubRecallScores = featureSubRecallScores.to_frame().reset_index()
-        featureSubRecallScores = featureSubRecallScores.rename(columns= {'location_resp_CA':'location','value':'perc_recall'})
-        plot8 = sb.catplot(x="location",y="perc_recall",kind='box',data=featureSubRecallScores)
-        plot8.set_xticklabels(rotation=45,horizontalalignment='right')
-        pdf_pages.savefig(plot8.fig)
+        featureFeatRecallScores = recallDat_long.groupby(['location_resp_CA'])['value'].mean()  #get subXfeat level score
+        featureFeatRecallScores = featureFeatRecallScores.to_frame().reset_index()
+        featureFeatRecallScores = featureFeatRecallScores.rename(columns= {'location_resp_CA':'location','value':'perc_recall_across_subs'})
+
+        plot8 = sb.barplot(x="location",y="perc_recall_across_subs",data=featureFeatRecallScores)
+        plot8.set_xticklabels(rotation=45,horizontalalignment='right',labels=featureFeatRecallScores['location'])
+        pdf_pages.savefig(plot8.figure)
+        plt.close()
 
         #######################################################
         # recall score X feature exemplar: job
         #need to convert columns to rows. 
         tmp = recallDat.reset_index()
         recallDat_long = pd.melt(tmp, id_vars=['subject_id','trial','job_resp_CA'], value_vars=['job_hit'])
-        featureSubRecallScores = recallDat_long.groupby(['subject_id','job_resp_CA'])['value'].mean()  #get subXfeat level score
-        featureSubRecallScores = featureSubRecallScores.to_frame().reset_index()
-        featureSubRecallScores = featureSubRecallScores.rename(columns= {'job_resp_CA':'job','value':'perc_recall'})
-        plot9 = sb.catplot(x="job",y="perc_recall",kind='box',data=featureSubRecallScores)
-        plot9.set_xticklabels(rotation=45,horizontalalignment='right')
-        pdf_pages.savefig(plot9.fig)
+        featureFeatRecallScores = recallDat_long.groupby(['job_resp_CA'])['value'].mean()  #get subXfeat level score
+        featureFeatRecallScores = featureFeatRecallScores.to_frame().reset_index()
+        featureFeatRecallScores = featureFeatRecallScores.rename(columns= {'job_resp_CA':'job','value':'perc_recall_across_subs'})
+        plot9 = sb.barplot(x="job",y="perc_recall_across_subs",data=featureFeatRecallScores)
+        plot9.set_xticklabels(rotation=45,horizontalalignment='right',labels=featureFeatRecallScores['job'])
+        pdf_pages.savefig(plot9.figure)
+        plt.close()
 
         #######################################################
         # recall score X feature exemplar: hobby
         #need to convert columns to rows. 
         tmp = recallDat.reset_index()
         recallDat_long = pd.melt(tmp, id_vars=['subject_id','trial','hobby_resp_CA'], value_vars=['hobby_hit'])
-        featureSubRecallScores = recallDat_long.groupby(['subject_id','hobby_resp_CA'])['value'].mean()  #get subXfeat level score
-        featureSubRecallScores = featureSubRecallScores.to_frame().reset_index()
-        featureSubRecallScores = featureSubRecallScores.rename(columns= {'hobby_resp_CA':'hobby','value':'perc_recall'})
-        plot10 = sb.catplot(x="hobby",y="perc_recall",kind='box',data=featureSubRecallScores)
-        plot10.set_xticklabels(rotation=45,horizontalalignment='right')
-        pdf_pages.savefig(plot10.fig)
+        featureFeatRecallScores = recallDat_long.groupby(['hobby_resp_CA'])['value'].mean()  #get subXfeat level score
+        featureFeatRecallScores = featureFeatRecallScores.to_frame().reset_index()
+        featureFeatRecallScores = featureFeatRecallScores.rename(columns= {'hobby_resp_CA':'hobby','value':'perc_recall_across_subs'})
+        plot10 = sb.barplot(x="hobby",y="perc_recall_across_subs",data=featureFeatRecallScores)
+        plot10.set_xticklabels(rotation=45,horizontalalignment='right',labels=featureFeatRecallScores['hobby'])
+        pdf_pages.savefig(plot10.figure)
+        plt.close()
 
         #######################################################
         # recall score X feature exemplar: relation
         #need to convert columns to rows. 
         tmp = recallDat.reset_index()
         recallDat_long = pd.melt(tmp, id_vars=['subject_id','trial','relation_resp_CA'], value_vars=['relation_hit'])
-        featureSubRecallScores = recallDat_long.groupby(['subject_id','relation_resp_CA'])['value'].mean()  #get subXfeat level score
-        featureSubRecallScores = featureSubRecallScores.to_frame().reset_index()
-        featureSubRecallScores = featureSubRecallScores.rename(columns= {'relation_resp_CA':'relation','value':'perc_recall'})
-        plot11 = sb.catplot(x="relation",y="perc_recall",kind='box',data=featureSubRecallScores)
-        plot11.set_xticklabels(rotation=45,horizontalalignment='right')
-        pdf_pages.savefig(plot11.fig)
+        featureFeatRecallScores = recallDat_long.groupby(['relation_resp_CA'])['value'].mean()  #get subXfeat level score
+        featureFeatRecallScores = featureFeatRecallScores.to_frame().reset_index()
+        featureFeatRecallScores = featureFeatRecallScores.rename(columns= {'relation_resp_CA':'relation','value':'perc_recall_across_subs'})
+        plot11 = sb.barplot(x="relation",y="perc_recall_across_subs",data=featureFeatRecallScores)
+        plot11.set_xticklabels(rotation=45,horizontalalignment='right',labels=featureFeatRecallScores['relation'])
+        pdf_pages.savefig(plot11.figure)
+        plt.close()
 
         #######################################################
         # recall score X feature exemplar: relation_name
         #need to convert columns to rows. 
         tmp = recallDat.reset_index()
         recallDat_long = pd.melt(tmp, id_vars=['subject_id','trial','relation_name_resp_CA'], value_vars=['relation_name_hit'])
-        featureSubRecallScores = recallDat_long.groupby(['subject_id','relation_name_resp_CA'])['value'].mean()  #get subXfeat level score
-        featureSubRecallScores = featureSubRecallScores.to_frame().reset_index()
-        featureSubRecallScores = featureSubRecallScores.rename(columns= {'relation_name_resp_CA':'relation_name','value':'perc_recall'})
-        plot12 = sb.catplot(x="relation_name",y="perc_recall",kind='box',data=featureSubRecallScores)
-        plot12.set_xticklabels(rotation=45,horizontalalignment='right')
-        pdf_pages.savefig(plot12.fig)
+        featureFeatRecallScores = recallDat_long.groupby(['relation_name_resp_CA'])['value'].mean()  #get subXfeat level score
+        featureFeatRecallScores = featureFeatRecallScores.to_frame().reset_index()
+        featureFeatRecallScores = featureFeatRecallScores.rename(columns= {'relation_name_resp_CA':'relation_name','value':'perc_recall_across_subs'})
+        plot12 = sb.barplot(x="relation_name",y="perc_recall_across_subs",data=featureFeatRecallScores)
+        plot12.set_xticklabels(rotation=45,horizontalalignment='right',labels=featureFeatRecallScores['relation_name'])
+        pdf_pages.savefig(plot12.figure)
+        plt.close()
 
         
 
