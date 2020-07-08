@@ -480,7 +480,6 @@ def select_study1(request,*args,**kwargs):
         #form_name = 'Jingle Project Familiarity'
         form_name = 'Emotion Ratings'
 
-    pdb.set_trace()
     CAN_stim_ids = StimulusXAttribute.objects.filter(attribute__name = 'Region', attribute_value_text = 'Canada').values_list('stimulus',flat=True).distinct()
     CAN_stims = Stimulus.objects.filter(id__in=CAN_stim_ids)
 
@@ -524,8 +523,7 @@ def select_study1(request,*args,**kwargs):
 
                 print('number available:', len(least_used_modalities), 'least used modality:', least_used_modality)
                 #select_from_stims = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = min(media_counts)
-                
-                pdb.set_trace()
+
                 #if there are no stimuli from least_used_modalities, randomly select a stim from select_from_stims
                 if len(least_used_modalities) == 0:
                     stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
