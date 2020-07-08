@@ -309,7 +309,6 @@ def stim_was_familiar_and_jingle(request,*args,**kwargs):
     last_response = Response.objects.filter(session=kwargs['session_id'],form__name=form_name, question__text__contains='familiar', stimulus=stimulus_id).last()
 
     # Check whether our enum matches
-    # pdb.set_trace()
     return last_response.response_enum > 0
 
 def imagined_jingle(request,*args,**kwargs):
@@ -321,7 +320,6 @@ def imagined_jingle(request,*args,**kwargs):
     form = Form.objects.get(name='heard_jingle')
 
     last_response = Response.objects.filter(session=kwargs['session_id'], stimulus=stimulus_id, form=form, form_question_num=0).last()
-    #pdb.set_trace()
 
     if not last_response:
         return False
@@ -341,7 +339,6 @@ def rated_familiar(request,*args,**kwargs):
     # Get the response corresponding to this stimulus
     last_response = Response.objects.filter(session=kwargs['session_id'],form__name=form_name, question__text__contains='familiar', stimulus=stimulus_id).last()
 
-    # pdb.set_trace()
     # Check whether our enum matches
     
     if last_response.response_enum == 0:
@@ -508,7 +505,7 @@ def select_study1(request,*args,**kwargs):
             select_from_stims = possible_stims.filter(num_responses=num_min)
 
             #if there are no previous stims to calculate media_counts, randomly select a stim from select_from_stims
-            if len(media_counts) == 0:
+            if not media_counts:
                 stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
 
             #otherwise, try to pick from the least presented modalities so far
@@ -521,12 +518,13 @@ def select_study1(request,*args,**kwargs):
                 #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = least_used_modality)
                 least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type').exclude(stimulusxattribute__attribute_value_text = most_used_modality)
 
-                print('number available:', len(least_used_modalities), 'least used modality:', least_used_modality)
+                
+                #print('number available:', len(least_used_modalities), 'least used modality:', least_used_modality)
                 #select_from_stims = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = min(media_counts)
 
                 #if there are no stimuli from least_used_modalities, randomly select a stim from select_from_stims
-                if len(least_used_modalities) == 0:
-                    stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
+                if not least_used_modalities:
+                    stimulus = possible_stims[random.randrange(0,possible_stims.count())]
 
                 else:
                     #try to use the least presented modality in this session
@@ -566,11 +564,8 @@ def select_study1(request,*args,**kwargs):
                     stimulusxattribute__attribute_value_double__lt=r[1])                
                 )
 
-        # pdb.set_trace()
         # Randomly pick an age range from those that actually have stimuli
         num_available_in_range = [r.count() for r in stims_x_agerange]
-
-        # pdb.set_trace()
 
         available_ranges = [idx for idx,n in enumerate(num_available_in_range) if n]
         if not available_ranges:
@@ -597,7 +592,7 @@ def select_study1(request,*args,**kwargs):
 
         else:
             #if there are no previous stims to calculate media_counts, randomly select a stim from select_from_stims
-            if len(media_counts) == 0:
+            if not media_counts:
                 stimulus = select_from_stims[random.randrange(0,select_from_stims.count())]
 
             #otherwise, try to pick from the least presented modalities so far
@@ -610,25 +605,25 @@ def select_study1(request,*args,**kwargs):
                 #this gives us the stims in select_from_stims (least encountered stims) that belong to the least used modalities
                 #least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = least_used_modality)
                 least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type').exclude(stimulusxattribute__attribute_value_text = most_used_modality)
-
-                print('number available:', len(least_used_modalities), 'least used modality:', least_used_modality)
-                #select_from_stims = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = min(media_counts)
+                #pdb.set_trace()
+                #print('number available:', len(least_used_modalities), 'least used modality:', least_used_modality)
                 
-                #if there are no stimuli from least_used_modalities, select a stim from from this age range that doesn't necessarily have the lowest
-                #count, but belongs to the least frequently encountered modality for this participant
-                if len(least_used_modalities) == 0:
-                    select_from_stims = stims_x_agerange[age_idx]
+                #if there are no stimuli in the stim set that belong to the least_used_modalities, select a stim from from this age range that belongs to the least 
+                #frequently encountered modality for this participant
+                select_from_stims = stims_x_agerange[age_idx]
+                if not least_used_modalities:
                     least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type').exclude(stimulusxattribute__attribute_value_text = most_used_modality)
                 else:
                     #try to use the least presented modality in this session
-                    least_used_modalities = StimulusXAttribute.objects.filter(stimulus__in=least_used_modalities, attribute__name='Media Type', attribute_value_text = least_used_modality)
-                    #if the least used modality does not exist in this stim set, randomly pick from the stims in this age range
-                    if len(least_used_modalities) == 0:
-                        select_from_stims = stims_x_agerange[age_idx]
-                        least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type').exclude(stimulusxattribute__attribute_value_text = most_used_modality)
+                    least_used_modalities = select_from_stims.filter(attributes__name = 'Media Type', stimulusxattribute__attribute_value_text = least_used_modality)
+                    #least_used_modalities = StimulusXAttribute.objects.filter(stimulus__in=least_used_modalities, attribute__name='Media Type', attribute_value_text = least_used_modality).values_list('stimulus')
+                    if not least_used_modalities:
+                        least_used_modalities = select_from_stims
+                #pdb.set_trace()
                 stimulus = random.choice(least_used_modalities)
-                
-                
+    
+    
+    #pdb.set_trace()            
     #
     # Now, set up the jsPsych trial
     #
@@ -654,9 +649,6 @@ def select_study1(request,*args,**kwargs):
 
             #if there's no duration associated with the jingle, pick the stim again
             if not stim_duration:
-                #pick again
-                stimulus = random.choice(least_used_modalities)
-                #there is almost certainly a more optimal way to do this...
                 jingle_ids = StimulusXAttribute.objects.filter(stimulus__name__contains='comm', attribute__name = 'Product', attribute_value_text = item).values_list('stimulus_id')
                 # There are often multiple jingles associated with an item
                 # If that's the case, find the longest jingle for this item and use it as the stim duration for other modalities associated with that item
@@ -677,7 +669,8 @@ def select_study1(request,*args,**kwargs):
                 duration = StimulusXAttribute.objects.filter(stimulus_id=jingle_id, attribute__name = 'Duration').values_list('attribute_value_double')[0]
                 durations.append(duration)
             stim_duration = max(durations)
-        
+
+  
     # Specify the trial based on the jsPsych definition for the corresponding media type
     if media_type == 'jingle':
         trial = {
@@ -723,7 +716,6 @@ def select_study1(request,*args,**kwargs):
     # Push the trial to the timeline
     timeline.append(trial)
 
-    # pdb.set_trace()
     print(least_used_modality)
     print("# jingles:", media_counts['jingle'], "# slogans:", media_counts['slogan'], "# logos:", media_counts['logo'])
     print("# Canadian ads:", region_counts['Canada'], "# USA ads:", region_counts['USA'])
