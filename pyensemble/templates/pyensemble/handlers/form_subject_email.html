@@ -1,0 +1,16 @@
+{% extends "pyensemble/presentation_base.html" %}
+{% load staticfiles %}
+
+{% load crispy_forms_tags %}
+
+{% block questions %}
+    {% crispy formset %}
+{% endblock %}
+
+{% block appscript %}
+    <script>
+        $(document).ready(function () {
+            $('#questions').removeClass('d-none');
+        });
+    </script>
+{% endblock %}

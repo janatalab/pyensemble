@@ -314,6 +314,7 @@ class ExperimentXForm(models.Model):
         ('form_end_session','form_end_session'),
         ('form_subject_register','form_subject_register'),
         ('form_image_s','form_image_s'),
+        ('form_subject_email','form_subject_email'),
     ]
 
     form_handler = models.CharField(max_length=50, blank=True, default='form_generic')

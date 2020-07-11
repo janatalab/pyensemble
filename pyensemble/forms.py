@@ -187,7 +187,7 @@ class ExperimentFormForm(forms.ModelForm):
         model = ExperimentXForm
         exclude = ('form_order',)
 
-    field_order = ('form_handler','goto','repeat','break_loop_button','break_loop_button_text','condition_script','stimulus_script')
+    field_order = ('form_handler','condition_script','stimulus_script','goto','repeat','break_loop_button','break_loop_button_text','continue_button_text')
 
 
 class ExperimentForm(forms.ModelForm):
@@ -204,7 +204,7 @@ class ExperimentForm(forms.ModelForm):
 
 ExperimentFormFormset = forms.inlineformset_factory(Experiment, ExperimentXForm, 
     form=ExperimentFormForm, 
-    fields=('form_order', 'form_handler', 'goto','repeat','condition_script','stimulus_script', 'break_loop_button', 'break_loop_button_text'), 
+    fields=('form_order', 'form_handler', 'goto','repeat','condition_script','stimulus_script', 'break_loop_button', 'break_loop_button_text', 'continue_button_text'), 
     can_order=True,
     can_delete=True,
     extra=0,
@@ -226,7 +226,6 @@ class TicketCreationForm(forms.Form):
     helper.form_id = 'ticketCreateForm'
 
 class RegisterSubjectForm(forms.ModelForm):
-
     class Meta:
         model = Subject
         fields = ('name_first','name_last','dob','sex','race','ethnicity')
@@ -245,3 +244,27 @@ class RegisterSubjectForm(forms.ModelForm):
         widgets = {
             'dob': forms.DateInput(attrs={'placeholder':'MM/DD/YYYY'}),
         }
+
+class SubjectEmailForm(forms.ModelForm):
+    class Meta:
+        model = Subject
+        fields = ('email',)
+        field_classes = {
+            'email': forms.EmailField,
+        },
+        labels = {
+            'email': 'E-mail address',
+        }
+        widgets = {
+            'email': forms.EmailInput(attrs={'placeholder': 'participant@example.com'})
+        }
+
+    def __init__(self, *args, **kwargs):
+        super(SubjectEmailForm, self).__init__(*args, **kwargs)
+
+        self.fields['email'].required = False
+
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+
+        self.helper.add_input(Submit('submit', 'Submit'))
