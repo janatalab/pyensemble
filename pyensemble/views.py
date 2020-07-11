@@ -486,9 +486,14 @@ def serve_form(request, experiment_id=None):
                 #
                 responses = []
 
-                if form.name == 'ftap_expo_instructions_practice':
+                if form.name == 'ftap_expo_practice_trial':
                     pdb.set_trace()
 
+                """
+                originally, we made the if statement below to log jsp data for forms without questions
+                ended up having to add a question (make it so it doesn't show), so now this catch isn't
+                needed
+                
                 # Check below to see if we presented a stim and collected only jspsych responses (no pyensemble question)
                 if not formset.forms and request.POST.get('jspsych_data',''):
                     responses.append(Response(
@@ -506,54 +511,55 @@ def serve_form(request, experiment_id=None):
                                 misc_info=misc_info,
                                 )
                             )
-
-                else:
-                    for idx,question in enumerate(formset.forms):
                 
-                        # Pre-process certain fields
-                        response = question.cleaned_data.get('option','')
+                else:
+                    """
+                for idx,question in enumerate(formset.forms):
+            
+                    # Pre-process certain fields
+                    response = question.cleaned_data.get('option','')
 
-                        if question.instance.data_format.df_type == 'enum':
-                            if question.instance.html_field_type=='checkbox':
-                                # This is a HACK and needs to be fixed
-                                # checkbox should be enum
-                                # enums need to be stored in power of two format (like Ensemble), so that we can have multiple checkbox responses selected
-                                response_text = ','.join(response)
-                                response_enum = None
-                            else:
-                                response_enum = int(response)
-                                response_text = ''
-                        else:
-                            response_text = response
+                    if question.instance.data_format.df_type == 'enum':
+                        if question.instance.html_field_type=='checkbox':
+                            # This is a HACK and needs to be fixed
+                            # checkbox should be enum
+                            # enums need to be stored in power of two format (like Ensemble), so that we can have multiple checkbox responses selected
+                            response_text = ','.join(response)
                             response_enum = None
-
-                        declined=question.cleaned_data.get('decline',False)
-
-
-                        # Get jsPsych data if we have it, but only write it for the first question
-                        if not idx:
-                            jspsych_data = request.POST.get('jspsych_data','')
                         else:
-                            jspsych_data = ''
+                            response_enum = int(response)
+                            response_text = ''
+                    else:
+                        response_text = response
+                        response_enum = None
 
-                        responses.append(Response(
-                            experiment=currform.experiment,
-                            subject=Subject.objects.get(subject_id=expsessinfo['subject_id']),
-                            session=Session.objects.get(id=expsessinfo['session_id']),
-                            form=currform.form,
-                            form_order=form_idx,
-                            stimulus=stimulus,
-                            question=question.instance,
-                            form_question_num=idx,
-                            question_iteration=1, # this needs to be modified to reflect original Ensemble intent
-                            response_order=expsessinfo['response_order'],
-                            response_text=response_text,
-                            response_enum=response_enum,
-                            jspsych_data=jspsych_data,
-                            decline=declined,
-                            misc_info=misc_info,
-                            )
+                    declined=question.cleaned_data.get('decline',False)
+
+
+                    # Get jsPsych data if we have it, but only write it for the first question
+                    if not idx:
+                        jspsych_data = request.POST.get('jspsych_data','')
+                    else:
+                        jspsych_data = ''
+
+                    responses.append(Response(
+                        experiment=currform.experiment,
+                        subject=Subject.objects.get(subject_id=expsessinfo['subject_id']),
+                        session=Session.objects.get(id=expsessinfo['session_id']),
+                        form=currform.form,
+                        form_order=form_idx,
+                        stimulus=stimulus,
+                        question=question.instance,
+                        form_question_num=idx,
+                        question_iteration=1, # this needs to be modified to reflect original Ensemble intent
+                        response_order=expsessinfo['response_order'],
+                        response_text=response_text,
+                        response_enum=response_enum,
+                        jspsych_data=jspsych_data,
+                        decline=declined,
+                        misc_info=misc_info,
                         )
+                    )
 
                 if responses:
                     Response.objects.bulk_create(responses)

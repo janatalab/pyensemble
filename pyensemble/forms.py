@@ -102,6 +102,9 @@ class QuestionPresentForm(forms.ModelForm):
         # Set up the input field as a function of the HTML type
         html_field_type = self.instance.html_field_type
 
+        # Grab data_format_id, if 'null' need to set field_params['required'] to False
+        df_type = DataFormat.objects.get(id=self.instance.data_format_id)
+
         # If a field type hasn't been specified, choose radiogroup as a default
         if not html_field_type:
             html_field_type = 'radiogroup'
@@ -118,6 +121,10 @@ class QuestionPresentForm(forms.ModelForm):
 
             elif html_field_type == 'menu':
                 widget = forms.Select
+
+            # catch the null questions that are there to write so jsPsych data can be added to response
+            if df_type.df_type == 'null':
+                field_params['required'] = False
 
         elif re.match('numeric',html_field_type):
             widget = forms.NumberInput
