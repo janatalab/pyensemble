@@ -580,7 +580,6 @@ def ftap_practice_trial(request,*args,**kwargs):
     trial = {
             'type':  'audio-keyboard-response',
             'stimulus': os.path.join(settings.MEDIA_URL,pracLoop.location.url),
-            'choices': ['b','m'],
             'prompt': '<div style="font-size:60px;text-align: center">+</div>',
             'click_to_start': True,
             'trial_ends_after_audio': True,
