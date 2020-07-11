@@ -132,9 +132,8 @@ def bio_participantStatus(expName,startMonthDay,endMonthDay):
            
             #if isub.subject_id =='03jgj99271':
             #    pdb.set_trace() #what was i doing here?
-                
-
-            writer.writerow([isub.name_last,isub.name_first,str(isub.date_entered),isub.subject_id,nexpoTrials,mexpoTime,msurveyTime,nrecallTrials,mrecalltime,mtotalTime,textResp])
+            if int(nexpoTrials)>=40 and int(nrecallTrials)>=20:
+                writer.writerow([isub.name_last,isub.name_first,str(isub.date_entered),isub.subject_id,nexpoTrials,mexpoTime,msurveyTime,nrecallTrials,mrecalltime,mtotalTime,textResp])
             print(isub.name_last+', '+isub.name_first+'\t'+str(isub.date_entered)+'\t'+isub.subject_id+'\t'+nexpoTrials+'\t'+nrecallTrials+'\t'+mtotalTime+'\t'+'\n')
                 #'Has Trials\tExpo Time\tSurvey Time\tRecallT Time\tComments\n')
     outDatCSV.close()
@@ -197,6 +196,99 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
             recallResponses = recallResponses.exclude(stimulus__name__in=['M1_cartoon','F1_cartoon'])
             #append all the relevant info to each entry (stored in misc_info)
             #[json.loads(x.trial_name)['trial_attribute_name'] for x in attracResponses]
+
+            if len(attracResponses) < 40 or len(recallResponses) < 40:
+                #skip this subject, incomplete data
+                continue
+
+            # annoying thing is it's hard to match because we can't filter() or get() json.loads
+            # actually, don't need to though? even if dic isn't loaded, still should be the same
+            attractIDs2exclude = []
+            if len(attracResponses) > len(recallResponses):
+                #probly duplicate of at least one response
+                #not sure what else to do but loop through, find the duplicate and remove from query set
+                for iresp in range(0,len(attracResponses)):
+                    attracResponses[iresp].trial_name = json.loads(attracResponses[iresp].misc_info)['trial_attribute_name']
+
+                    if attracResponses[iresp].trial_name not in ['trial_practice']:
+                        #just ignore practice trials
+                        recallResponses[iresp].trial_name = json.loads(recallResponses[iresp].misc_info)['trial_attribute_name']
+                        if attracResponses[iresp].misc_info != recallResponses[iresp].misc_info:
+                            #these are from diff trials, most likely this current attracRespones is a repeat
+                            #compare it to the last trial info 
+                            if attracResponses[iresp-1].misc_info == attracResponses[iresp].misc_info:
+                                #last trial was same, check to see if answer was the same
+                                pdb.set_trace()
+                                if attracResponses[iresp-1].response_enum == attracResponses[iresp].response_enum:
+                                    #same response so just use the first
+                                    #remove current recall response from query set
+                                    attractIDs2exclude.append(attracResponses[iresp].id)
+                                    if (len(attracResponses) - len(attractIDs2exclude)) == 40:
+                                        break
+                                        #stop going trhough recall responses
+                                else:
+                                    pdb.set_trace() #idk what the deal is! yet...
+                                    #most likely need to check which is't empty and go with that one. 
+
+                            else:
+                                pdb.set_trace() #idk what the deal is! yet...
+
+            if attractIDs2exclude:
+                pdb.set_trace()
+                attracResponses = attracResponses.exclude(id__in=attractIDs2exclude)
+
+
+            recallIDs2exclude = []
+            if len(recallResponses) > len(attracResponses):
+                #probly duplicate of at least one response
+                #not sure what else to do but loop through, find the duplicate and remove from query set
+                for iresp in range(0,len(recallResponses)):
+                    attracResponses[iresp].trial_name = json.loads(attracResponses[iresp].misc_info)['trial_attribute_name']
+                    
+                    if attracResponses[iresp].trial_name not in ['trial_practice']:
+                        #just ignore practice trials
+                        recallResponses[iresp].trial_name = json.loads(recallResponses[iresp].misc_info)['trial_attribute_name']
+                        if attracResponses[iresp].misc_info != recallResponses[iresp].misc_info:
+                            #these are from diff trials, most likely this current attracRespones is a repeat
+                            #compare it to the last trial info 
+                            if recallResponses[iresp-1].misc_info == recallResponses[iresp].misc_info:
+                                #last trial was same, check to see if answer was the same
+                                if recallResponses[iresp-1].response_text == recallResponses[iresp].response_text:
+                                    #same response so just use the first
+                                    #remove current recall response from query set
+                                    recallIDs2exclude.append(recallResponses[iresp].id)
+                                    if (len(recallResponses) - len(recallIDs2exclude)) == 40:
+                                        break
+                                        #stop going trhough recall responses
+
+                                else:
+                                    if recallResponses[iresp-1].form_id != recallResponses[iresp].form_id:
+                                        #for at least 1 sub (09maz97301), one attract trial wasn't presented first
+                                        #we have 2 trial 30 for recall but only 1 attr. when recall presented again,
+                                        #diff feature was probed. choose the first one? 
+
+                                        recallIDs2exclude.append(recallResponses[iresp].id)
+                                        if (len(recallResponses) - len(recallIDs2exclude)) == 40:
+                                            break
+                                            #stop going trhough recall responses
+
+                                    else:
+                                        #fornaother sub 11esd00101, trial 37 recall presented 2xs same question(
+                                        #diff answer, use first)
+                                        recallIDs2exclude.append(recallResponses[iresp].id)
+                                        if (len(recallResponses) - len(recallIDs2exclude)) == 40:
+                                            break
+                                            #stop going trhough recall responses
+
+                            else:
+                                pdb.set_trace() #idk what the deal is! yet...
+
+            
+            if recallIDs2exclude:
+                recallResponses = recallResponses.exclude(id__in=recallIDs2exclude)
+                
+
+
             if len(attracResponses) == len(recallResponses):
                 for iresp in range(0,len(attracResponses)):
                     #better way to do this, iterate over attrac responses and 
@@ -224,7 +316,7 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
                          
             else:
                 print(f'WARNING: mismatched number of expo trials for sub:'+isub.subject_id)
-                pdb.set_trace()
+                continue
 
             #we want a row for every trial, so let's loop through the trials
             # be better to match the trials to verify
@@ -514,6 +606,7 @@ def bio_performancePlots(expName):
     #musmemfmri_bio_pilot
     #use csvs created in bio_dumpData, make some plots to help us assess performance
     # PLOTS:
+    # Time X Task (boxplat)
     # overall exposure score (include subject-data points)
     # overall recall score (include subject-data points)
     #
@@ -526,7 +619,9 @@ def bio_performancePlots(expName):
     # face X trial (recog); face X trial (response_order, recall); 
     # face X name (recog); face X location; face X job; face X hobby; face X relation; face X relation_name
     #
-    # ADD THESE: Time X Task (boxplat)
+    # ADD THESE: 
+    # scatter plots 
+    # PLOT of self report of their performance (payed attention) vs memory 
 
     study_params = bp() 
     params = study_params[expName] #'musmemfmri_bio_pilot'
@@ -546,6 +641,11 @@ def bio_performancePlots(expName):
     latest_file = max(list_of_files, key=os.path.getctime)
     recallDat = pd.read_csv(latest_file)
 
+    #load in the latest feedback data
+    list_of_files = glob.glob(os.path.join(params['data_dump_path'],expName+'_feedback_'+'*.csv'))
+    latest_file = max(list_of_files, key=os.path.getctime)
+    feedbackDat = pd.read_csv(latest_file)
+
     #calculate total number of subjects 
     nsubs = len(recogDat.subject_id.unique())
 
@@ -553,10 +653,8 @@ def bio_performancePlots(expName):
 
         #######################################################
         # overall exposure times (include subject-data points)
-        pdb.set_trace()
         tmp = statusDat.reset_index()
         statusDat_long = pd.melt(tmp, id_vars=['subject_id'], value_vars=['Expo_Time', 'Survey_Time', 'Recall_Time','Total_Time'])
-
         statusDat_scores = statusDat_long.rename(columns= {'variable': 'task','value':'total_minutes'})
         plot1 = sb.catplot(x="total_minutes",y="task",kind='box',data=statusDat_scores)
         plot1.set_xticklabels(rotation=45,horizontalalignment='right')
@@ -584,6 +682,49 @@ def bio_performancePlots(expName):
         plot2 = sb.catplot(x="score",y="task",kind='box',data=subScores)
         #plot1.savefig(os.path.join(params['data_dump_path'],'plot1.png'))
         pdf_pages.savefig(plot2.fig)
+        plt.close()
+
+        #plot recog score vs recall score 
+        #change score col to recog 
+        subScores2a = subRecogScores.rename({'score': 'recog'}, axis='columns')
+        subScores2a['recall'] = subRecallScores['score']
+        tmpcor = subScores2a['recall'].corr(subScores2a['recog'])
+
+        plot2a = sb.regplot(x='recall', y='recog',fit_reg=True, data=subScores2a).set_title('corr: '+str(tmpcor)[0:5])
+        pdf_pages.savefig(plot2a.figure)
+        plt.close()
+
+        #grab the time stuff
+        tmp = statusDat.sort_values('subject_id').reset_index()
+        subScores2a['Total_Time'] = tmp['Total_Time']
+        tmpcor = subScores2a['recall'].corr(subScores2a['Total_Time'])
+
+        plot2b = sb.regplot(x='recall', y='Total_Time',fit_reg=True, data=subScores2a).set_title('corr: '+str(tmpcor)[0:5])
+        pdf_pages.savefig(plot2b.figure)
+        plt.close()
+
+         #grab the time stuff
+        subScores2a['Expo_Time'] = tmp['Expo_Time']
+        tmpcor = subScores2a['recall'].corr(subScores2a['Expo_Time'])
+
+        plot2c = sb.regplot(x='recall', y='Expo_Time',fit_reg=True, data=subScores2a).set_title('corr: '+str(tmpcor)[0:5])
+        pdf_pages.savefig(plot2c.figure)
+        plt.close()
+
+         #grab the time stuff
+        subScores2a['Survey_Time'] = tmp['Survey_Time']
+        tmpcor = subScores2a['recall'].corr(subScores2a['Survey_Time'])
+
+        plot2d = sb.regplot(x='recall', y='Survey_Time',fit_reg=True, data=subScores2a).set_title('corr: '+str(tmpcor)[0:5])
+        pdf_pages.savefig(plot2d.figure)
+        plt.close()
+
+         #grab the time stuff
+        subScores2a['Recall_Time'] = tmp['Recall_Time']
+        tmpcor = subScores2a['recall'].corr(subScores2a['Recall_Time'])
+
+        plot2e = sb.regplot(x='recall', y='Recall_Time',fit_reg=True, data=subScores2a).set_title('corr: '+str(tmpcor)[0:5])
+        pdf_pages.savefig(plot2e.figure)
         plt.close()
 
         #######################################################
@@ -625,7 +766,6 @@ def bio_performancePlots(expName):
         plt.close()
 
         #######################################################
-        pdb.set_trace() 
         #below need to average across subs nhits/nobs
         # recall score X feature exemplar: name
         #need to convert columns to rows. 
@@ -705,6 +845,29 @@ def bio_performancePlots(expName):
         plot12.set_xticklabels(rotation=45,horizontalalignment='right',labels=featureFeatRecallScores['relation_name'])
         pdf_pages.savefig(plot12.figure)
         plt.close()
+
+        #######################################################
+        # plot the feedback data
+        pdb.set_trace()
+        tmp = feedbackDat.reset_index()
+
+        """
+        Q1: 
+        I paid attention throughout the experiment.
+        Strongly Disagree; Disagree; Neither Agree nor Disagree; Agree; Strongly Agree
+        """
+        currlabels = ['Strongly \nDisagree', 'Disagree', 'Neither Agree \nnor Disagree', 'Agree', 'Strongly \nAgree']
+        plot13 = sb.countplot(x="paidAttention", data=tmp)
+        #plot13 = sb.distplot(tmp['paidAttention'],bins=len(currlabels)+1,kde = False,)
+        plot13.set_xticks(range(len(currlabels)+1))
+        plot13.set_xticklabels(rotation=45,horizontalalignment='center',labels=currlabels)
+        pdf_pages.savefig(plot13.figure)
+        plt.close()
+
+
+
+
+
 
         
 
