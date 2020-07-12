@@ -658,6 +658,7 @@ def bio_performancePlots(expName):
         statusDat_scores = statusDat_long.rename(columns= {'variable': 'task','value':'total_minutes'})
         plot1 = sb.catplot(x="total_minutes",y="task",kind='box',data=statusDat_scores)
         plot1.set_xticklabels(rotation=45,horizontalalignment='right')
+        plt.tight_layout()
         #plot5.savefig(os.path.join(params['data_dump_path'],'plot5.png'))
         pdf_pages.savefig(plot1.fig)
         plt.close()
@@ -681,6 +682,7 @@ def bio_performancePlots(expName):
         #pdb.set_trace()
         plot2 = sb.catplot(x="score",y="task",kind='box',data=subScores)
         #plot1.savefig(os.path.join(params['data_dump_path'],'plot1.png'))
+        plt.tight_layout()
         pdf_pages.savefig(plot2.fig)
         plt.close()
 
@@ -691,6 +693,7 @@ def bio_performancePlots(expName):
         tmpcor = subScores2a['recall'].corr(subScores2a['recog'])
 
         plot2a = sb.regplot(x='recall', y='recog',fit_reg=True, data=subScores2a).set_title('corr: '+str(tmpcor)[0:5])
+        plt.tight_layout()
         pdf_pages.savefig(plot2a.figure)
         plt.close()
 
@@ -700,6 +703,7 @@ def bio_performancePlots(expName):
         tmpcor = subScores2a['recall'].corr(subScores2a['Total_Time'])
 
         plot2b = sb.regplot(x='recall', y='Total_Time',fit_reg=True, data=subScores2a).set_title('corr: '+str(tmpcor)[0:5])
+        plt.tight_layout()
         pdf_pages.savefig(plot2b.figure)
         plt.close()
 
@@ -708,6 +712,7 @@ def bio_performancePlots(expName):
         tmpcor = subScores2a['recall'].corr(subScores2a['Expo_Time'])
 
         plot2c = sb.regplot(x='recall', y='Expo_Time',fit_reg=True, data=subScores2a).set_title('corr: '+str(tmpcor)[0:5])
+        plt.tight_layout()
         pdf_pages.savefig(plot2c.figure)
         plt.close()
 
@@ -716,6 +721,7 @@ def bio_performancePlots(expName):
         tmpcor = subScores2a['recall'].corr(subScores2a['Survey_Time'])
 
         plot2d = sb.regplot(x='recall', y='Survey_Time',fit_reg=True, data=subScores2a).set_title('corr: '+str(tmpcor)[0:5])
+        plt.tight_layout()
         pdf_pages.savefig(plot2d.figure)
         plt.close()
 
@@ -724,6 +730,7 @@ def bio_performancePlots(expName):
         tmpcor = subScores2a['recall'].corr(subScores2a['Recall_Time'])
 
         plot2e = sb.regplot(x='recall', y='Recall_Time',fit_reg=True, data=subScores2a).set_title('corr: '+str(tmpcor)[0:5])
+        plt.tight_layout()
         pdf_pages.savefig(plot2e.figure)
         plt.close()
 
@@ -732,6 +739,7 @@ def bio_performancePlots(expName):
         plot3 = sb.catplot(x="stimulus_id",y="attractivness",kind='box',data=recogDat)
         plot3.set_xticklabels(rotation=45,horizontalalignment='right')
         #plot2.savefig(os.path.join(params['data_dump_path'],'plot2.png'))
+        plt.tight_layout()
         pdf_pages.savefig(plot3.fig)
         plt.close()
 
@@ -740,6 +748,7 @@ def bio_performancePlots(expName):
         plot4 = sb.catplot(x="stimulus_id",y="perc_recall",kind='box',data=recallDat)
         plot4.set_xticklabels(rotation=45,horizontalalignment='right')
         #plot3.savefig(os.path.join(params['data_dump_path'],'plot3.png'))
+        plt.tight_layout()
         pdf_pages.savefig(plot4.fig)
         plt.close()
 
@@ -748,6 +757,7 @@ def bio_performancePlots(expName):
         plot5 = sb.catplot(x="trial",y="perc_recall",kind='box',data=recallDat)
         plot5.set_xticklabels(rotation=45,horizontalalignment='right')
         #plot4.savefig(os.path.join(params['data_dump_path'],'plot4.png'))
+        plt.tight_layout()
         pdf_pages.savefig(plot5.fig)
         plt.close()
 
@@ -761,6 +771,7 @@ def bio_performancePlots(expName):
         featureSubRecallScores = featureSubRecallScores.rename(columns= {'variable': 'feature','value':'perc_recall'})
         plot6 = sb.catplot(x="feature",y="perc_recall",kind='box',data=featureSubRecallScores)
         plot6.set_xticklabels(rotation=45,horizontalalignment='right')
+        plt.tight_layout()
         #plot5.savefig(os.path.join(params['data_dump_path'],'plot5.png'))
         pdf_pages.savefig(plot6.fig)
         plt.close()
@@ -777,6 +788,7 @@ def bio_performancePlots(expName):
         
         plot7 = sb.barplot(x="face_name",y="perc_recall_across_subs",data=featureFeatRecallScores)
         plot7.set_xticklabels(rotation=45,horizontalalignment='right',labels=featureFeatRecallScores['face_name'])
+        plt.tight_layout()
         pdf_pages.savefig(plot7.figure)
         plt.close()
 
@@ -791,6 +803,7 @@ def bio_performancePlots(expName):
 
         plot8 = sb.barplot(x="location",y="perc_recall_across_subs",data=featureFeatRecallScores)
         plot8.set_xticklabels(rotation=45,horizontalalignment='right',labels=featureFeatRecallScores['location'])
+        plt.tight_layout()
         pdf_pages.savefig(plot8.figure)
         plt.close()
 
@@ -804,6 +817,7 @@ def bio_performancePlots(expName):
         featureFeatRecallScores = featureFeatRecallScores.rename(columns= {'job_resp_CA':'job','value':'perc_recall_across_subs'})
         plot9 = sb.barplot(x="job",y="perc_recall_across_subs",data=featureFeatRecallScores)
         plot9.set_xticklabels(rotation=45,horizontalalignment='right',labels=featureFeatRecallScores['job'])
+        plt.tight_layout()
         pdf_pages.savefig(plot9.figure)
         plt.close()
 
@@ -817,6 +831,7 @@ def bio_performancePlots(expName):
         featureFeatRecallScores = featureFeatRecallScores.rename(columns= {'hobby_resp_CA':'hobby','value':'perc_recall_across_subs'})
         plot10 = sb.barplot(x="hobby",y="perc_recall_across_subs",data=featureFeatRecallScores)
         plot10.set_xticklabels(rotation=45,horizontalalignment='right',labels=featureFeatRecallScores['hobby'])
+        plt.tight_layout()
         pdf_pages.savefig(plot10.figure)
         plt.close()
 
@@ -830,6 +845,7 @@ def bio_performancePlots(expName):
         featureFeatRecallScores = featureFeatRecallScores.rename(columns= {'relation_resp_CA':'relation','value':'perc_recall_across_subs'})
         plot11 = sb.barplot(x="relation",y="perc_recall_across_subs",data=featureFeatRecallScores)
         plot11.set_xticklabels(rotation=45,horizontalalignment='right',labels=featureFeatRecallScores['relation'])
+        plt.tight_layout()
         pdf_pages.savefig(plot11.figure)
         plt.close()
 
@@ -843,27 +859,93 @@ def bio_performancePlots(expName):
         featureFeatRecallScores = featureFeatRecallScores.rename(columns= {'relation_name_resp_CA':'relation_name','value':'perc_recall_across_subs'})
         plot12 = sb.barplot(x="relation_name",y="perc_recall_across_subs",data=featureFeatRecallScores)
         plot12.set_xticklabels(rotation=45,horizontalalignment='right',labels=featureFeatRecallScores['relation_name'])
+        plt.tight_layout()
         pdf_pages.savefig(plot12.figure)
         plt.close()
 
         #######################################################
         # plot the feedback data
-        pdb.set_trace()
         tmp = feedbackDat.reset_index()
+        titlesize = 8
 
         """
         Q1: 
         I paid attention throughout the experiment.
         Strongly Disagree; Disagree; Neither Agree nor Disagree; Agree; Strongly Agree
         """
+        currtitle = 'I paid attention throughout the experiment'
         currlabels = ['Strongly \nDisagree', 'Disagree', 'Neither Agree \nnor Disagree', 'Agree', 'Strongly \nAgree']
         plot13 = sb.countplot(x="paidAttention", data=tmp)
-        #plot13 = sb.distplot(tmp['paidAttention'],bins=len(currlabels)+1,kde = False,)
         plot13.set_xticks(range(len(currlabels)+1))
         plot13.set_xticklabels(rotation=45,horizontalalignment='center',labels=currlabels)
+        plt.title(currtitle,fontsize=titlesize)
+        plt.tight_layout()
         pdf_pages.savefig(plot13.figure)
         plt.close()
 
+
+        """
+        Q2:
+        I performed the experiment to the best of my ability and believe my responses are valid.
+        Strongly Disagree, Disagree, Neither Agree nor Disagree, Agree, Strongly Agree
+        """
+        currtitle = 'I performed the experiment to the best of my ability and believe my responses are valid'
+        currlabels = ['Strongly \nDisagree', 'Disagree', 'Neither Agree \nnor Disagree', 'Agree', 'Strongly \nAgree']
+        plot14 = sb.countplot(x="performedMyBest", data=tmp)
+        plot14.set_xticks(range(len(currlabels)+1))
+        plot14.set_xticklabels(rotation=45,horizontalalignment='center',labels=currlabels)
+        plt.title(currtitle,fontsize=titlesize)
+        plt.tight_layout()
+        pdf_pages.savefig(plot14.figure)
+        plt.close()
+
+
+        """
+        Q3:
+        I performed the experiment with integrity (e.g., I relied on my memory alone when asked to recall details about a person).
+        Yes, No, Maybe
+        """
+        currtitle = 'I performed the experiment with integrity (e.g., I relied on my memory alone when asked \nto recall details about a person)'
+        currlabels = ['Yes', 'No', 'Maybe']
+        plot15 = sb.countplot(x="performedIntegrity", data=tmp)
+        plot15.set_xticks(range(len(currlabels)+1))
+        plot15.set_xticklabels(rotation=45,horizontalalignment='center',labels=currlabels)
+        plt.title(currtitle,fontsize=titlesize)
+        plt.tight_layout()
+        pdf_pages.savefig(plot15.figure)
+        plt.close()
+
+
+        """
+        Q4:
+        While you were filling out the surveys, about how much of the time were you thinking about the people you just met? E.g., imagining a face or thinking about a person's life.
+        Not at all, 1-20%, 21-40%, 41-60%, 61-80%, 81-100%
+        """
+        currtitle = 'While you were filling out the surveys, about how much of the time were you thinking about \nthe people you just met? E.g., imagining a face or thinking about a person\'s life'
+        currlabels = ['Not at all', '1-20%', '21-40%', '41-60%', '61-80%', '81-100%']
+        plot16 = sb.countplot(x="personImagery", data=tmp)
+        plot16.set_xticks(range(len(currlabels)+1))
+        plot16.set_xticklabels(rotation=45,horizontalalignment='center',labels=currlabels)
+        plt.title(currtitle,fontsize=titlesize)
+        plt.tight_layout()
+        pdf_pages.savefig(plot16.figure)
+        plt.close()
+
+
+        """
+        Q5:
+        During the survey period, how spontaneous were your thoughts about the people you just met? E.g., were you trying to think about a person, or did a person pop into your mind spontaneously?
+        Completely Spontaneous, Neither Spontaneous nor Intentional, Completely Intentional
+        """
+        currtitle = 'During the survey period, how spontaneous were your thoughts about the people you just met? \nE.g., were you trying to think about a person, or did a person pop into your mind spontaneously?'
+        currlabels = ['Completely \nSpontaneous', '', '', 'Neither Spontaneous \nnor Intentional', '', '', 'Completely Intentional']
+        plot16 = sb.countplot(x="personSpont", data=tmp)
+        plot16.set_xticks(range(len(currlabels)+1))
+        plot16.set_xticklabels(rotation=45,horizontalalignment='center',labels=currlabels)
+        plt.title(currtitle,fontsize=titlesize)
+        plt.tight_layout()
+        pdf_pages.savefig(plot16.figure)
+        plt.close()
 
 
 
