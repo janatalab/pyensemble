@@ -13,7 +13,8 @@
     {% if field.is_hidden %}
         {{ field }}
     {% else %}
-        <div class="{% if field.field.choices == 'null'%}d-none{%endif%}row mb-4 pt-3 bg-light{% if forloop.counter|divisibleby:2 %}{% endif %}">
+        <div class="{% if field.field.choices.0 == 'null'%}d-none{% endif %}row mb-4 
+        pt-3 bg-light{% if forloop.counter|divisibleby:2 %}{% endif %}">
             <!-- Question text -->
             <div {% if form_id %} id="{{ form_id }}_formgroup"{% endif%} class="form-group col-12">
                 <label for="{{ field.id_for_label }}" class="h5 control-label {% if field.errors %}text-danger{%endif%}">

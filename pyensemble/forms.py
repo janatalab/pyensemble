@@ -63,7 +63,7 @@ class QuestionCreateForm(forms.ModelForm):
 
         # pdb.set_trace()
         self.fields['html_field_type'].label = 'Display format'
-
+        pdb.set_trace()
         # Generate choices for the data format
         self.fields['dfid'].choices=((dfid.pk,dfid.choice()) for dfid in DataFormat.objects.all())
 
@@ -124,7 +124,9 @@ class QuestionPresentForm(forms.ModelForm):
 
             # catch the null questions that are there to write so jsPsych data can be added to response
             if df_type.df_type == 'null':
+                pdb.set_trace()
                 field_params['required'] = False
+                field_params['choices'] = ['null']
 
         elif re.match('numeric',html_field_type):
             widget = forms.NumberInput
