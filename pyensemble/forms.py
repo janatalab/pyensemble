@@ -103,7 +103,7 @@ class QuestionPresentForm(forms.ModelForm):
         html_field_type = self.instance.html_field_type
 
         # Grab data_format_id, if 'null' need to set field_params['required'] to False
-        df_type = DataFormat.objects.get(id=self.instance.data_format_id)
+        df = DataFormat.objects.get(id=self.instance.data_format_id)
 
         # If a field type hasn't been specified, choose radiogroup as a default
         if not html_field_type:
@@ -123,8 +123,8 @@ class QuestionPresentForm(forms.ModelForm):
                 widget = forms.Select
 
             # catch the null questions that are there to write so jsPsych data can be added to response
-            if df_type.df_type == 'null':
-                pdb.set_trace()
+            if df.df_type == 'null':
+                # pdb.set_trace()
                 field_params['required'] = False
                 field_params['choices'] = ['null']
 

@@ -46,6 +46,8 @@ def loop_params():
         }
     }
 
+    study_params['jsPsych With Null Question Test'] = study_params['musmemfmri_loop_pilot']
+
     return study_params
 
 
