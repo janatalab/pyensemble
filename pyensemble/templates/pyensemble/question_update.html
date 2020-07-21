@@ -13,8 +13,20 @@
 
     {% crispy form %}
 
+    <div class="editor form-actions text-center">
+        <button type="submit" class="btn btn-primary">Submit changes</button>
+    </div>
 {% endblock %}
 
 {% block formscript %}
-
+    <script type="text/javascript">
+        $(function(){
+            $('select').chosen();
+            $(".editor.form-actions button").on('click',function(ev){
+                ev.preventDefault();
+                submitEditorForm();
+            });
+            $("#formTableEditButton").addClass('d-none');
+        });
+    </script>
 {% endblock %}
