@@ -498,34 +498,6 @@ def serve_form(request, experiment_id=None):
                 #
                 responses = []
 
-                if form.name == 'ftap_expo_practice_trial':
-                    pdb.set_trace()
-
-                """
-                originally, we made the if statement below to log jsp data for forms without questions
-                ended up having to add a question (make it so it doesn't show), so now this catch isn't
-                needed
-                
-                # Check below to see if we presented a stim and collected only jspsych responses (no pyensemble question)
-                if not formset.forms and request.POST.get('jspsych_data',''):
-                    responses.append(Response(
-                                experiment=currform.experiment,
-                                subject=Subject.objects.get(subject_id=expsessinfo['subject_id']),
-                                session=Session.objects.get(id=expsessinfo['session_id']),
-                                form=currform.form,
-                                form_order=form_idx,
-                                stimulus=stimulus,
-                                #form_question_num=0,
-                                question_id=0,
-                                question_iteration=0, # this needs to be modified to reflect original Ensemble intent
-                                response_order=0,
-                                jspsych_data=request.POST.get('jspsych_data',''),
-                                misc_info=misc_info,
-                                )
-                            )
-                
-                else:
-                    """
                 for idx,question in enumerate(formset.forms):
             
                     # Pre-process certain fields
