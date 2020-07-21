@@ -248,7 +248,7 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
                     if attracResponses[iresp].trial_name not in ['trial_practice']:
                         #just ignore practice trials
                         recallResponses[iresp].trial_name = json.loads(recallResponses[iresp].misc_info)['trial_attribute_name']
-                        if attracResponses[iresp].misc_info != recallResponses[iresp].misc_info:
+                        if recallResponses[iresp].misc_info != attracResponses[iresp].misc_info:
                             #these are from diff trials, most likely this current attracRespones is a repeat
                             #compare it to the last trial info 
                             if recallResponses[iresp-1].misc_info == recallResponses[iresp].misc_info:
@@ -282,6 +282,11 @@ def bio_dumpData(expName,startMonthDay,endMonthDay):
 
                             else:
                                 pdb.set_trace() #idk what the deal is! yet...
+
+                        elif not recallResponses[iresp].misc_info:
+                                #just a bum response. nothing written to misc info (and other copy exists)
+                                #
+                                pdb.set_trace()
 
             
             if recallIDs2exclude:
@@ -938,7 +943,7 @@ def bio_performancePlots(expName):
         Completely Spontaneous, Neither Spontaneous nor Intentional, Completely Intentional
         """
         currtitle = 'During the survey period, how spontaneous were your thoughts about the people you just met? \nE.g., were you trying to think about a person, or did a person pop into your mind spontaneously?'
-        currlabels = ['Completely \nSpontaneous', '', '', 'Neither Spontaneous \nnor Intentional', '', '', 'Completely Intentional']
+        currlabels = ['Completely \nSpontaneous', '', '', 'Neither Spontaneous \nnor Intentional', '', '', 'Completely \nIntentional']
         plot16 = sb.countplot(x="personSpont", data=tmp)
         plot16.set_xticks(range(len(currlabels)+1))
         plot16.set_xticklabels(rotation=45,horizontalalignment='center',labels=currlabels)
