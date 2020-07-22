@@ -165,13 +165,13 @@ function setEditStatus(status){
 
     if (!status){
         $("#content-right input,textarea").attr({'readonly':false});
-        $("#content-right input:checkbox").attr({'disabled':false});
+        $("#content-right input:checkbox, select").attr({'disabled':false});
         $("#content-right .dateinput").attr({'disabled':false});
         $(".editor.form-actions").removeClass('d-none');
         $("#formTableEditButton").addClass('btn btn-danger active');
     } else {
         $("#content-right input,textarea").attr({'readonly':true});
-        $("#content-right input:checkbox").attr({'disabled':true});
+        $("#content-right input:checkbox, select").attr({'disabled':true});
         $("#content-right .dateinput").attr({'disabled':true});
         $(".editor.form-actions").addClass('d-none');
         $("#formTableEditButton").removeClass('btn-danger active');

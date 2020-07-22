@@ -56,6 +56,10 @@ input[type=number] {
     font-size: 0.8rem;
 }
 
+.experiment-info select {
+    width: 200px;
+}
+
 #form_table .textinput {
     width: 300px;
 }
