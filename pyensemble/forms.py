@@ -194,6 +194,13 @@ class ExperimentFormForm(forms.ModelForm):
 
     field_order = ('form_handler','condition_script','stimulus_script','goto','repeat','break_loop_button','break_loop_button_text','continue_button_text')
 
+    def __init__(self, *args, **kwargs):
+        super(ExperimentFormForm,self).__init__(*args,**kwargs)
+
+        for field in ['condition_script','stimulus_script']:
+            script = getattr(self.instance,field,'')
+            if script:
+                self.fields[field].widget.attrs.update({'class':'has-popover', 'data-content':script, 'data-placement':'right', 'data-container':'body'})
 
 class ExperimentForm(forms.ModelForm):
     class Meta:
