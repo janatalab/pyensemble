@@ -239,8 +239,7 @@ class QuestionCreateView(LoginRequiredMixin,CreateView):
 class QuestionUpdateView(LoginRequiredMixin,UpdateView):
     model = Question
     form_class = QuestionUpdateForm
-    template_name = 'pyensemble/question_create.html'
-    # context_object_name = 'question'
+    template_name = 'pyensemble/question_update.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -413,6 +412,16 @@ def serve_form(request, experiment_id=None):
             # form = Form.objects.get(form_id=currform.form_id)
             formset = QuestionModelFormSet(request.POST)
 
+        # Pull in any miscellaneous info that has been set by the experiment 
+        # This can be an arbitrary string, though json-encoded strings are recommended
+        misc_info = expsessinfo.get('misc_info','')
+
+        if expsessinfo['stimulus_id']:
+            stimulus = Stimulus.objects.get(pk=expsessinfo['stimulus_id'])
+        else:
+            stimulus = None
+
+
         if formset.is_valid():
             expsessinfo['response_order']+=1
 
@@ -487,6 +496,7 @@ def serve_form(request, experiment_id=None):
                 # Save responses to the Response table
                 #
                 responses = []
+
                 for idx,question in enumerate(formset.forms):
             
                     # Pre-process certain fields
@@ -508,14 +518,6 @@ def serve_form(request, experiment_id=None):
 
                     declined=question.cleaned_data.get('decline',False)
 
-                    # Pull in any miscellaneous info that has been set by the experiment 
-                    # This can be an arbitrary string, though json-encoded strings are recommended
-                    misc_info = expsessinfo.get('misc_info','')
-
-                    if expsessinfo['stimulus_id']:
-                        stimulus = Stimulus.objects.get(pk=expsessinfo['stimulus_id'])
-                    else:
-                        stimulus = None
 
                     # Get jsPsych data if we have it, but only write it for the first question
                     if not idx:
@@ -557,6 +559,9 @@ def serve_form(request, experiment_id=None):
             # Move to the next form by calling ourselves
             return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
             
+        
+
+
         # If the form was not valid and we have to present it again, skip the trial running portion of it, so that we only present the questions
         skip_trial = True
 

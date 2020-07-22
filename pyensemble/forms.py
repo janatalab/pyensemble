@@ -61,11 +61,10 @@ class QuestionCreateForm(forms.ModelForm):
     def __init__(self,*args,**kwargs):
         super(QuestionCreateForm, self).__init__(*args, **kwargs)
 
-        # pdb.set_trace()
         self.fields['html_field_type'].label = 'Display format'
 
         # Generate choices for the data format
-        self.fields['dfid'].choices=((dfid.pk,dfid.choice()) for dfid in DataFormat.objects.all())
+        self.fields['dfid'].choices=((dfid.pk,dfid.choice()) for dfid in DataFormat.objects.all().order_by('pk'))
 
         # Deal with form layout
         self.helper = QuestionEditHelper()
@@ -73,10 +72,14 @@ class QuestionCreateForm(forms.ModelForm):
 
 class QuestionUpdateForm(QuestionCreateForm):
     def __init__(self,*args,**kwargs):
+        # Note that QuestionCreateForm is called first 
+
         super(QuestionUpdateForm,self).__init__(*args,**kwargs)
 
-        self.helper = QuestionEditHelper()
+        # Because the data_format from which we get the current choice is a separate model, we have to override the default behavior and set the initial value to the current value so that this is what shows up.
+        self.fields['dfid'].initial = (self.instance.data_format.pk,self.instance.data_format.choice())
 
+        self.helper = QuestionEditHelper()
 
 # borrowed this from meamstream
 class QuestionPresentForm(forms.ModelForm):
@@ -102,6 +105,9 @@ class QuestionPresentForm(forms.ModelForm):
         # Set up the input field as a function of the HTML type
         html_field_type = self.instance.html_field_type
 
+        # Grab data_format_id, if 'null' need to set field_params['required'] to False
+        df = DataFormat.objects.get(id=self.instance.data_format_id)
+
         # If a field type hasn't been specified, choose radiogroup as a default
         if not html_field_type:
             html_field_type = 'radiogroup'
@@ -118,6 +124,12 @@ class QuestionPresentForm(forms.ModelForm):
 
             elif html_field_type == 'menu':
                 widget = forms.Select
+
+            # catch the null questions that are there to write so jsPsych data can be added to response
+            if df.df_type == 'null':
+                # pdb.set_trace()
+                field_params['required'] = False
+                field_params['choices'] = ['null']
 
         elif re.match('numeric',html_field_type):
             widget = forms.NumberInput
@@ -182,6 +194,13 @@ class ExperimentFormForm(forms.ModelForm):
 
     field_order = ('form_handler','condition_script','stimulus_script','goto','repeat','break_loop_button','break_loop_button_text','continue_button_text')
 
+    def __init__(self, *args, **kwargs):
+        super(ExperimentFormForm,self).__init__(*args,**kwargs)
+
+        for field in ['condition_script','stimulus_script']:
+            script = getattr(self.instance,field,'')
+            if script:
+                self.fields[field].widget.attrs.update({'class':'has-popover', 'data-content':script, 'data-placement':'right', 'data-container':'body'})
 
 class ExperimentForm(forms.ModelForm):
     class Meta:

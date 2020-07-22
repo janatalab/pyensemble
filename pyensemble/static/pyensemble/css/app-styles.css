@@ -53,11 +53,9 @@ input[type=number] {
 }
 
 .experiment-info>input .experiment-info>textarea {
-    pointer-events: none;
     font-size: 0.8rem;
 }
 
 #form_table .textinput {
     width: 300px;
 }
-
