@@ -192,6 +192,11 @@ class ExperimentFormForm(forms.ModelForm):
         model = ExperimentXForm
         exclude = ('form_order',)
 
+        widgets = {
+            'form_handler': forms.Select(attrs={'placeholder':'Choose a form handler'}),
+        }
+
+
     field_order = ('form_handler','condition_script','stimulus_script','goto','repeat','break_loop_button','break_loop_button_text','continue_button_text')
 
     def __init__(self, *args, **kwargs):
