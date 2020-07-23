@@ -1,8 +1,8 @@
 # loaders.py
 from pathlib import Path
 
-from django.conf import settings
 from django.template.loaders.filesystem import Loader as FilesystemLoader
+from django.conf import settings
 
 class Loader(FilesystemLoader):
 
@@ -11,7 +11,7 @@ class Loader(FilesystemLoader):
             return self.dirs
         else:
             # Get our base experiment dir
-            p = Path(settings.BASE_DIR,'pyensemble','experiments')
+            p = Path(settings.EXPERIMENT_DIR)
 
             # Get our sub-directories
             dirs = [d for d in p.iterdir() if d.is_dir()]
