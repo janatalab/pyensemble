@@ -18,6 +18,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 # Specify the path to password files
 PASS_DIR = os.path.dirname('/var/www/private/')
 
+# Specify the directory where experiments will be located
+EXPERIMENT_DIR = os.path.join(BASE_DIR,'pyensemble/experiments')
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
 
