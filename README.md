@@ -17,6 +17,27 @@ This is a Python-backed version of the PHP/MATLAB web-based experiment system, E
         - [Creating users](#users)
     - [Deploying the production server](#production)
         - [Expose the PyEnsemble code to the webserver](#expose_code)
+        - [Download and install mod_wsgi](#mod_wsgi)
+        - [Configure the Apache httpd config file](#httpd_config)
+    - [Launching PyEnsemble](#launch)
+        - [Collect static files](#collectstatic)
+        - [Restart the httpd server](#httpd_restart)
+- [Structure](#structure)
+    - [Experiments, Forms, and Questions](#efq)
+    - [Stimuli](#stimuli)
+    - [Responses](#responses)
+    - [Sessions](#sessions)
+- [Usage](#usage)
+    - [Creating questions, forms, and experiments](#create_qfe)
+    - [Creating tickets](#tickets)
+    - [Form handlers](#form_handlers)
+    - [Experiment-specific control methods](#experiment_control)
+        -[Specifying methods](#method_specify)
+        -[Exposing methods](#method_expose)
+        -[Method evaluation](#method_evaluate)
+    -[Loops](#loops)
+    -[jsPsych](#jspsych)
+        -[Using jsPsych](#using_jspsych)
 - [Frequently Asked Questions (FAQs)](#faqs)
 
 <a name="requirements"/></a>
@@ -179,8 +200,9 @@ Make sure that permissions on /home/pysensemble will allow at least the apache g
 > sudo chgrp apache pyensemble
 ```
 
-### Download and install mod_wsgi, the Apache module that enables the running of Python code as a server backend
-The pyensemble application is served via mod_wsgi. It is likely that you will need to install mod_wsgi and associated Apache libraries.
+<a name="mod_wsgi"/></a>
+### Download and install mod_wsgi
+The pyensemble application is served via mod_wsgi. mod_wsgi is the Apache module that enables the running of Python code as a server backend. It is likely that you will need to install mod_wsgi and associated Apache libraries.
 
 Make sure you have the Apache 2.4 development libraries installed:
 ```
@@ -192,6 +214,7 @@ Now pip install mod-wsgi:
 > pip install mod_wsgi
 ```
 
+<a name="httpd_config"/></a>
 ### Configure the Apache httpd config file
 Add the following code block to /etc/httpd/conf/httpd.conf (after first making a backup of httpd.conf):
 ```
@@ -212,11 +235,13 @@ WSGIDaemonProcess pyensemble_wsgi python-home=/home/pyensemble/pyensemble python
 </Directory>
 ```
 
-## Launching the webserver
+<a name="launch"/></a>
+## Launching PyEnsemble
 These steps need to be executed both during initial launch of the webserver as well as whenever the PyEnsemble code has been updated or experiment-specific code is deployed.
 
+<a name="collectstatic"/></a>
 ### Collect static files
-Now make sure to collect all of the static files. These include thirdparty files, stimulus files such as audio files or images, JavaScript, and CSS files. This step only needs to be run if any of these types of files have changed.
+Now make sure to collect all of the static files. Static files include thirdparty files, stimulus files such as audio files or images, JavaScript, and CSS files. This step only needs to be run if any of these types of files have changed.
 
 ```
 > python manage.py collectstatic --settings=pyensemble.settings.prepprod_settings
@@ -224,6 +249,7 @@ Now make sure to collect all of the static files. These include thirdparty files
 
 The prepprod_settings.py settings module is identical to settings.py but it turns off logging to avoid permission conflicts in /home/pyensemble/log/
 
+<a name="httpd_restart"/></a>
 ### Restart the httpd server
 This step should be run whenever PyEnsemble and/or experiment-specific code has been updated in production.
 
@@ -233,11 +259,13 @@ This step should be run whenever PyEnsemble and/or experiment-specific code has 
 
 Sometimes issues arise with permissions on the logging files. It may be necessary to delete the files in the log directory (e.g. /home/pyensemble/log/) before restarting the server or trying to load pyensemble.
 
+<a name="structure"/></a>
 # Structure
 The basic architecture parallels that described in Tomic, S. T., & Janata, P. (2007). Ensemble: A web-based system for psychology survey and experiment management. Behavior Research Methods, 39(3), 635–650. It is described only briefly here.
 
 For an understanding of the database tables and table fields that underlie PyEnsemble, examine the pyensemble/models.py file. Each class definition that derives from a Model class corresponds to a database table.
 
+<a name="efq"/></a>
 ## Experiments, Forms, and Questions
 - Experiments are initiated using a Ticket (and, optionally, a SONA code)
 - Experiments consist of one or more Forms
@@ -249,44 +277,54 @@ For an understanding of the database tables and table fields that underlie PyEns
 - A Question can be associated with many Forms
 - A Form can be associated with many Experiments
 
+<a name="stimuli"/></a>
 ## Stimuli
 Information about stimulus files that can be presented to participants is maintained in a Stimulus table. Additional information related to programmatic control of stimulus presentation can be stored in Experiment_x_Stimulus, Attribute, Attribute_x_Attribute, and Stimulus_x_Attribute tables
 
+<a name="responses"/></a>
 ## Responses
 By contrast to the PHP version of Ensemble, in which a separate database table is created to hold the responses for each experiment, all participant responses to Questions, along with an associated jsPsych data, are collected into a single Response table.
 
+<a name="sessions"/></a>
 ## Sessions
 Sessions uniquely associate participants with an instance of running an experiment.
 
+<a name="usage"/></a>
 # Usage
+<a name="create_qfe"/></a>
 ## Creating questions, forms, and experiments
 Experiments, Forms, Questions, and Enums can all be defined through the editor interface and require no programming whatsoever. For experiments that are purely surveys which present no stimuli can be deployed entirely within the editor interface.
 
+<a name="tickets"/></a>
 ## Creating tickets
-Tickets can be created on the Experiment editing page. Master tickets can be used multiple times, whereas 'user' tickets are single-use. The link with the ticket code is what is used to run an experiment session.
+An experiment must be launced via a ticket. Tickets can be created on the Experiment editing page. Master tickets can be used multiple times, whereas 'user' tickets are single-use. The link with the ticket code is what is used to run an experiment session.
 
+<a name="form_handlers"/></a>
 ## Form handlers
 The method responsible for serving and processing the forms in an experiment is ```pyensemble.views.serve_form()```. While most experiment forms can be processed using the generic forms **form_generic** and **form_generic_s**, other forms require special handling. Special handling is needed to initiate a session, register a participant, and end a session.
 
+<a name="experiment_control"/></a>
 ## Experiment-specific control methods
 Two situations arise in which it is necessary to make use of a mechanism that executes experiment-specific methods when handling a form:
 
 1. Presenting a form based on specific responses to one or more questions on one or more preceding forms. 
 2. Constructing an experiment timeline consisting of one or more stimuli (audio, visual, textual) to be presented to a participant via jsPsych (see below). 
 
+<a name="method_specify"/></a>
 ### Specifying methods
 The condition evaluation and timeline specification methods are entered into the **condition_script** and **stimulus_script** fields, respectively, within the Experiment editor interface. The information is stored in the Experiment_x_Form database table. The form of the specification is package.module.method, where package is the name of the experiment directory located in pyensemble/experiments/ and module is the name of the module within that experiment directory that contains the method definition.
 
-### Exposing the methods
-At the present time, experiment packages are not automatically detected and they must be made visible to PyEnsemble by registering them in pyensemble/experiments/__init__.py by adding them to the list definining __all__
+<a name="method_expose"/></a>
+### Exposing methods
+Within an experiment package, methods can be exposed in the __init__.py file for the experiment package, though this is not absolutely necessary.
 
-Within an experiment package, methods can be exposed in the __init__.py file for the experiment package, though this is not necessary.
-
-### When the methods are evaluated
+<a name="method_evaluation"/></a>
+### Method evaluation
 When the handling of a current form by serve_form has completed, the next form to be presented is determined in a method attached to the ExperimentXForm class. It is at this time the the condition_script field is consulted. If it is not empty, the specified method is evaluated. If the method returns False, the next form is selected.
 
 If a form is to be displayed, and the stimulus_script field is not empty, the specified method is executed.
 
+<a name="loops"/></a>
 ## Loops
 It is possible to repeat a section of experiment forms an arbitrary number of times, based on:
 1. the number of repetitions specified in the Repeat field of ExperimentXForm 
@@ -297,12 +335,14 @@ A loop is terminated when any of the following conditions are met:
 2. an empty timeline is returned during stimulus selection associated with a form within the loop
 3. the participant clicks the 'break loop' button, if the break-loop button has been enabled for the form at the end of the loop.
 
+<a name="jspsych"/></a>
 ## jsPsych
 PyEnsemble experiments may incorporate an arbitrary number of forms that execute jsPsych experiments. jsPsych is incorporated into PyEnsemble as a git submodule under pyensemble/thirdparty/
 
 By default, PyEnsemble incorporates the janatalab jsPsych fork [jsPsych](https://github.com/janatalab/jsPsych.git). At the present time, this form differs from the base jsPsych git repo [in the following ways](https://github.com/jspsych/jsPsych/compare/master...janatalab:master):
 - plugins/jspsych-audio-keyboard-response.js - enables audio playback in Safari which requires a user-driven event, e.g. a click, to initiate media playback.
 
+<a name="using_jspsych"/></a>
 ### Using jsPsych
 jsPsych works by executing a timeline that consists of trials and child timelines. The jsPsych documentation should be consulted for details of how timelines are specified. Within PyEnsemble, it is up to the experiment-specific method declared in the stimulus_script field to return a valid jsPsych timeline array. PyEnsemble transmits the timeline array to the browser client as a JSON-encoded string.
 
