@@ -124,3 +124,6 @@ html/dist
 
 # thirdparty python src
 python/src
+
+# experiment directories
+pyensemble/experiments/*/
