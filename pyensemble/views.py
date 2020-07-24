@@ -24,7 +24,7 @@ from django.views.generic.edit import CreateView, UpdateView, FormView
 
 from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
 
-from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm
+from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm
 
 from .tasks import get_expsess_key, fetch_subject_id
 
@@ -110,6 +110,44 @@ def add_experiment_form(request, experiment_id):
             ExperimentXForm.objects.create(experiment_id=experiment_id,form=form,form_order=num_existing+1)
 
     return HttpResponseRedirect(reverse('experiment_update', kwargs={'pk': experiment_id}))
+
+@login_required
+def copy_experiment(request, experiment_id):
+    template = 'pyensemble/copy_experiment.html'
+
+    if request.method == 'POST':
+        form = CopyExperimentForm(request.POST)
+
+        if form.valid():
+            # Create a new Experiment
+            new_experiment = Experiment.objects.create(title=form.cleaned_data['experiment_title'])
+
+            # Now copy all of the ExperimentXForm entries from the parent experiment
+            old_exf = ExperimentXForm.objects.filter(experiment__id=experiment_id)
+
+            new_exf = []
+            for exf in old_exf:
+                exf.pk = None # To prevent overwrite of existing exf entry
+
+                # Replace old experiment object with new experiment object in the exf instance
+                exf.experiment = new_experiment 
+
+                # Add the instance to the stack
+                new_exf.append(exf)
+
+            # Create all of the new exf entries
+            ExperimentXForm.objects.bulk_create(new_exf) 
+
+            return HttpResponseRedirect(reverse('experiment_update', kwargs={'pk': new_experiment.id}))
+
+    else:
+        form = CopyExperimentForm()
+
+    context = {
+        'parent_id': experiment_id,
+    }
+
+    render(request,template,context)
 
 #
 # Form editing views
