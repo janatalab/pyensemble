@@ -32,12 +32,12 @@ This is a Python-backed version of the PHP/MATLAB web-based experiment system, E
     - [Creating tickets](#tickets)
     - [Form handlers](#form_handlers)
     - [Experiment-specific control methods](#experiment_control)
-        -[Specifying methods](#method_specify)
-        -[Exposing methods](#method_expose)
-        -[Method evaluation](#method_evaluate)
-    -[Loops](#loops)
-    -[jsPsych](#jspsych)
-        -[Using jsPsych](#using_jspsych)
+    - [Specifying methods](#method_specify)
+        - [Exposing methods](#method_expose)
+        - [Method evaluation](#method_evaluate)
+    - [Loops](#loops)
+    - [jsPsych](#jspsych)
+        - [Using jsPsych](#using_jspsych)
 - [Frequently Asked Questions (FAQs)](#faqs)
 
 <a name="requirements"/></a>
