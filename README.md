@@ -2,15 +2,32 @@
 This is a Python-backed version of the PHP/MATLAB web-based experiment system, Ensemble (Tomic & Janata, 2007). PyEnsemble uses Django as an object relations manager (ORM) backend to interact with experiment information (stimuli, response options, questions, forms, and experiments) stored in a database backend. The primary improvements afforded by the Python-based version are the ability write custom experiment control scripts in Python, rather than MATLAB which requires a license, and also the ability to use jsPsych to implement complex trial types and recording of responses using standard jsPsych plugins or customized plugins. A mix-and-match approach is available in which jsPsych is used to present stimuli, allowing forms served by PyEnsemble to present questions pertaining to the stimuli presented via jsPsych.
 
 # Table of Contents
-[Requirements](#requirements)
+- [Requirements](#requirements)
+- [Installation](#installation)
+    - [System packages and libraries](#packages)
+    - [Create a pyensemble user](#pyensemble_user)
+    - [Python environment and packages](#environment)
+    - [Clone the necessary git repos](#git_repos)
+        - [PyEnsemble git repo](#pyensemble_git)
+        - [jsPsych git repo](#jspsych_git)
+    - [Site-specific database setup](#database_setup)
+        - [Database](#database)
+        - [Settings](#settings)
+        - [Instantiating the database schema](#schema)
+        - [Creating users](#users)
+    - [Deploying the production server](#production)
+        - [Expose the PyEnsemble code to the webserver](#expose_code)
+- [Frequently Asked Questions (FAQs)](#faqs)
 
 <a name="requirements"/></a>
 # Requirements
 PyEnsemble requires Python 3.6+ and a database of choice. Our lab uses MySQL which we host on a separate server. Specific Python packages are listed in the requirements.txt file and can be installed per the instructions provided below.
 
+<a name="installation"/></a>
 # Installation
 The installation steps below are based on an installation on an Amazon Linux AMI using the yum and pip package managers for Amazon Linux and Python, respectively. However, any corresponding package managers for other platforms should work. The system packages and libraries installed using yum need only be installed once for all of the computer's users. It is recommended that each user maintain their own virtualenv and perform testing via a development server (see the [Django dcoumentation](https://docs.djangoproject.com/en/2.2/) for more information.) It is also recommended that a user be created, e.g. pyensemble, from which the production version of the server is run.
 
+<a name="packages"/></a>
 ## System packages and libraries
 - Install Python 3.6 or better
 ```
@@ -44,6 +61,7 @@ The installation steps below are based on an installation on an Amazon Linux AMI
   sudo chkconfig memcached on
   ```
 
+<a name="pyensemble_user"/></a>
 ## Create a pyensemble user
 The production version of the PyEnsemble site, i.e. the version of the webserver accessed by the outside world needs to be served from a specific location on the server's file system. This could be directly in a standard location, such as /var/www/html/pyensemble, which is accessible to the webserver daemon, e.g. apache, and other system users with appropriate privileges. Alternatively, it can be within a user's directory. In this case it is the pyensemble user.
 
@@ -53,6 +71,7 @@ The production version of the PyEnsemble site, i.e. the version of the webserver
 > sudo usermod -a -G www pyensemble
 ```
 
+<a name="environment"/></a>
 ## Python environment and packages
 
 The instructions below apply both to installing a production server user, e.g. pyensemble, as well as any other user on your machine who will be involved in development/testing of site-specific experiments under their own user account. Therefore, repeat the virtualenv creation, git repo cloning, and Python package steps described belowa for the pyensemble user and for any other user working on experiment development/testing.
@@ -73,8 +92,10 @@ The instructions below apply both to installing a production server user, e.g. p
 > source pyensemble/bin/activate
 ```
 
+<a name="git_repos"/></a>
 ## Clone the necessary git repos
 
+<a name="pysensemble_git"/></a>
 ### Clone the PyEnsemble git repo
 
 ```
@@ -89,6 +110,7 @@ The instructions below apply both to installing a production server user, e.g. p
 > pip install -r requirements.txt
 ```
 
+<a name="jspsych_git"/></a>
 ### Setup the jsPsych git repo
 jsPsych is specified with the PyEnsemble repository as a git submodule. The location within the PyEnsemble package is pyensemble/thirdparty/jsPsych
 
@@ -98,19 +120,22 @@ Because jsPsych is installed as a submodule, one has to run a couple of commands
 > git submodule init
 > git submodule update
 ```
-
+<a name="database_setup"/></a>
 ## Site-specific database setup
 Getting started takes a small number of steps in order to create the database schema with which Django interacts. If production and testing environments are using the same database schema, i.e. accessing the same experiments, forms, and questions during testing and in production, then the database creation steps described in this section need only be executed once.
 
+<a name="database"/></a>
 ### Database
 Within your database manager, e.g. MySQLWorkbench, 
 1. Create a user that Django will use to interact with the database, e.g. `experimenter`
 2. Initialize a database schema. Django will populate the schema with the appropriate tables in a following step.
 3. Make sure that the user you created is granted access to the schema (from the appropriate server, e.g. localhost - if running the database on the same server as PyEnsemble).
 
+<a name="settings"/></a>
 ### Settings file
 In order to communicate with your database instance, you will need to edit the [settings.py](pyensemble/settings/settings.py) file, with values that are specific to your instance. Some of this information should remain private and you are thus advised to situate in files that exist in a protected directory for which there is no universal access. The location of this directory is arbitrary. We use `/var/www/private/`.
 
+<a name="schema"/></a>
 ### Instantiating the database schema
 Once the settings.py file is configured with your specifics, you can populate the database tables by running a migration. From within the top-level pyensemble directory, which contains the manage.py file, run:
 ```
@@ -123,6 +148,7 @@ At this point, you could launch a development server. Please note that the Djang
 > python manage.py runsslserver 0.0.0.0:8000 --settings=pyensemble.settings.dev_settings
 ```
 
+<a name="users"/></a>
 ### Creating users
 In order to access the various editing interfaces and generate tickets for running experiments, it is necessary to create authorized users. At a minimum, one has to create a superuser who can then create additional users. To create a superuser, run:
 ```
@@ -130,6 +156,7 @@ In order to access the various editing interfaces and generate tickets for runni
 ```
 Using the standard Django admin interfaces at https://<server_name>/pyensemble/admin/ one can create additional users. Users within the admin group will be able to authenticate and access the editor interface under https://<server_name>/pyensemble/editor/
 
+<a name="production"/></a>
 ## Deploying the production server
 **DO NOT run a Django development server, even the secure one, as your production server!** When errors occur, debugging information is transmitted that may expose secret information or vulnerabilities about your system.
 
@@ -137,6 +164,7 @@ Running a production server requires that you tell your HTTP server where to fin
 
 You are advised to only serve pages via HTTPS in which case you will need to have an SSL certificate installed. LetsEncrypt is a good source for free SSL certificates.
 
+<a name="expose_code"/></a>
 ### Expose the PyEnsemble code to the webserver 
 This assumes that the root of your pyensemble project is located at /var/www/html/pyensemble. If the project is checked out under the pyensemble user, create a symlink between the user's directory and /var/www/html/pyensemble, e.g.
 
@@ -337,4 +365,5 @@ The various keys in the trial dictionaries are all described in the jsPsych docu
 
 #### Collecting responses in jsPsych
 
+<a name="faqs"/></a>
 # Frequently Asked Questions (FAQs)
