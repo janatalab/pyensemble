@@ -14,7 +14,6 @@ from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment
 
 import pdb
 
-
 class EnumCreateForm(forms.ModelForm):
     class Meta:
         model = DataFormat
@@ -127,7 +126,6 @@ class QuestionPresentForm(forms.ModelForm):
 
             # catch the null questions that are there to write so jsPsych data can be added to response
             if df.df_type == 'null':
-                # pdb.set_trace()
                 field_params['required'] = False
                 field_params['choices'] = ['null']
 
@@ -150,7 +148,6 @@ class QuestionPresentForm(forms.ModelForm):
             self.fields['option'] = forms.IntegerField(**field_params)
         else:
             self.fields['option'] = forms.CharField(**field_params)
-
 
 QuestionModelFormSet = forms.modelformset_factory(Question, form=QuestionPresentForm, extra=0, max_num=1)
 
@@ -195,7 +192,6 @@ class ExperimentFormForm(forms.ModelForm):
         widgets = {
             'form_handler': forms.Select(attrs={'placeholder':'Choose a form handler'}),
         }
-
 
     field_order = ('form_handler','condition_script','stimulus_script','goto','repeat','break_loop_button','break_loop_button_text','continue_button_text')
 

@@ -3,11 +3,9 @@
 // Sets things up to run a trial in jsPsych
 // Assumes jsPsych setup from scratch
 
-function post_trial(trialdata){
+function post_trial(data){
     // Write any responses that were obtained to a hidden field in our Django form
-    // Add this as a text form field that we can write a JSON-encoded dict to
-    // This can be included as an extra jsPsych form to be passed along to the template.
-    $('input[name="jspsych_data"]').val(JSON.stringify(trialdata));
+    $('input[name="jspsych_data"]').val(JSON.stringify(data.values()));
 
     // Hide the trialrunner div
     $("#trialrunner").addClass("d-none");
