@@ -151,12 +151,10 @@ function submitNewItemForm(item_type){
         type: 'POST',
         data: $("#copyItemForm").serialize(),
         success: function(response){
-            // $("#copyItemModal").modal('hide');
             $("#content-right").html(response);
         },
         error: function(response,errorText){
-            $("#copyItemModal").modal('show');
-            $("#copyItemModal .modal-body").html(response.responseText);
+            alert('An experiment with that title already exists! Please choose a different title!')
         }
     });    
 }
