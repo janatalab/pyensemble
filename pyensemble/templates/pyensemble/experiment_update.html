@@ -17,9 +17,8 @@
         <li class="nav-item">
             <a class="nav-link" href="#experimentTickets">Tickets</a>
         </li>
-    {% else %}
         <li class="nav-item">
-            <a class="nav-link" href="#">Copy</a>
+            <a id="copyLink" class="nav-link" role="button" href="#" data-toggle="modal" data-target="#copyItemModal">Copy</a>
         </li>
     {% endif %}
 {% endblock %}
@@ -35,5 +34,6 @@
     {% endif %}
 
     {% include "pyensemble/modals/add_item_modal.html" with item_type='form' %}
+    {% include "pyensemble/modals/copy_item_modal.html" with item_type='experiment' %}
 
 {% endblock %}

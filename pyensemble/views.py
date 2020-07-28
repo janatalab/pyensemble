@@ -113,14 +113,15 @@ def add_experiment_form(request, experiment_id):
 
 @login_required
 def copy_experiment(request, experiment_id):
-    template = 'pyensemble/copy_experiment.html'
+    template = 'pyensemble/item_copy.html'
+    status = 200
 
     if request.method == 'POST':
         form = CopyExperimentForm(request.POST)
 
-        if form.valid():
+        if form.is_valid():
             # Create a new Experiment
-            new_experiment = Experiment.objects.create(title=form.cleaned_data['experiment_title'])
+            new_experiment = Experiment.objects.create(title=form.cleaned_data['title'])
 
             # Now copy all of the ExperimentXForm entries from the parent experiment
             old_exf = ExperimentXForm.objects.filter(experiment__id=experiment_id)
@@ -140,14 +141,17 @@ def copy_experiment(request, experiment_id):
 
             return HttpResponseRedirect(reverse('experiment_update', kwargs={'pk': new_experiment.id}))
 
+        else:
+            status=400
+
     else:
         form = CopyExperimentForm()
 
     context = {
-        'parent_id': experiment_id,
+        'form': form,
     }
 
-    render(request,template,context)
+    return render(request,template,context,status=status)
 
 #
 # Form editing views

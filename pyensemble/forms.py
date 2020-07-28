@@ -236,6 +236,10 @@ class CopyExperimentForm(forms.ModelForm):
             'title': forms.TextInput(attrs={'placeholder':'Title of new experiment'})
         }
 
+    helper = FormHelper()
+    helper.form_method = 'POST'
+    helper.form_id = 'copyItemForm'
+
 
 class TicketCreationForm(forms.Form):
     input_format = '%d/%m/%Y %H:00'
