@@ -1,5 +1,5 @@
 # PyEnsemble
-This is a Python-backed version of the PHP/MATLAB web-based experiment system, Ensemble (Tomic & Janata, 2007). PyEnsemble uses Django as an object relations manager (ORM) backend to interact with experiment information (stimuli, response options, questions, forms, and experiments) stored in a database backend. The primary improvements afforded by the Python-based version are the ability write custom experiment control scripts in Python, rather than MATLAB which requires a license, and also the ability to use jsPsych to implement complex trial types and recording of responses using standard jsPsych plugins or customized plugins. A mix-and-match approach is available in which jsPsych is used to present stimuli, allowing forms served by PyEnsemble to present questions pertaining to the stimuli presented via jsPsych.
+PyEnsemble is a Python-backed version of the PHP/MATLAB web-based experiment system, Ensemble (Tomic & Janata, 2007). PyEnsemble uses Django as an object relations manager (ORM) backend to interact with experiment information (stimuli, response options, questions, forms, and experiments) stored in a database backend. The primary improvements afforded by the Python-based version are the ability write custom experiment control scripts in Python, rather than MATLAB which requires a license, and also the ability to use jsPsych to implement complex trial types and recording of responses using standard jsPsych plugins or customized plugins. A mix-and-match approach is available in which jsPsych is used to present stimuli, allowing forms served by PyEnsemble to present questions pertaining to the stimuli presented via jsPsych.
 
 # Table of Contents
 - [Requirements](#requirements)
@@ -31,11 +31,11 @@ This is a Python-backed version of the PHP/MATLAB web-based experiment system, E
     - [Creating questions, forms, and experiments](#create_qfe)
     - [Creating tickets](#tickets)
     - [Form handlers](#form_handlers)
+    - [Loops](#loops)
     - [Experiment-specific control methods](#experiment_control)
     - [Specifying methods](#method_specify)
         - [Exposing methods](#method_expose)
         - [Method evaluation](#method_evaluate)
-    - [Loops](#loops)
     - [jsPsych](#jspsych)
         - [Using jsPsych](#using_jspsych)
 - [Frequently Asked Questions (FAQs)](#faqs)
@@ -303,27 +303,6 @@ An experiment must be launced via a ticket. Tickets can be created on the Experi
 ## Form handlers
 The method responsible for serving and processing the forms in an experiment is ```pyensemble.views.serve_form()```. While most experiment forms can be processed using the generic forms **form_generic** and **form_generic_s**, other forms require special handling. Special handling is needed to initiate a session, register a participant, and end a session.
 
-<a name="experiment_control"/></a>
-## Experiment-specific control methods
-Two situations arise in which it is necessary to make use of a mechanism that executes experiment-specific methods when handling a form:
-
-1. Presenting a form based on specific responses to one or more questions on one or more preceding forms. 
-2. Constructing an experiment timeline consisting of one or more stimuli (audio, visual, textual) to be presented to a participant via jsPsych (see below). 
-
-<a name="method_specify"/></a>
-### Specifying methods
-The condition evaluation and timeline specification methods are entered into the **condition_script** and **stimulus_script** fields, respectively, within the Experiment editor interface. The information is stored in the Experiment_x_Form database table. The form of the specification is package.module.method, where package is the name of the experiment directory located in pyensemble/experiments/ and module is the name of the module within that experiment directory that contains the method definition.
-
-<a name="method_expose"/></a>
-### Exposing methods
-Within an experiment package, methods can be exposed in the __init__.py file for the experiment package, though this is not absolutely necessary.
-
-<a name="method_evaluation"/></a>
-### Method evaluation
-When the handling of a current form by serve_form has completed, the next form to be presented is determined in a method attached to the ExperimentXForm class. It is at this time the the condition_script field is consulted. If it is not empty, the specified method is evaluated. If the method returns False, the next form is selected.
-
-If a form is to be displayed, and the stimulus_script field is not empty, the specified method is executed.
-
 <a name="loops"/></a>
 ## Loops
 It is possible to repeat a section of experiment forms an arbitrary number of times, based on:
@@ -334,6 +313,29 @@ A loop is terminated when any of the following conditions are met:
 1. the specified number of repetitions has been reached
 2. an empty timeline is returned during stimulus selection associated with a form within the loop
 3. the participant clicks the 'break loop' button, if the break-loop button has been enabled for the form at the end of the loop.
+
+<a name="experiment_control"/></a>
+## Experiment-specific control methods
+Two situations arise in which it is necessary to make use of a mechanism that executes experiment-specific methods when handling a form:
+
+1. Presenting a form based conditioned on specific responses to one or more questions on one or more preceding forms. 
+2. Constructing an experiment timeline consisting of one or more stimuli (audio, visual, textual) to be presented to a participant via jsPsych (see below). 
+
+Because experiments are typically lab-specific in nature, experiment control code is not managed within the main PyEnsemble project, but rather in separate repositories. If these separate repositories are cloned into pyensemble/pyensemble/experiments/, the experiments modules, methods, templates, and url endpoints automatically become visible to PyEnsemble.
+
+<a name="method_specify"/></a>
+### Specifying methods
+The condition evaluation and timeline specification methods are entered into the **condition_script** and **stimulus_script** fields, respectively, within the Experiment editor interface. The information is stored in the ExperimentXForm database table. The form of the specification is `package.module.method`, where package is the name of the experiment directory located in pyensemble/experiments/ and module is the name of the module within that experiment directory that contains the method definition.
+
+<a name="method_expose"/></a>
+### Exposing methods
+Within an experiment package, methods can be exposed in the \_\_init\_\_.py file for the experiment package, though this is not absolutely necessary, given that the method specification parser will work its way along the path to find the method.
+
+<a name="method_evaluation"/></a>
+### Method evaluation
+When the handling of a current form by serve_form has completed, the next form to be presented is determined in a method attached to the ExperimentXForm class. It is at this time the the condition_script field is consulted. If it is not empty, the specified method is evaluated. If the method returns False, the next form is selected.
+
+If a form is to be displayed, and the stimulus_script field is not empty, the specified method is executed. Typically, the method should return a jsPsych timeline or an empty array to indicate that no more stimuli are available. In the event that a form_feedback handler is specified, the stimulus_script field is used to specify the method that will return the HTML that is to be displayed to the participant.
 
 <a name="jspsych"/></a>
 ## jsPsych
@@ -346,16 +348,16 @@ By default, PyEnsemble incorporates the janatalab jsPsych fork [jsPsych](https:/
 ### Using jsPsych
 jsPsych works by executing a timeline that consists of trials and child timelines. The jsPsych documentation should be consulted for details of how timelines are specified. Within PyEnsemble, it is up to the experiment-specific method declared in the stimulus_script field to return a valid jsPsych timeline array. PyEnsemble transmits the timeline array to the browser client as a JSON-encoded string.
 
+**Note.** A single trial in PyEnsemble corresponds to a single presentation of a specific form. If the form uses jsPsych to execute a jsPsych timeline, a jsPsych experiment (timeline) is run **in its entirety** during the presentation of that form. A jsPsych experiment/timeline can consist of one or more jsPsych "trials." The necessary jsPsych-related JavaScript is dynamically loaded when the form is presented to the browser, and is cached so that subsequent stimulus presentations do not incur the (relatively negligible) overhead of downloading the JavaScript.
+
 There are several ways in which jsPsych can be used in the PyEnsemble context. Importantly, participant responses can be collected: 
 - in PyEnsemble following the execution of the jsPsych experiment timeline
 - in jsPsych
-- both of the above methods
-
-They key thing to remember is that a presentation of a PyEnsemble form associated with a jsPsych timeline runs an entire jsPsych experiment (timeline). The necessary jsPsych-related JavaScript is dynamically loaded when the form is presented to the browser, and is cached so that subsequent stimulus presentations do not incur the (relatively negligible) overhead of downloading the JavaScript.
+- using both of the above methods
 
 Two simple use cases are described here.
 #### Playing an audio file followed by several questions pertaining to the audio file
-In this situation, the jsPsych experiment timeline consists of a single trial. When the experiment finishes, the PyEnsemble questions that were associated with the form to which a form_stimulus_s handler was attached are displayed, and the responses (along with any data collected within the jsPsych experiment are written to the database).
+In this situation, the jsPsych experiment timeline consists of a single trial which is responsible for presenting the stimulus. When the experiment finishes, the PyEnsemble questions that were associated with the form to which a form_stimulus_s handler was attached are displayed, and the responses (along with any data collected within the jsPsych experiment are written to the database).
 
 Additional questions on additional forms can be associated with the stimulus_id of the stimulus that was presented via jsPsych, provided the form_generic_s form handler is used. The \_s at the end of the form handler indicates that the cached stimulus_id from the preceding stimulus presentation should be written to the Response table. Note that the stimulus_id is cached only as long as \*\_s forms continue to be presented, i.e. a form_generic handler will clear the cached stimulus_id.
 
@@ -404,6 +406,7 @@ Below is an excerpt from an experiment-specific stimulus selection script in whi
 The various keys in the trial dictionaries are all described in the jsPsych documentation. These are the variables that control the presentation of a trial. The one exception is the 'click_to_start' variable for the audio-keyboard-response' plugin. This variable was added to handle an issue in Safari in which media playback requires a user-initiated event, e.g. a click. Custom variables can be passed in to custom plugins. Note also the injection of HTML into some of the variable definitions, and the use of Bootstrap 4 CSS classes.
 
 #### Collecting responses in jsPsych
+If one chooses to collect responses within jsPsych, rather than with one or more PyEnsemble forms containing questions pertaining to the presented stimulus/timeline, the data collected during execution of the jsPsych timeline are saved on the form upon completion of the jsPsych experiment, and transmitted to the server upon submission of the form and saved as a JSON-encoded string in the jspsych_data field of Response table.
 
 <a name="faqs"/></a>
 # Frequently Asked Questions (FAQs)
