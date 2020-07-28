@@ -239,8 +239,7 @@ class QuestionCreateView(LoginRequiredMixin,CreateView):
 class QuestionUpdateView(LoginRequiredMixin,UpdateView):
     model = Question
     form_class = QuestionUpdateForm
-    template_name = 'pyensemble/question_create.html'
-    # context_object_name = 'question'
+    template_name = 'pyensemble/question_update.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

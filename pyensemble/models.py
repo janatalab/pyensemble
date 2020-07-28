@@ -311,13 +311,15 @@ class ExperimentXForm(models.Model):
         ('form_generic','form_generic'),
         ('form_stimulus_s','form_stimulus_s'),
         ('form_generic_s','form_generic_s'),
-        ('form_end_session','form_end_session'),
-        ('form_subject_register','form_subject_register'),
         ('form_image_s','form_image_s'),
+        ('form_feedback','form_feedback'),
+        ('form_end_session','form_end_session'),
+        ('form_consent','form_consent'),
+        ('form_subject_register','form_subject_register'),
         ('form_subject_email','form_subject_email'),
     ]
 
-    form_handler = models.CharField(max_length=50, blank=True, default='form_generic')
+    form_handler = models.CharField(max_length=50, blank=True, choices=FORM_HANDLER_OPTIONS, default='form_generic')
     goto = models.IntegerField(blank=True, null=True)
     repeat = models.IntegerField(blank=True, null=True)
     condition = models.TextField(blank=True)

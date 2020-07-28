@@ -14,7 +14,6 @@ from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment
 
 import pdb
 
-
 class EnumCreateForm(forms.ModelForm):
     class Meta:
         model = DataFormat
@@ -64,7 +63,7 @@ class QuestionCreateForm(forms.ModelForm):
         self.fields['html_field_type'].label = 'Display format'
 
         # Generate choices for the data format
-        self.fields['dfid'].choices=((dfid.pk,dfid.choice()) for dfid in DataFormat.objects.all())
+        self.fields['dfid'].choices=((dfid.pk,dfid.choice()) for dfid in DataFormat.objects.all().order_by('pk'))
 
         # Deal with form layout
         self.helper = QuestionEditHelper()
@@ -72,10 +71,14 @@ class QuestionCreateForm(forms.ModelForm):
 
 class QuestionUpdateForm(QuestionCreateForm):
     def __init__(self,*args,**kwargs):
+        # Note that QuestionCreateForm is called first 
+
         super(QuestionUpdateForm,self).__init__(*args,**kwargs)
 
-        self.helper = QuestionEditHelper()
+        # Because the data_format from which we get the current choice is a separate model, we have to override the default behavior and set the initial value to the current value so that this is what shows up.
+        self.fields['dfid'].initial = (self.instance.data_format.pk,self.instance.data_format.choice())
 
+        self.helper = QuestionEditHelper()
 
 # borrowed this from meamstream
 class QuestionPresentForm(forms.ModelForm):
@@ -146,7 +149,6 @@ class QuestionPresentForm(forms.ModelForm):
         else:
             self.fields['option'] = forms.CharField(**field_params)
 
-
 QuestionModelFormSet = forms.modelformset_factory(Question, form=QuestionPresentForm, extra=0, max_num=1)
 
 class QuestionModelFormSetHelper(FormHelper):
@@ -187,8 +189,19 @@ class ExperimentFormForm(forms.ModelForm):
         model = ExperimentXForm
         exclude = ('form_order',)
 
+        widgets = {
+            'form_handler': forms.Select(attrs={'placeholder':'Choose a form handler'}),
+        }
+
     field_order = ('form_handler','condition_script','stimulus_script','goto','repeat','break_loop_button','break_loop_button_text','continue_button_text')
 
+    def __init__(self, *args, **kwargs):
+        super(ExperimentFormForm,self).__init__(*args,**kwargs)
+
+        for field in ['condition_script','stimulus_script']:
+            script = getattr(self.instance,field,'')
+            if script:
+                self.fields[field].widget.attrs.update({'class':'has-popover', 'data-content':script, 'data-placement':'right', 'data-container':'body'})
 
 class ExperimentForm(forms.ModelForm):
     class Meta:

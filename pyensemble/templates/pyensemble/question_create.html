@@ -2,11 +2,7 @@
 {% load crispy_forms_tags %}
 
 {% block detailContentTitle %}
-    {% if form.instance.pk %}
-        Edit Question
-    {% else %}
-        New Question
-    {% endif %}
+    New Question
 {% endblock %}
 
 {% block additionalDetailContentNavItems %}
@@ -17,10 +13,13 @@
 
     {% crispy form %}
 
-    <div class="editor form-actions text-center {% if form.instance.pk %}d-none{%endif%}">
+    <div class="editor form-actions text-center ">
         <button type="submit" class="btn btn-primary">Submit question</button>
     </div>
 
+{% endblock %}
+
+{% block formscript %}
     <script type="text/javascript">
         $(function(){
             $('select').chosen();
@@ -28,8 +27,7 @@
                 ev.preventDefault();
                 submitEditorForm();
             });
+            $("#formTableEditButton").addClass('d-none');
         });
     </script>
-
 {% endblock %}
-
