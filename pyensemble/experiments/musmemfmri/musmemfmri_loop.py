@@ -584,7 +584,9 @@ def ftap_practice_trial(request,*args,**kwargs):
             'click_to_start': True,
             'trial_ends_after_audio': True,
             'trial_duration': params['prac_trial_duration_ms'],
-            'response_ends_trial': False
+            'response_ends_trial': False,
+            'persist': True,
+            'rt_method': 'audio'
         }
     if trial['click_to_start']:
         trial['prompt'] += '<a id="start_button" class="btn btn-primary" role="button"  href="#">Start sound</a>'
