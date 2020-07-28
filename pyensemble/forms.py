@@ -223,6 +223,20 @@ ExperimentFormFormset = forms.inlineformset_factory(Experiment, ExperimentXForm,
     extra=0,
     )
 
+class CopyExperimentForm(forms.ModelForm):
+    class Meta:
+        model=Experiment
+        fields = ('title',)
+
+        widgets = {
+            'title': forms.TextInput(attrs={'placeholder':'Title of new experiment'})
+        }
+
+    helper = FormHelper()
+    helper.form_method = 'POST'
+    helper.form_id = 'copyItemForm'
+
+
 class TicketCreationForm(forms.Form):
     input_format = '%d/%m/%Y %H:00'
     num_master = forms.IntegerField(label='Number of (multiple-use) master tickets', initial=0)

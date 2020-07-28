@@ -127,6 +127,38 @@ function submitItemAdditions(item_type){
     })
 }
 
+function fetchNewItemForm(item_type){
+    var item_id = $("#parent_id").val();
+
+    $.ajax({
+        url: item_type+'/copy/'+item_id+'/',
+        type: 'GET',
+        data: {},
+        success: function(response){
+          $("#copyItemModal .modal-body").html(response);
+        },
+        error: function(response,errorText){
+          alert(response.responseText);
+        }
+    });    
+}
+
+function submitNewItemForm(item_type){
+    var item_id = $("#parent_id").val();
+
+    $.ajax({
+        url: item_type+'/copy/'+item_id+'/',
+        type: 'POST',
+        data: $("#copyItemForm").serialize(),
+        success: function(response){
+            $("#content-right").html(response);
+        },
+        error: function(response,errorText){
+            alert('An experiment with that title already exists! Please choose a different title!')
+        }
+    });    
+}
+
 function submitEditorForm(){
     var form=$(".editor-form");
     $.ajax({

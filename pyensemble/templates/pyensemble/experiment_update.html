@@ -10,12 +10,17 @@
 {% endblock %}
 
 {% block additionalDetailContentNavItems %}
-    <li class="nav-item">
-        <a class="nav-link" href="#experimentForms">Forms</a>
-    </li>
-    <li class="nav-item">
-        <a class="nav-link" href="#experimentTickets">Tickets</a>
-    </li>
+    {% if form.instance.pk %}
+        <li class="nav-item">
+            <a class="nav-link" href="#experimentForms">Forms</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="#experimentTickets">Tickets</a>
+        </li>
+        <li class="nav-item">
+            <a id="copyLink" class="nav-link" role="button" href="#" data-toggle="modal" data-target="#copyItemModal">Copy</a>
+        </li>
+    {% endif %}
 {% endblock %}
 
 {% block detailContent %}
@@ -29,5 +34,6 @@
     {% endif %}
 
     {% include "pyensemble/modals/add_item_modal.html" with item_type='form' %}
+    {% include "pyensemble/modals/copy_item_modal.html" with item_type='experiment' %}
 
 {% endblock %}

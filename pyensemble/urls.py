@@ -20,7 +20,7 @@ from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
-from .views import EditorView, ExperimentListView, ExperimentCreateView, ExperimentUpdateView, FormListView, FormCreateView, FormUpdateView, FormPresentView, QuestionListView, QuestionCreateView, QuestionUpdateView, QuestionPresentView, EnumListView, EnumCreateView, run_experiment, serve_form, add_experiment_form, add_form_question, create_ticket, reset_session
+from .views import EditorView, ExperimentListView, ExperimentCreateView, ExperimentUpdateView, FormListView, FormCreateView, FormUpdateView, FormPresentView, QuestionListView, QuestionCreateView, QuestionUpdateView, QuestionPresentView, EnumListView, EnumCreateView, run_experiment, serve_form, add_experiment_form, add_form_question, create_ticket, reset_session, copy_experiment
 
 import pyensemble.errors as error
 from pyensemble import importers
@@ -33,6 +33,7 @@ from .importers import urls as importer_urls
 editor_patterns = [
     path('experiments/', ExperimentListView.as_view(), name='experiment_list'),
     path('experiments/create/', ExperimentCreateView.as_view(), name='experiment_create'),
+    path('experiments/copy/<int:experiment_id>/', copy_experiment, name='experiment_copy'),
     path('experiments/<int:pk>/', ExperimentUpdateView.as_view(), name='experiment_update'),
     path('forms/', FormListView.as_view(), name='form_list'),
     path('forms/create/', FormCreateView.as_view(), name='form_create'),
