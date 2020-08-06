@@ -371,6 +371,11 @@ def run_experiment(request, experiment_id=None):
         if ticket.expired:
             return HttpResponseBadRequest('The ticket has expired')
 
+        subject_id = None
+        if ticket.type == 'user' and ticket.subject:
+            # Get our subject id
+            subject_id = ticket.subject.subject_id
+
         # Get the SONA code if there is one
         sona_code = request.GET.get('sona',None)
 
@@ -396,6 +401,7 @@ def run_experiment(request, experiment_id=None):
             'visit_count': {},
             'running': True,
             'sona': sona_code,
+            'subject_id': subject_id,
             })
 
     # Set the experiment session info
