@@ -371,10 +371,18 @@ def run_experiment(request, experiment_id=None):
         if ticket.expired:
             return HttpResponseBadRequest('The ticket has expired')
 
-        subject_id = None
+        # Handle the situation where we have a pre-assigned subject
+        subject = subject_id = None
         if ticket.type == 'user' and ticket.subject:
-            # Get our subject id
-            subject_id = ticket.subject.subject_id
+            subject = ticket.subject
+            subject_id = subject.subject_id
+
+        # Initialize a session in the PyEnsemble session table
+        session = Session.objects.create(experiment=ticket.experiment, ticket=ticket, subject=subject)
+
+        # Update our ticket entry
+        ticket.used = True
+        ticket.save()
 
         # Get the SONA code if there is one
         sona_code = request.GET.get('sona',None)
@@ -382,13 +390,6 @@ def run_experiment(request, experiment_id=None):
         # Deal with the situation in which we are trying to access using a survey code from SONA, but no code has been set
         if 'sona' in request.GET.keys() and not sona_code:
             return render(request,'pyensemble/error.html',{'msg':'No SONA survey code was specified!','next':'/'})
-
-        # Initialize a session in the PyEnsemble session table
-        session = Session.objects.create(experiment=ticket.experiment, ticket=ticket)
-
-        # Update our ticket entry
-        ticket.used = True
-        ticket.save()
 
         # Update our Django session information
         expsessinfo.update({
