@@ -242,7 +242,8 @@ class Ticket(models.Model):
         )
     used = models.BooleanField(default=False)
     expiration_datetime = models.DateTimeField(blank=True, null=True)
-    assigned = models.BooleanField(default=False)
+
+    subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
 
     @property
     def expired(self):
