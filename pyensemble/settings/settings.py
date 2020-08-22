@@ -195,13 +195,13 @@ LOGGING = {
         'file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': '/home/pyensemble/log/django-debug.txt',
+            'filename': '/var/log/pyensemble/django-debug.txt',
             'formatter': 'timestamped',
         },
         'error-file': {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
-            'filename': '/home/pyensemble/log/django-error.txt',
+            'filename': '/var/log/pyensemble/django-error.txt',
             'formatter': 'timestamped',
         }
     },
