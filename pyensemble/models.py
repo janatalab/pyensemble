@@ -220,7 +220,7 @@ class Subject(models.Model):
         default='UN',
         )
     race = models.CharField(
-        max_length=2,
+        max_length=4,
         choices=RACE_OPTIONS,
         default='UN',
         )
@@ -317,6 +317,7 @@ class ExperimentXForm(models.Model):
         ('form_end_session','form_end_session'),
         ('form_consent','form_consent'),
         ('form_subject_register','form_subject_register'),
+        ('form_subject_auth0','form_subject_auth0'),
         ('form_subject_email','form_subject_email'),
     ]
 

@@ -337,6 +337,44 @@ class EnumCreateView(LoginRequiredMixin,CreateView):
 # Views for running experiments
 #
 
+# Deals with routing a successful login either to the editor or to a running experiment
+def router(request):
+    user = request.user
+
+    if user.is_superuser:
+        return HttpResponseRedirect(reverse('editor'))
+
+    else:
+        experiment_id = request.session.get('auth0_experiment_id',None)
+
+        if experiment_id:
+            # Clear our experiment flag
+            request.session.pop('auth0_experiment_id')
+
+            # Get our experiment session info
+            expsess_key = get_expsess_key(experiment_id)
+            expsessinfo = request.session.get(expsess_key,{})
+
+            # Update our visit count
+            form_idx = expsessinfo['curr_form_idx']
+            num_visits = expsessinfo['visit_count'].get(form_idx,0)
+            num_visits +=1
+            expsessinfo['visit_count'][form_idx] = num_visits
+
+
+            exf = ExperimentXForm.objects.filter(experiment=experiment_id).order_by('form_order')
+            currform = exf[form_idx]
+
+            # Determine our next form index
+            expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
+            request.session.modified=True
+
+            # Move to the next form 
+            return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
+
+        return render(request,'pyensemble/error.html',{'msg':'Invalid attempt to start or resume the experiment','next':'/'})
+
+
 # Start experiment
 @require_http_methods(['GET'])
 def run_experiment(request, experiment_id=None):
@@ -443,6 +481,11 @@ def serve_form(request, experiment_id=None):
 
     # Check to see whether we are dealing with a special form that requires different handling. This is largely to try to maintain backward compatibility with the legacy PHP version of Ensemble
     handler_name = os.path.splitext(currform.form_handler)[0]
+
+    # If we are authenticating using Auth0, intercept that here
+    if handler_name == 'form_subject_auth0':
+        request.session['auth0_experiment_id'] = experiment_id
+        return HttpResponseRedirect('/auth0/')
 
     # Initialize other context
     timeline = []

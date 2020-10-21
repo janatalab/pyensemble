@@ -1,6 +1,8 @@
 # auth0_settings.py
 
-from settings import *
+from .settings import *
+
+LOGGING = {}
 
 INSTALLED_APPS += ['auth0login','social_django']
 
@@ -17,6 +19,7 @@ DATABASES = {
 
 # SOCIAL AUTH AUTH0 BACKEND CONFIG
 SOCIAL_AUTH_TRAILING_SLASH = False
+SOCIAL_AUTH_URL_NAMESPACE = 'auth0:social'
 
 SOCIAL_AUTH_AUTH0_DOMAIN = 'janatalab.us.auth0.com'
 
@@ -46,5 +49,5 @@ AUTHENTICATION_BACKENDS = {
     'django.contrib.auth.backends.ModelBackend'
 }
 
-LOGIN_URL = '/login/auth0'
-LOGIN_REDIRECT_URL = '/dashboard'
+# LOGIN_URL = '/login/auth0'
+LOGIN_REDIRECT_URL = 'router'
