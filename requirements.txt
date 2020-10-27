@@ -1,6 +1,6 @@
 backcall==0.1.0
 cffi==1.13.2
-cryptography==2.8
+cryptography==3.2
 cycler==0.10.0
 decorator==4.4.1
 Django==2.2.13
