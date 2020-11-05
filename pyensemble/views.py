@@ -696,6 +696,10 @@ def serve_form(request, experiment_id=None):
         else:
             formset = QuestionModelFormSet(queryset=form.questions.all().order_by('formxquestion__form_question_num'))
 
+        use_captcha = False
+        if handler_name == 'form_consent':
+            use_captcha = True
+
     # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
     helper = QuestionModelFormSetHelper()
     helper.template = 'pyensemble/partly_crispy/question_formset.html'
@@ -716,6 +720,7 @@ def serve_form(request, experiment_id=None):
         'formset': formset,
         'form_show_errors': True,
         'helper': helper,
+        'use_captcha': use_captcha,
         'timeline': timeline,
         'timeline_json': json.dumps(timeline),
         'skip_trial': skip_trial,

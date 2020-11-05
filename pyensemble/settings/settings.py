@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'encrypted_model_fields',
+    'captcha',
     'crispy_forms',
     'pyensemble',
 ]
@@ -145,6 +146,15 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Google reCaptcha
+try:
+    NOCAPTCHA = True
+    with open(os.path.join(PASS_DIR, 'pyensemble_recaptcha_key.txt')) as f:
+        RECAPTCHA_PUBLIC_KEY = f.read().strip()
+    with open(os.path.join(PASS_DIR, 'pyensemble_recaptcha_secret.txt')) as f:
+        RECAPTCHA_PRIVATE_KEY = f.read().strip()
+except:
+    pass
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.2/topics/i18n/
