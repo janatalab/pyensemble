@@ -220,7 +220,7 @@ class Subject(models.Model):
         default='UN',
         )
     race = models.CharField(
-        max_length=2,
+        max_length=4,
         choices=RACE_OPTIONS,
         default='UN',
         )
