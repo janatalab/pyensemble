@@ -28,8 +28,11 @@ for experiment in experiment_dirs:
     if url_file.exists():
         experiment_name = experiment.name
 
-        # Import the urls module
-        module = import_module('pyensemble.experiments.'+experiment_name+'.urls')
+        try:
+            # Import the urls module
+            module = import_module('pyensemble.experiments.'+experiment_name+'.urls')
 
-        # Include it in the url patterns
-        urlpatterns.append(path(f'{experiment_name}/', include(module)))
+            # Include it in the url patterns
+            urlpatterns.append(path(f'{experiment_name}/', include(module)))
+        except:
+            pass
