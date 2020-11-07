@@ -24,7 +24,7 @@ from django.views.generic.edit import CreateView, UpdateView, FormView
 
 from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
 
-from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm
+from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
 
 from .tasks import get_expsess_key, fetch_subject_id
 
@@ -453,10 +453,21 @@ def serve_form(request, experiment_id=None):
         #
         # Process the submitted form
         #
+
+        # By default we pass captcha test because we don't require it
+        passes_captcha = True
+
         if handler_name == 'form_subject_register':
             formset = RegisterSubjectForm(request.POST)
+
         elif handler_name == 'form_subject_email':
             formset = SubjectEmailForm(request.POST)
+
+        elif handler_name == 'form_consent':
+            captcha_form = CaptchaForm(request.POST)
+            passes_captcha = captcha_form.is_valid()
+            formset = QuestionModelFormSet(request.POST)
+
         else:
             # form = Form.objects.get(form_id=currform.form_id)
             formset = QuestionModelFormSet(request.POST)
@@ -471,7 +482,7 @@ def serve_form(request, experiment_id=None):
             stimulus = None
 
 
-        if formset.is_valid():
+        if passes_captcha and formset.is_valid():
             expsessinfo['response_order']+=1
 
             #
@@ -607,9 +618,6 @@ def serve_form(request, experiment_id=None):
 
             # Move to the next form by calling ourselves
             return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
-            
-        
-
 
         # If the form was not valid and we have to present it again, skip the trial running portion of it, so that we only present the questions
         skip_trial = True
@@ -696,7 +704,12 @@ def serve_form(request, experiment_id=None):
         else:
             formset = QuestionModelFormSet(queryset=form.questions.all().order_by('formxquestion__form_question_num'))
 
-    # Get our formset helper. The following helper information should ostensibly stored with the form definition, but that wasn't working
+    captcha = {}
+    if handler_name == 'form_consent':
+        captcha['form'] = CaptchaForm()
+        captcha['site_key'] = settings.RECAPTCHA_PUBLIC_KEY
+
+    # Get our formset helper. The following helper information should ostensibly stored with the form definitions, but that wasn't working
     helper = QuestionModelFormSetHelper()
     helper.template = 'pyensemble/partly_crispy/question_formset.html'
 
@@ -716,6 +729,7 @@ def serve_form(request, experiment_id=None):
         'formset': formset,
         'form_show_errors': True,
         'helper': helper,
+        'captcha': captcha,
         'timeline': timeline,
         'timeline_json': json.dumps(timeline),
         'skip_trial': skip_trial,
