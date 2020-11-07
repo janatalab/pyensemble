@@ -32,6 +32,8 @@
                 var timeline_json={{ timeline_json|safe }};
                 start_trial(timeline_json);
             {% endif %}
+
+            {% include "pyensemble/js/submit_disable.js" %}
         });
     </script>
 {% endblock %}
