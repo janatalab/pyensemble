@@ -6,11 +6,3 @@
 {% block questions %}
     {% crispy formset %}
 {% endblock %}
-
-{% block appscript %}
-    <script>
-        $(document).ready(function () {
-            $('#questions').removeClass('d-none');
-        });
-    </script>
-{% endblock %}

@@ -36,4 +36,13 @@
 {% endblock %}
 
 {% block appscript %}
+    <script>
+        $(document).ready(function () {
+            {% block document_ready_js_content %}
+                $('#questions').removeClass('d-none');
+            {% endblock %}
+
+            {% include "pyensemble/js/submit_disable.js" %}
+        });
+    </script>
 {% endblock %}
