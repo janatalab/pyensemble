@@ -1,5 +1,7 @@
-    $('#question-form').submit(function(){
-        $("input[name='submit']").attr({"disabled": true});
-        return true;
+    $('#question-form').submit(function(e){
+        if ($("input[name='submit']").attr("attempted") == true){
+            e.preventDefault();
+        } else {
+            $("input[name='submit']").attr("attempted",'true');
+        }
     });
-    
