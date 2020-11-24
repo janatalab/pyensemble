@@ -126,9 +126,9 @@ The instructions below apply both to installing a production server user, e.g. p
 ```
 
 #### From within the directory into which you have cloned this repository, e.g. ~/git/pyensemble/
-- Install the necessary python packages (will install into your virtualenv)
+- Install the necessary python packages (will install into your virtualenv). Note: the --no-user-pep517 flag was added in order for a fork of django-crispy-forms to install cleanly. This is not an optimal solution.
 ```
-> pip install -r requirements.txt
+> pip install --no-use-pep517 -r requirements.txt
 ```
 
 <a name="jspsych_git"/></a>
