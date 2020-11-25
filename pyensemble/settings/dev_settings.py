@@ -19,7 +19,7 @@ LOGGING = {
         },
     },
     'handlers': {
-        'file': {
+        'debug-file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
             'filename': os.path.join(LOG_DIR,'django-debug.txt'),
@@ -30,13 +30,29 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': os.path.join(LOG_DIR,'django-error.txt'),
             'formatter': 'timestamped',
+        },
+        'template-file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOG_DIR,'django-template.txt'),
+            'formatter': 'timestamped',
         }
     },
     'loggers': {
         'django.request': {
-            'handlers': ['file','error-file'],
+            'handlers': ['error-file'],
             'level': 'ERROR',
             'propagate': True,
         },
+        'django.request': {
+            'handlers': ['debug-file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'django.template': {
+            'handlers': ['template-file'],
+            'level': 'ERROR',
+            'propagate': True,
+        }
     },
 }
