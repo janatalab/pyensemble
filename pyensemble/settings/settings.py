@@ -193,6 +193,7 @@ LOGOUT_REDIRECT_URL = '/'
 # Various things pertaining to sessions
 SESSION_DURATION=60*60*24 # default session duration
 
+LOG_DIR = '/var/log/pyensemble'
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -202,24 +203,40 @@ LOGGING = {
         },
     },
     'handlers': {
-        'file': {
+        'debug-file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
-            'filename': '/var/log/pyensemble/django-debug.txt',
+            'filename': os.path.join(LOG_DIR,'django-debug.txt'),
             'formatter': 'timestamped',
         },
         'error-file': {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
-            'filename': '/var/log/pyensemble/django-error.txt',
+            'filename': os.path.join(LOG_DIR,'django-error.txt'),
+            'formatter': 'timestamped',
+        },
+        'template-file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOG_DIR,'django-template.txt'),
             'formatter': 'timestamped',
         }
     },
     'loggers': {
         'django.request': {
-            'handlers': ['file','error-file'],
+            'handlers': ['error-file'],
             'level': 'ERROR',
             'propagate': True,
         },
+        'django.request': {
+            'handlers': ['debug-file'],
+            'level': 'DEBUG',
+            'propagate': True,
+        },
+        'django.template': {
+            'handlers': ['template-file'],
+            'level': 'ERROR',
+            'propagate': True,
+        }
     },
 }
