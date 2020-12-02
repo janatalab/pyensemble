@@ -696,11 +696,12 @@ def serve_form(request, experiment_id=None):
         # Get our blank form
         #
         if handler_name == 'form_subject_register':
-            form = RegisterSubjectForm()
-            formset = None
+            formset = RegisterSubjectForm()
+            
         elif handler_name== 'form_subject_email':
             # Technically, this is not a formset consisting of question forms, but we want to preserve the ability to display a custom form header.
             formset = SubjectEmailForm()
+
         else:
             formset = QuestionModelFormSet(queryset=form.questions.all().order_by('formxquestion__form_question_num'))
 

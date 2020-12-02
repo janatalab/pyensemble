@@ -13,30 +13,30 @@
             {% csrf_token %}
             <div class="row justify-content-center">
                 <div class="col-6">
-                    {{form.name_first | as_crispy_field}}
+                    {{formset.name_first | as_crispy_field}}
                 </div>
                 <div class="col-6">
-                    {{ form.name_last | as_crispy_field }}
+                    {{ formset.name_last | as_crispy_field }}
                 </div>
                 <div class="col-4">
-                    {{ form.dob | as_crispy_field }}
+                    {{ formset.dob | as_crispy_field }}
                 </div>
             </div>
             <div class="row justify-content-center">
                 <div id="demographics" class="col-8 border my-2">
                     <div class="row">
                         <div class="col">
-                            {{ form.sex | as_crispy_field }}
+                            {{ formset.sex | as_crispy_field }}
                         </div>
                     </div>
                     <div class="row">
                         <div class="col">
-                            {{form.race| as_crispy_field}}
+                            {{formset.race| as_crispy_field}}
                         </div>
                     </div>
                     <div class="row">
                         <div class="col">
-                            {{ form.ethnicity | as_crispy_field }}
+                            {{ formset.ethnicity | as_crispy_field }}
                         </div>
                     </div>
                 </div>
