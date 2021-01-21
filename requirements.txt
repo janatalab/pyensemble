@@ -8,7 +8,8 @@ cycler==0.10.0
 decorator==4.4.1
 defusedxml==0.7.0rc1
 Django==3.1.3
--e git+https://github.com/janatalab/django-crispy-forms.git@69d6e179110d7f7ed45ec8c2f06ebb75107c8b1a#egg=django_crispy_forms
+#-e git+https://github.com/janatalab/django-crispy-forms.git@69d6e179110d7f7ed45ec8c2f06ebb75107c8b1a#egg=django_crispy_forms
+django-crispy-forms==1.10.0
 -e git+https://gitlab.com/toyg/django-encrypted-model-fields.git@74f2fd2f25ff19c27848264a115c2cceb5faa8c5#egg=django_encrypted_model_fields
 django-recaptcha==2.0.6
 django-sslserver==0.22
