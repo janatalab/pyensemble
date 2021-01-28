@@ -135,10 +135,10 @@ class QuestionPresentForm(forms.ModelForm):
             widget = forms.NumberInput
 
         elif html_field_type == 'text':
-            widget = forms.TextInput
+            widget = forms.TextInput(attrs={'autocomplete':'off'})
 
         elif html_field_type == 'textarea':
-            widget = forms.Textarea
+            widget = forms.Textarea(attrs={'autocomplete':'off'})
 
         field_params['widget'] = widget
 
