@@ -200,7 +200,7 @@ class Subject(models.Model):
     passphrase = EncryptedCharField(max_length=64)
     security_questions = models.TextField()
     security_responses = EncryptedTextField(max_length=128)
-    email = EncryptedEmailField(max_length=24)
+    email = EncryptedEmailField(max_length=48)
     phone1 = EncryptedCharField(max_length=16)
     phone2 = EncryptedCharField(max_length=16)
     address1 = EncryptedCharField(max_length=24)
