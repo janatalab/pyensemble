@@ -84,9 +84,6 @@ class Question(models.Model):
 
         return self._unique_hash
 
-    # def save(self, *args, **kwargs):
-    #     super(Question, self).save(*args, **kwargs)
-
 class Form(models.Model):
     name = models.CharField(unique=True, max_length=50)
     category = models.CharField(max_length=19, blank=True)
@@ -259,6 +256,8 @@ class Ticket(models.Model):
 #
 
 class AttributeXAttribute(models.Model):
+    unique_hash = models.CharField(max_length=32, unique=True)
+
     child = models.ForeignKey(
         Attribute,
         on_delete=models.CASCADE,
@@ -273,18 +272,32 @@ class AttributeXAttribute(models.Model):
     mapping_value_double = models.FloatField(blank=True, null=True)
     mapping_value_text = models.CharField(blank=True, max_length=256)
 
-    class Meta:
-        unique_together = (("child", "parent", "mapping_name"),)
-
+    def save(self, *args, **kwargs):
+        m = hashlib.md5()
+        m.update(self.child.name.encode('utf-8'))
+        m.update(self.parent.name.encode('utf-8'))
+        m.update(self.mapping_name.encode('utf-8'))
+        m.update(str(self.mapping_value_double).encode('utf-8'))
+        m.update(self.mapping_value_text.encode('utf-8'))
+        self.unique_hash = m.hexdigest()
+        super(AttributeXAttribute, self).save(*args, **kwargs)
 
 class StimulusXAttribute(models.Model):
+    unique_hash = models.CharField(max_length=32, unique=True)
+
     stimulus = models.ForeignKey('Stimulus', db_constraint=True, on_delete=models.CASCADE)
     attribute = models.ForeignKey('Attribute', db_constraint=True, on_delete=models.CASCADE)
     attribute_value_double = models.FloatField(blank=True, null=True)
     attribute_value_text = models.TextField(blank=True)
 
-    class Meta:
-        unique_together = (("stimulus", "attribute"),)
+    def save(self, *args, **kwargs):
+        m = hashlib.md5()
+        m.update(self.stimulus.name.encode('utf-8'))
+        m.update(self.attribute.name.encode('utf-8'))
+        m.update(str(self.attribute_value_double).encode('utf-8'))
+        m.update(self.attribute_value_text.encode('utf-8'))
+        self.unique_hash = m.hexdigest()
+        super(StimulusXAttribute, self).save(*args, **kwargs)
 
 class ExperimentXStimulus(models.Model):
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
