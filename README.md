@@ -13,6 +13,7 @@ PyEnsemble is a Python-backed version of the PHP/MATLAB web-based experiment sys
     - [Site-specific database setup](#database_setup)
         - [Database](#database)
         - [Settings](#settings)
+        - [Encryption key for model fields](#field_encryption_key)
         - [Instantiating the database schema](#schema)
         - [Creating users](#users)
     - [Deploying the production server](#production)
@@ -126,9 +127,9 @@ The instructions below apply both to installing a production server user, e.g. p
 ```
 
 #### From within the directory into which you have cloned this repository, e.g. ~/git/pyensemble/
-- Install the necessary python packages (will install into your virtualenv). Note: the --no-user-pep517 flag was added in order for a fork of django-crispy-forms to install cleanly. This is not an optimal solution.
+- Install the necessary python packages (will install into your virtualenv).
 ```
-> pip install --no-use-pep517 -r requirements.txt
+> pip install -r requirements.txt
 ```
 
 <a name="jspsych_git"/></a>
@@ -155,6 +156,19 @@ Within your database manager, e.g. MySQLWorkbench,
 <a name="settings"/></a>
 ### Settings file
 In order to communicate with your database instance, you will need to edit the [settings.py](pyensemble/settings/settings.py) file, with values that are specific to your instance. Some of this information should remain private and you are thus advised to situate in files that exist in a protected directory for which there is no universal access. The location of this directory is arbitrary. We use `/var/www/private/`.
+
+<a name="field_encryption_key"/></a>
+### Encryption key for model fields
+Most of the fields in the Subject table are encrypted using the encrypted_model_fields app that is part of the installed applications. When launching PyEnsemble, Django looks for an encryption key of the proper form to be specified. Even though encrypted_model_fields provides a utility for generating such key using,
+```
+> python manage.py generate_encryption_key
+```
+without a key in place, Django can't launch in order to generate a key.
+
+Here is a temporary key to use:
+```
+KTShDerAzvR3jthvOtANQwEKMAllNzNAaL2gr1LqB1Y=
+```
 
 <a name="schema"/></a>
 ### Instantiating the database schema
