@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth import logout
 
 from django.views.generic import ListView, DetailView
 from django.views.generic.base import TemplateView
@@ -35,6 +36,11 @@ from crispy_forms.layout import Submit
 
 
 import pdb
+
+def logout_view(request):
+    logout(request)
+
+    return HttpResponseRedirect('/')
 
 class EditorView(LoginRequiredMixin,TemplateView):
     template_name = 'editor_base.html'

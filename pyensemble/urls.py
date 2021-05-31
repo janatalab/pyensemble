@@ -20,13 +20,14 @@ from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
-from .views import EditorView, ExperimentListView, ExperimentCreateView, ExperimentUpdateView, FormListView, FormCreateView, FormUpdateView, FormPresentView, QuestionListView, QuestionCreateView, QuestionUpdateView, QuestionPresentView, EnumListView, EnumCreateView, run_experiment, serve_form, add_experiment_form, add_form_question, create_ticket, reset_session, copy_experiment
+from .views import EditorView, ExperimentListView, ExperimentCreateView, ExperimentUpdateView, FormListView, FormCreateView, FormUpdateView, FormPresentView, QuestionListView, QuestionCreateView, QuestionUpdateView, QuestionPresentView, EnumListView, EnumCreateView, run_experiment, serve_form, add_experiment_form, add_form_question, create_ticket, reset_session, copy_experiment, logout_view
 
 import pyensemble.errors as error
 from pyensemble import importers
 
 from .experiments import urls as experiment_urls
 from .importers import urls as importer_urls
+from .analysis import urls as analysis_urls
 
 # from django.contrib.auth.decorators import login_required
 
@@ -53,6 +54,7 @@ app_patterns = [
     path('', RedirectView.as_view(pattern_name='login',permanent=False)),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
     path('admin/', admin.site.urls),
+    path('logout/', logout_view),
     path('editor/', EditorView.as_view(template_name='pyensemble/editor_base.html'),name='editor'),
     path('editor/', include(editor_patterns)),
     path('run/<int:experiment_id>/start/',run_experiment, name='run_experiment'),
@@ -64,6 +66,7 @@ app_patterns = [
     # Add user specific experiment URLs
     path('experiments/', include(experiment_urls, namespace='experiments')),
     path('importers/', include(importer_urls, namespace='importers')),
+    path('analysis/', include(analysis_urls, namespace='analysis')),
 ]
 
 urlpatterns = [

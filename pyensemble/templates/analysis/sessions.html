@@ -1,0 +1,10 @@
+{% extends "analysis/base.html" %}
+
+{% block main %}
+    {{ plot | safe }}
+    {{ dropdown | safe }}
+{% endblock %}
+ 
+{% block appscript %}
+    {{ script | safe }}
+{% endblock %}
