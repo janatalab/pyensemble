@@ -52,5 +52,5 @@ social-auth-app-django==3.4.0
 social-auth-core==3.3.3
 sqlparse==0.3.0
 traitlets==4.3.3
-urllib3==1.25.10
+urllib3==1.26.5
 wcwidth==0.1.8
