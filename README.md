@@ -229,18 +229,28 @@ Now pip install mod-wsgi:
 ```
 
 <a name="httpd_config"/></a>
-### Configure the Apache httpd config file
-Add the following code block to /etc/httpd/conf/httpd.conf (after first making a backup of httpd.conf):
+### Configure an Apache config file
+Make sure that the /etc/httpd/conf/httpd.conf file has the following line in it, probably at the end of the file:
+
+`IncludeOptional conf.d/*.conf`
+
+Then create a file in /etc/httpd/conf.d called pyensemble.conf:
+```
+cd /etc/httpd/conf.d
+touch pyensemble.conf
+```
+
+Add the following lines to the pyensemble.conf file
 ```
 LoadModule wsgi_module "/home/pyensemble/pyensemble/lib64/python3.6/dist-packages/mod_wsgi/server/mod_wsgi-py36.cpython-36m-x86_64-linux-gnu.so"
 
-WSGIPythonHome "/home/pyensemble/pyensemble"
+WSGIDaemonProcess pyensemble_wsgi python-home=/home/pyensemble/pyensemble python-path=/var/www/html/pyensemble
+
 <Location /pyensemble>
   WSGIProcessGroup pyensemble_wsgi
 </Location>
 
 WSGIScriptAlias /pyensemble /var/www/html/pyensemble/pyensemble/wsgi.py
-WSGIDaemonProcess pyensemble_wsgi python-home=/home/pyensemble/pyensemble python-path=/var/www/html
 
 <Directory /var/www/html/pyensemble>
   <Files wsgi.py>
@@ -248,6 +258,12 @@ WSGIDaemonProcess pyensemble_wsgi python-home=/home/pyensemble/pyensemble python
   </Files>
 </Directory>
 ```
+
+Note: 
+1) If mod_wsgi is already available to Apache, then there is no need for the LoadModule directive.
+2) The python-home parameter for the WSGIDaemonProcess points to the location of the Python virtual environment. Make sure that apache has access to that location
+3) The python-path variable points to the root location of your Django project
+4) WSGIScriptAlias points the endpoint on your server (relative to server root) to your Python module that starts and returns your wsgi application to mod_wsgi
 
 <a name="launch"/></a>
 ## Launching PyEnsemble
