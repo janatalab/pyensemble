@@ -1,6 +1,5 @@
 # analyis/views.py
 
-import numpy as np
 import pandas as pd
 
 from django.contrib.auth.decorators import login_required
@@ -46,8 +45,11 @@ def sessions(request,frequency='W'):
 
     label = [x for (x,y) in menu if y==frequency][0]
     plot = Plot(
-        title=f'Completed sessions ({label})', plot_width=600, plot_height=300,
-        min_border=0, toolbar_location=None)
+        title=f'Completed sessions ({label})', 
+        plot_width=600, 
+        plot_height=300,
+        min_border=0, 
+        toolbar_location=None)
 
     glyph = VBar(x="date_time", top="count", bottom=0, width=0.5, fill_color="#b3de69")
     plot.add_glyph(src, glyph)
@@ -64,7 +66,6 @@ def sessions(request,frequency='W'):
     # Render the div for our object
     script, divs = components({'dropdown':dropdown, 'plot':plot})
 
-    # pdb.set_trace()
     context = {
         'script': script,
     }
