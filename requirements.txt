@@ -7,7 +7,7 @@ cryptography==3.3.2
 cycler==0.10.0
 decorator==4.4.1
 defusedxml==0.7.0rc1
-Django==3.1.8
+Django==3.1.9
 django-crispy-forms==1.10.0
 -e git+https://gitlab.com/toyg/django-encrypted-model-fields.git@74f2fd2f25ff19c27848264a115c2cceb5faa8c5#egg=django_encrypted_model_fields
 django-recaptcha==2.0.6
