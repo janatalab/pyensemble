@@ -112,6 +112,8 @@ nohup.out
 
 # db
 FLUSH
+*.sqlite3
+*.sqlite3.bak
 
 # debug logs
 django-debug.txt

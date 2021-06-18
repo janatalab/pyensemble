@@ -10,6 +10,8 @@ from django.urls import reverse
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField, EncryptedDateField
 
 from django.utils import timezone
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 
@@ -141,6 +143,16 @@ class Session(models.Model):
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     ticket = models.ForeignKey('Ticket', db_constraint=True, on_delete=models.CASCADE, related_name='+')
     subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
+    age = models.PositiveSmallIntegerField(null=True)
+
+    # If the participant is being referred from a source other than PyEnsemble, e.g. Prolific, have a field for storing the session identifier at the origin, if available and desired.
+    origin_sessid = models.CharField(max_length=64, null=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if self.subject.dob != Subject.dob.field.get_default().date():
+            self.age = relativedelta(datetime.now(),self.subject.dob).years
+        super().save(*args, **kwargs)
+
 
 class Stimulus(models.Model):
     name = models.CharField(max_length=200)
@@ -188,7 +200,13 @@ class Subject(models.Model):
         ('UN','Undeclared')
     ]
 
-    subject_id = models.CharField(primary_key=True, max_length=10)
+    ID_ORIGINS = [
+        ('PYENS', 'PyEnsemble'),
+        ('PRLFC', 'Prolific')
+    ]
+
+    subject_id = models.CharField(primary_key=True, max_length=32)
+    id_origin = models.CharField(max_length=12, choices=ID_ORIGINS, default='PYENS')
     date_entered = models.DateField(auto_now_add=True)
     name_last = EncryptedCharField(max_length=24)
     name_first = EncryptedCharField(max_length=24)
@@ -221,7 +239,7 @@ class Subject(models.Model):
         choices=RACE_OPTIONS,
         default='UN',
         )
-    dob = EncryptedDateField()
+    dob = EncryptedDateField(default=datetime(1900,1,1))
     notes = models.TextField()
 
 class Ticket(models.Model):
