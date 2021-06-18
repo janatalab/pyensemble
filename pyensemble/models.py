@@ -149,7 +149,7 @@ class Session(models.Model):
     origin_sessid = models.CharField(max_length=64, null=True, blank=True)
 
     def save(self, *args, **kwargs):
-        if self.subject.dob != Subject.dob.field.get_default().date():
+        if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
             self.age = relativedelta(datetime.now(),self.subject.dob).years
         super().save(*args, **kwargs)
 
