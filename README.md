@@ -39,6 +39,7 @@ PyEnsemble is a Python-backed version of the PHP/MATLAB web-based experiment sys
         - [Method evaluation](#method_evaluate)
     - [jsPsych](#jspsych)
         - [Using jsPsych](#using_jspsych)
+    - [Participants from other sources](#participant_sources)
 - [Frequently Asked Questions (FAQs)](#faqs)
 
 <a name="requirements"/></a>
@@ -317,7 +318,7 @@ By contrast to the PHP version of Ensemble, in which a separate database table i
 
 <a name="sessions"/></a>
 ## Sessions
-Sessions uniquely associate participants with an instance of running an experiment.
+Sessions uniquely associate participants with an instance of running an experiment. They also store the participant's age at the time of the session as well as the ticket that was used to access the experiment.
 
 <a name="usage"/></a>
 # Usage
@@ -437,6 +438,10 @@ The various keys in the trial dictionaries are all described in the jsPsych docu
 
 #### Collecting responses in jsPsych
 If one chooses to collect responses within jsPsych, rather than with one or more PyEnsemble forms containing questions pertaining to the presented stimulus/timeline, the data collected during execution of the jsPsych timeline are saved on the form upon completion of the jsPsych experiment, and transmitted to the server upon submission of the form and saved as a JSON-encoded string in the jspsych_data field of Response table.
+
+<a name="participant_sources"/></a>
+### Participants from other sources
+Nominal support is provided from handling referrals from participant pools. SONA and Prolific are currently supported. Prolific subject IDs can be used in lieu of the default IDs created within PyEnsemble, thus providing the ability to link responses in PyEnsemble with demographic and other metadata that can be downloaded from Prolific. Moreover, Prolific session IDs are also stored in the PyEnsemble Session table.
 
 <a name="faqs"/></a>
 # Frequently Asked Questions (FAQs)

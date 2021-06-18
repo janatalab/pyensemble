@@ -26,7 +26,7 @@ from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm
 
 from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
 
-from .tasks import get_expsess_key, fetch_subject_id
+from .tasks import get_expsess_key, fetch_subject_id, get_or_create_prolific_subject, create_tickets
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 from pyensemble import experiments 
@@ -247,20 +247,10 @@ class QuestionListView(LoginRequiredMixin,ListView):
     model = Question
     context_object_name = 'question_list'
 
-    # def get_context_data(self, **kwargs):
-    #     context = super().get_context_data(**kwargs)
-
-    #     return context
-
 class QuestionCreateView(LoginRequiredMixin,CreateView):
     model = Question
     form_class = QuestionCreateForm
     template_name = 'pyensemble/question_create.html'
-
-    # def get_context_data(self, **kwargs):
-    #     context = super().get_context_data(**kwargs)
-
-    #     return context
 
     def form_valid(self, form):
         context = self.get_context_data()
@@ -304,11 +294,6 @@ class QuestionPresentView(LoginRequiredMixin,UpdateView):
     form_class = QuestionPresentForm
     template_name = 'pyensemble/question_present.html'
 
-    # def get_context_data(self, **kwargs):
-    #     context = super().get_context_data(**kwargs)
-
-    #     return context
-
 #
 # Views for enumerated response options
 # 
@@ -326,7 +311,7 @@ class EnumCreateView(LoginRequiredMixin,CreateView):
     def form_valid(self,form):
         try:
             form.save()
-            return HttpResponse("Created the enum")
+            return HttpResponseRedirect(reverse('editor'))
 
         except:
             return HttpResponseBadRequest('The enum already exists')
@@ -349,14 +334,28 @@ def run_experiment(request, experiment_id=None):
 
     # Check whether we have a running session, and initialize a new one if not.
     if not expsessinfo.get('running',False): 
-        ticket = request.GET.get('tc',None)
+        # Pull out our ticket code
+        ticket_code = request.GET.get('tc', None)
+
+        # Check whether we have a Prolific subject ID as a parameter
+        prolific_pid = request.GET.get('PROLIFIC_PID',None)
+        if prolific_pid:
+            # Create a subject entry for this participant if necessary
+            subject, created = get_or_create_prolific_subject(request)
+
+            # Generate a user ticket and grab its code
+            ticket_code = create_tickets({
+                'num_user': 1, 
+                'experiment_id': experiment_id,
+                'subject': subject,
+                })[0].ticket_code
 
         # Process the ticket
-        if not ticket:
+        if not ticket_code:
             return HttpResponseBadRequest('A ticket is required to start the experiment')
 
         # Get our ticket entry
-        ticket = Ticket.objects.filter(ticket_code=ticket)
+        ticket = Ticket.objects.filter(ticket_code=ticket_code)
 
         if not ticket.exists():
             return HttpResponseBadRequest('A matching ticket was not found')
@@ -378,7 +377,11 @@ def run_experiment(request, experiment_id=None):
             subject_id = subject.subject_id
 
         # Initialize a session in the PyEnsemble session table
-        session = Session.objects.create(experiment=ticket.experiment, ticket=ticket, subject=subject)
+        origin_sessid = None
+        if prolific_pid:
+            origin_sessid = request.GET.get('SESSION_ID', None)
+
+        session = Session.objects.create(experiment = ticket.experiment, ticket = ticket, subject = subject, origin_sessid = origin_sessid)
 
         # Update our ticket entry
         ticket.used = True
@@ -777,44 +780,10 @@ def create_ticket(request):
 
     # Validate the request data
     if ticket_request.is_valid():
-        # Get the number of existing tickets
-        num_existing_tickets = Ticket.objects.all().count()
-
-        # Initialize our new ticket list
-        ticket_list = []
-
-        # Get our experiment
-        experiment_id = ticket_request.cleaned_data['experiment_id']
-        experiment = Experiment.objects.get(id=experiment_id)
-
-        # Get our ticket types
-        ticket_types = [tt[0] for tt in Ticket.TICKET_TYPE_CHOICES]
-
-        for ticket_type in ticket_types:
-            num_tickets = ticket_request.cleaned_data[f'num_{ticket_type}']
-
-            if num_tickets:
-                expiration_datetime = ticket_request.cleaned_data[f'{ticket_type}_expiration']
-
-                # Add the ticket(s)
-                for iticket in range(num_tickets):
-                    num_new_tickets = len(ticket_list)
-                    unencrypted_str = '%d_%d'%(num_existing_tickets+num_new_tickets,experiment_id)
-                    encrypted_str = hashlib.md5(unencrypted_str.encode('utf-8')).hexdigest()
-
-                    # Add a new ticket to our list
-                    ticket_list.append(Ticket(
-                        ticket_code=encrypted_str, 
-                        experiment=experiment, 
-                        type=ticket_type, 
-                        expiration_datetime=expiration_datetime)
-                    )
-
-        # Create the tickets in the database
-        Ticket.objects.bulk_create(ticket_list)
+        create_tickets(ticket_request.cleaned_data)
 
         return HttpResponseRedirect(reverse('experiment_update', 
-        args=(experiment.pk,)))
+        args=(ticket_request.cleaned_data['experiment_id'],)))
 
 def reset_session(request, experiment_id):
     expsess_key = get_expsess_key(experiment_id)

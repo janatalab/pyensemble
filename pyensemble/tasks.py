@@ -1,6 +1,8 @@
 # tasks.py
 import hashlib
 
+from pyensemble.models import Subject, Ticket, Experiment
+
 import pdb
 
 def get_expsess_key(experiment_id):
@@ -38,4 +40,59 @@ def fetch_subject_id(subject, scheme='nhdl'):
 
     else:
         raise ValueError('unknown subject ID generator')
+
+def get_or_create_prolific_subject(request):
+    # Get the Prolific ID
+    prolific_id = request.GET.get('PROLIFIC_PID', None)
+
+    # Make sure the parameter was actually specified
+    if not prolific_id:
+        return HttpResponseBadRequest('No Profilic ID specified')
+
+    # Get or create a subject entry
+    return Subject.objects.get_or_create(subject_id=prolific_id, id_origin='PRLFC')
+
+def create_tickets(ticket_request_data):
+    # Get the number of existing tickets
+    num_existing_tickets = Ticket.objects.all().count()
+
+    # Initialize our new ticket list
+    ticket_list = []
+
+    # Get our experiment
+    experiment_id = ticket_request_data['experiment_id']
+    experiment = Experiment.objects.get(id=experiment_id)
+
+    # Get our ticket types
+    ticket_types = [tt[0] for tt in Ticket.TICKET_TYPE_CHOICES]
+
+    for ticket_type in ticket_types:
+        num_tickets = ticket_request_data.get(f'num_{ticket_type}', 0)
+
+        # Check whether the request is for a specific subject
+        subject = ticket_request_data.get('subject', None)
+
+        if num_tickets:
+            expiration_datetime = ticket_request_data.get(f'{ticket_type}_expiration',None)
+
+            # Add the ticket(s)
+            for iticket in range(num_tickets):
+                unencrypted_str = '%d_%d'%(num_existing_tickets+len(ticket_list), experiment_id)
+                encrypted_str = hashlib.md5(unencrypted_str.encode('utf-8')).hexdigest()
+
+                # Add a new ticket to our list
+                ticket_list.append(Ticket(
+                    ticket_code=encrypted_str, 
+                    experiment=experiment, 
+                    type=ticket_type, 
+                    expiration_datetime=expiration_datetime,
+                    subject = subject
+                    )
+                )
+
+    # Create the tickets in the database
+    Ticket.objects.bulk_create(ticket_list)
+
+    return ticket_list
+
 
