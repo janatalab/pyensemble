@@ -376,6 +376,10 @@ def run_experiment(request, experiment_id=None):
             subject = ticket.subject
             subject_id = subject.subject_id
 
+        if not subject:
+            subject_id = 'anonymous'
+            subject, created = Subject.objects.get_or_create(subject_id=subject_id)
+
         # Initialize a session in the PyEnsemble session table
         origin_sessid = None
         if prolific_pid:
