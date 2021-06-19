@@ -376,6 +376,7 @@ def run_experiment(request, experiment_id=None):
             subject = ticket.subject
             subject_id = subject.subject_id
 
+        # Enter the person as an anonymous user for the time being
         if not subject:
             subject_id = 'anonymous'
             subject, created = Subject.objects.get_or_create(subject_id=subject_id)
