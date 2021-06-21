@@ -271,7 +271,7 @@ class RegisterSubjectForm(forms.ModelForm):
             "race": "Race",
         }
         widgets = {
-            'dob': forms.DateInput(attrs={'placeholder':'MM/DD/YYYY'}),
+            'dob': forms.DateInput(format='%m/%d/%Y', attrs={'placeholder':'MM/DD/YYYY'}),
         }
 
 class SubjectEmailForm(forms.ModelForm):
