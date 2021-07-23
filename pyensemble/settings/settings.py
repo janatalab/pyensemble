@@ -11,6 +11,9 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
+from pathlib import Path
+
+import pdb
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -176,10 +179,25 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "thirdparty/"),
 ]
 
-
 STATIC_ROOT = '/var/www/html/static/'
 STATIC_URL = '/static/'
 
+# Pull in any static files defined in our experiment directories
+# Get our top-level experiment directory
+p = Path(EXPERIMENT_DIR)
+
+# Get our list of experiments
+experiment_dirs = [d for d in p.iterdir() if d.is_dir() and d.name != '__pycache__']
+
+# Iterate over the subdirectories
+for experiment in experiment_dirs:
+    # Check for the existence of a static directory
+    static_dir = experiment.joinpath('static')
+
+    if static_dir.exists():
+        STATICFILES_DIRS += [str(static_dir)]
+
+# Define where we upload stimuli to
 with open(os.path.join(PASS_DIR, 'pyensemble_media_root.txt')) as f:
     MEDIA_ROOT = f.read().strip()
 
