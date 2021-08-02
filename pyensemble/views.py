@@ -411,6 +411,7 @@ def run_experiment(request, experiment_id=None):
             'running': True,
             'sona': sona_code,
             'subject_id': subject_id,
+            'prolific_pid': prolific_pid
             })
 
     # Set the experiment session info
@@ -770,6 +771,15 @@ def serve_form(request, experiment_id=None):
         # Redirect to the SONA site to grant credit if we have a code
         if sona_code:
             context['sona_url'] = Experiment.objects.get(id=experiment_id).sona_url.replace('XXXX',sona_code)
+
+        # Redirect to the Prolific site to grant credit
+        if expsessinfo['prolific_pid']:
+            # Get the study-specific redirect URL from the experiment table
+            experiment_params = json.loads(currform.experiment.params)
+
+            # Check whether params are specified in a dictionary
+            if isinstance(experiment_params,dict):
+                context['prolific_completion_url'] = experiment_params.get('prolific_completion_url', None)
 
     # Make sure to save any changes to our session cache
     request.session.modified=True
