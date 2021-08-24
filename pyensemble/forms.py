@@ -216,6 +216,7 @@ class ExperimentForm(forms.ModelForm):
         self.helper.template = 'pyensemble/partly_crispy/experimentform_formset.html'
         self.helper.formset_tag = True
         self.helper.formset_method = 'POST'
+        self.fields['params'].widget = forms.Textarea(attrs={'rows': 1})
 
 ExperimentFormFormset = forms.inlineformset_factory(Experiment, ExperimentXForm, 
     form=ExperimentFormForm, 
