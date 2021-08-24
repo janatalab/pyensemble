@@ -355,12 +355,11 @@ def run_experiment(request, experiment_id=None):
             return HttpResponseBadRequest('A ticket is required to start the experiment')
 
         # Get our ticket entry
-        ticket = Ticket.objects.filter(ticket_code=ticket_code)
+        try:
+            ticket = Ticket.objects.get(ticket_code=ticket_code)
 
-        if not ticket.exists():
+        except:
             return HttpResponseBadRequest('A matching ticket was not found')
-        else:
-            ticket = ticket[0]
 
         # Check to see that the experiment associated with this ticket code matches
         if ticket.experiment.id != experiment_id:
@@ -368,24 +367,28 @@ def run_experiment(request, experiment_id=None):
 
         # Make sure ticket hasn't been used or expired
         if ticket.expired:
-            return HttpResponseBadRequest('The ticket has expired')
+            return HttpResponseBadRequest('This ticket has expired')
 
-        # Handle the situation where we have a pre-assigned subject
+        # Handle the situation where we have a pre-assigned subject via the ticket
         subject = subject_id = None
+
         if ticket.type == 'user' and ticket.subject:
             subject = ticket.subject
             subject_id = subject.subject_id
+
+            # Check whether this is a Prolific subject 
+            if subject.id_origin == 'PRLFC':
+                prolific_pid = subject_id
 
         # Enter the person as an anonymous user for the time being
         if not subject:
             subject_id = 'anonymous'
             subject, created = Subject.objects.get_or_create(subject_id=subject_id)
 
-        # Initialize a session in the PyEnsemble session table
-        origin_sessid = None
-        if prolific_pid:
-            origin_sessid = request.GET.get('SESSION_ID', None)
+        # See whether we were passed in an explicit session_id as a URL parameter
+        origin_sessid = request.GET.get('SESSION_ID', None)
 
+        # Initialize a session in the PyEnsemble session table
         session = Session.objects.create(experiment = ticket.experiment, ticket = ticket, subject = subject, origin_sessid = origin_sessid)
 
         # Update our ticket entry
@@ -774,12 +777,13 @@ def serve_form(request, experiment_id=None):
 
         # Redirect to the Prolific site to grant credit
         if expsessinfo['prolific_pid']:
-            # Get the study-specific redirect URL from the experiment table
-            experiment_params = json.loads(currform.experiment.params)
+            # Get the study-specific redirect URL from the experiment table if we have one
+            if currform.experiment.params:
+                experiment_params = json.loads(currform.experiment.params)
 
-            # Check whether params are specified in a dictionary
-            if isinstance(experiment_params,dict):
-                context['prolific_completion_url'] = experiment_params.get('prolific_completion_url', None)
+                # Check whether params are specified in a dictionary
+                if isinstance(experiment_params,dict):
+                    context['prolific_completion_url'] = experiment_params.get('prolific_completion_url', None)
 
     # Make sure to save any changes to our session cache
     request.session.modified=True
