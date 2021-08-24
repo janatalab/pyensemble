@@ -208,7 +208,7 @@ class ExperimentFormForm(forms.ModelForm):
 class ExperimentForm(forms.ModelForm):
     class Meta:
         model=Experiment
-        exclude = ('language','play_question_audio','params','locked','forms')
+        exclude = ('language','play_question_audio','locked','forms')
 
     def __init__(self, *args, **kwargs):
         super(ExperimentForm, self).__init__(*args, **kwargs)
