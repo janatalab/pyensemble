@@ -11,34 +11,30 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
-from pathlib import Path
+import json
+from configparser import ConfigParser
 
-import pdb
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = False
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Specify the path to password files
-PASS_DIR = os.path.dirname('/var/www/private/')
+PASS_DIR = os.path.dirname('/var/www/private/pyensemble/')
 
 # Specify the directory where experiments will be located
 EXPERIMENT_DIR = os.path.join(BASE_DIR,'pyensemble/experiments')
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
+# Open our configuration file
+config = ConfigParser()
+config.read(os.path.join(PASS_DIR, 'pyensemble_params.ini'))
 
-# SECURITY WARNING: keep the secret key used in production secret!
-with open(os.path.join(PASS_DIR, 'pyensemble_django_secret_key.txt')) as f:
-    SECRET_KEY = f.read().strip()
+# Get our Django secret
+SECRET_KEY = config['django']['secret']
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
-
-with open(os.path.join(PASS_DIR, 'pyensemble_allowed_hosts.txt')) as f:
-    allowed_host_names = f.read().strip()
-
-# Specify the list of allowed hosts
-ALLOWED_HOSTS = [allowed_host_names]
+# Specify the list of allowed hosts. Note, these must be specified as a list in the configuration file, with double quotes surrounding each hostname
+ALLOWED_HOSTS = json.loads(config['django']['allowed_hosts'])
 
 # Application definition
 INSTALLED_APPS = [
@@ -90,33 +86,24 @@ CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
 WSGI_APPLICATION = 'pyensemble.wsgi.application'
 
-# Database
-# https://docs.djangoproject.com/en/2.2/ref/settings/#databases
-with open(os.path.join(PASS_DIR, 'pyensemble_db_name.txt')) as f:
-    DB_NAME = f.read().strip()
-
-with open(os.path.join(PASS_DIR, 'pyensemble_db_user.txt')) as f:
-    DB_USER = f.read().strip()
-
-with open(os.path.join(PASS_DIR, 'pyensemble_db_pass.txt')) as f:
-    DB_PASS = f.read().strip()
-
-with open(os.path.join(PASS_DIR, 'pyensemble_db_host.txt')) as f:
-    DB_HOST = f.read().strip()
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': DB_NAME,
-        'USER': DB_USER,
-        'PASSWORD': DB_PASS,
-        'HOST': DB_HOST,
+        'HOST': config['django-db']['host'],
+        'NAME': config['django-db']['name'],
+        'USER': config['django-db']['user'],
+        'PASSWORD': config['django-db']['passwd'],
         'PORT': '3306', # 3306 is the default mysql port
+        'OPTIONS': {
+            'ssl': {
+                'ca': config['django-db']['ssl_certpath'],
+            }  
+        }
     }
 }
 
-with open(os.path.join(PASS_DIR, 'pyensemble_django_encryption_key.txt')) as f:
-    FIELD_ENCRYPTION_KEY = f.read().strip()
+# Get the encryption key for the Subject table fields
+FIELD_ENCRYPTION_KEY = config['django']['field_encryption_key'] 
 
 # Specify cache engine
 CACHES = {
@@ -152,10 +139,8 @@ AUTH_PASSWORD_VALIDATORS = [
 # Google reCaptcha
 try:
     NOCAPTCHA = True
-    with open(os.path.join(PASS_DIR, 'pyensemble_recaptcha_key.txt')) as f:
-        RECAPTCHA_PUBLIC_KEY = f.read().strip()
-    with open(os.path.join(PASS_DIR, 'pyensemble_recaptcha_secret.txt')) as f:
-        RECAPTCHA_PRIVATE_KEY = f.read().strip()
+    RECAPTCHA_PUBLIC_KEY = config['google']['recaptcha_key']
+    RECAPTCHA_PRIVATE_KEY = config['google']['recaptcha_secret']
 except:
     pass
 
@@ -179,29 +164,12 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "thirdparty/"),
 ]
 
+
 STATIC_ROOT = '/var/www/html/static/'
 STATIC_URL = '/static/'
 
-# Pull in any static files defined in our experiment directories
-# Get our top-level experiment directory
-p = Path(EXPERIMENT_DIR)
-
-# Get our list of experiments
-experiment_dirs = [d for d in p.iterdir() if d.is_dir() and d.name != '__pycache__']
-
-# Iterate over the subdirectories
-for experiment in experiment_dirs:
-    # Check for the existence of a static directory
-    static_dir = experiment.joinpath('static')
-
-    if static_dir.exists():
-        STATICFILES_DIRS += [str(static_dir)]
-
-# Define where we upload stimuli to
-with open(os.path.join(PASS_DIR, 'pyensemble_media_root.txt')) as f:
-    MEDIA_ROOT = f.read().strip()
-
-MEDIA_URL = '/ensemble/stimuli/'
+MEDIA_ROOT = config['django']['media_root']
+MEDIA_URL = config['django']['media_url']
 
 # Login and logout stuff
 LOGIN_URL = 'login'
@@ -211,7 +179,7 @@ LOGOUT_REDIRECT_URL = '/'
 # Various things pertaining to sessions
 SESSION_DURATION=60*60*24 # default session duration
 
-LOG_DIR = '/var/log/pyensemble'
+LOG_DIR = config['django']['logdir']
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
