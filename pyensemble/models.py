@@ -137,6 +137,12 @@ class Response(models.Model):
     decline = models.BooleanField(default=False)
     misc_info = models.TextField(blank=True)
 
+    def response_value(self):
+        if self.question.data_format.df_type == 'enum':
+            return self.question.choices()[self.response_enum][1]
+        else:
+            return self.response_text
+
 class Session(models.Model):
     date_time = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     end_datetime = models.DateTimeField(blank=True, null=True)
