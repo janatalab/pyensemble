@@ -114,13 +114,22 @@ class Experiment(models.Model):
     params = models.TextField(blank=True)
     locked = models.BooleanField(default=False)
 
+    is_group = models.BooleanField(default=False, help_text="Subjects participate in groups")
+
     forms = models.ManyToManyField('Form', through='ExperimentXForm')
+
+    def __str__(self):
+        return self.title
+
+    def get_cache_key(self):
+        return f'experiment_{self.id}'
 
 class Response(models.Model):
     date_time = models.DateTimeField(auto_now_add=True)
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE)
     session = models.ForeignKey('Session', db_constraint=True, on_delete=models.CASCADE)
+
     form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
     form_order = models.PositiveSmallIntegerField(null=False,default=None)
 
@@ -252,9 +261,12 @@ class Ticket(models.Model):
     TICKET_TYPE_CHOICES=[
         ('master','Master'),
         ('user','User'),
+        ('group','Group')
     ]
 
     ticket_code = models.CharField(max_length=32)
+    tiny_code = models.CharField(max_length=4, blank=True, default='')
+
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     type = models.CharField(
         max_length=6,
@@ -274,7 +286,7 @@ class Ticket(models.Model):
             self._expired=False
 
         return self._expired
-    
+
 #
 # Linking tables
 #
@@ -559,3 +571,60 @@ class ExperimentXForm(models.Model):
 class ExperimentXAttribute(models.Model):
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     attribute = models.ForeignKey('Attribute', db_constraint=True, on_delete=models.CASCADE)
+
+#
+# Models for supporting group sessions
+#
+
+class Group(models.Model):
+    name = models.CharField(max_length=256, unique=True, blank=False)
+    description = models.TextField(max_length=1024, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+class GroupSubject(models.Model):
+    group = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
+    subject = models.ForeignKey('Subject', db_constraint=True, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'{self.group.name}: {self.subject.name_first} {self.subject.name_last}'
+
+
+class GroupSession(models.Model):
+    group = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+    ticket = models.ForeignKey('Ticket', db_constraint=True, on_delete=models.CASCADE, related_name='+')
+    start_datetime = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+    end_datetime = models.DateTimeField(blank=True, null=True)
+
+    # Mechanism for indicating session state
+    SESSION_STATES = [
+        (0, 'UNKNOWN'),
+        (1, 'READY'),
+        (2, 'RUNNING'),
+        (3, 'COMPLETED'),
+        (4, 'ABORTED'),
+    ]
+    state = models.PositiveSmallIntegerField(choices=SESSION_STATES, default=0)
+
+    # Mechanism for caching current context
+    context = models.JSONField(null=True)
+
+    class Meta:
+        unique_together = (("group","experiment","ticket"),)
+
+    def __str__(self):
+        return "Group: %s, Experiment: %s, Session %d"%(self.group.name, self.experiment.title, self.id)
+
+    def get_cache_key(self):
+        return f'groupsession_{self.id}'
+
+
+class GroupSessionSubjectSession(models.Model):
+    group_session = models.ForeignKey('GroupSession', db_constraint=True, on_delete=models.CASCADE)
+    user_session = models.ForeignKey('Session', db_constraint=True, on_delete=models.CASCADE)
+
+    class Meta:
+        unique_together = (('group_session','user_session'),)

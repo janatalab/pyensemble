@@ -12,7 +12,7 @@ from crispy_forms.bootstrap import InlineRadios, InlineCheckboxes, UneditableFie
 
 from captcha.fields import ReCaptchaField
 
-from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat
+from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket, Group, GroupSession
 
 import pdb
 
@@ -301,3 +301,61 @@ class SubjectEmailForm(forms.ModelForm):
 
 class CaptchaForm(forms.Form):
     captcha = ReCaptchaField()
+
+#
+# Support for group sessions
+#
+
+class GroupForm(forms.ModelForm):
+    class Meta:
+        model = Group
+
+        exclude = ()
+
+class GroupCodeForm(forms.ModelForm):
+    class Meta:
+        model = Ticket
+        fields = ('tiny_code',)
+        labels = {
+            'tiny_code': 'Code provided by experimenter',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super(GroupCodeForm, self).__init__(*args, **kwargs)
+
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.add_input(Submit('submit', 'Submit'))
+
+    def clean_tiny_code(self):
+        data = self.cleaned_data['tiny_code']
+
+        # See whether a group ticket with this tiny_code exists
+        try:
+            ticket = Ticket.objects.get(tiny_code=data, type='group')
+
+        except:
+            raise ValidationError('Failed to retrieve ticket matching this code')
+
+        # Check for ticket expiration
+        if ticket.expired:
+            raise ValidationError('The ticket matching this code has expired')
+
+        return data     
+
+
+class GroupSessionForm(forms.ModelForm):
+    class Meta:
+        model = GroupSession
+        fields = ('experiment', 'group')
+
+    def __init__(self, *args, **kwargs):
+        super(GroupSessionForm, self).__init__(*args, **kwargs)
+
+        # Generate the set of possible experiment choices
+        self.fields['experiment'] = forms.ModelChoiceField(queryset=Experiment.objects.filter(is_group=True), empty_label=None)
+
+        # Generate a set of possible group choices, including a new group
+        self.fields['group'] = forms.ModelChoiceField(queryset=Group.objects.all(), empty_label='New Group')
+
+

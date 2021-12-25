@@ -2,7 +2,10 @@
 import os, re
 import json
 import hashlib
+
 from django.utils import timezone
+
+from django.core.cache import cache
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -22,9 +25,9 @@ from django.urls import reverse, reverse_lazy
 from django.conf import settings
 from django.views.generic.edit import CreateView, UpdateView, FormView
 
-from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
+from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, Group
 
-from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
+from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm, GroupForm, GroupCodeForm
 
 from .tasks import get_expsess_key, fetch_subject_id, get_or_create_prolific_subject, create_tickets
 
@@ -318,9 +321,71 @@ class EnumCreateView(LoginRequiredMixin,CreateView):
 
     def get_success_url(self):
         return reverse_lazy('editor')
+
+class GroupCreateView(LoginRequiredMixin,CreateView):
+    model = Group
+    form_class = GroupForm
+    template_name = 'pyensemble/group_create.html'
+    
+    def get_success_url(self):
+        return reverse_lazy('start_groupsession')
+
 #
 # Views for running experiments
 #
+
+# Start group session
+@login_required
+def start_groupsession(request):
+
+    if request.method == 'POST':
+        form = GroupSessionForm(request.POST)
+
+        if form.is_valid():
+            pdb.set_trace()
+
+            # Get our experiment
+            experiment = Experiment.objects.get(title=form.cleaned_data['experiment_title'])
+
+            # Get our group
+            group = Group.objects.get(name=form.cleaned_data['group_name'])
+
+            # Generate a ticket
+            expiration_datetime = timezone.now() + timezone.timedelta(minutes=10)
+            ticket_list = create_tickets({
+                'experiment_id': experiment.id,
+                'num_group': 1,
+                'group_expiration': expiration_datetime,
+            })
+
+            ticket = ticket_list[0]
+
+            # Create a group session
+            group_session = GroupSession.objects.create(
+                group = group,
+                experiment = experiment,
+                ticket = ticket,
+                )
+
+            # Initialize a group session object in the session cache
+            cache_key = group_session.get_cache_key()
+            request.session[group_session.get_cache_key()] = {'session': group_session}
+
+            # Initialize a group session object in the shared cache
+            cache.set(group_session.get_cache_key(), {'state': 'INITIALIZED'})
+
+            context = {}
+            return render(request, 'pyensemble/start_groupsession_success.html', context)
+
+    else:
+        form = GroupSessionForm()
+
+
+    template = 'pysensemble/start_groupsession.html'
+    context = {}
+
+    return render(request, template, context)
+
 
 # Start experiment
 @require_http_methods(['GET'])
@@ -331,6 +396,9 @@ def run_experiment(request, experiment_id=None):
     # Get cached information for this experiment and session, if we have it
     expsess_key = get_expsess_key(experiment_id)
     expsessinfo = request.session.get(expsess_key,{})
+
+    # Get our experiment object
+    experiment = Experiment.objects.get(id=experiment_id)
 
     # Check whether we have a running session, and initialize a new one if not.
     if not expsessinfo.get('running',False): 
@@ -352,6 +420,13 @@ def run_experiment(request, experiment_id=None):
 
         # Process the ticket
         if not ticket_code:
+            # Check whether this is a group experiment and fetch the group ticket code if necessary
+            if experiment.is_group:
+                # Prompt the participant to enter a group ID
+                response = get_group_ticket_code(request, experiment_id=experiment_id)
+
+                return response
+
             return HttpResponseBadRequest('A ticket is required to start the experiment')
 
         # Get our ticket entry
@@ -390,6 +465,19 @@ def run_experiment(request, experiment_id=None):
 
         # Initialize a session in the PyEnsemble session table
         session = Session.objects.create(experiment = ticket.experiment, ticket = ticket, subject = subject, origin_sessid = origin_sessid)
+
+        # If this is a group experiment, attach the session to a group session
+        if experiment.is_group:
+            # Get the group session object associated with this ticket
+            group_session = GroupSession.objects.get(ticket=ticket)
+
+            # Add the subject to the group session
+            GroupSessionSubjectSession.objects.create(
+                group_session = group_session,
+                user_session = session,
+                )
+
+
 
         # Update our ticket entry
         ticket.used = True
@@ -815,3 +903,25 @@ def reset_session(request, experiment_id):
         request.session[expsess_key] = {}
 
     return render(request,'pyensemble/message.html',{'msg':msg})
+
+def get_group_ticket_code(request, experiment_id=None):
+    if request.method == 'POST':
+        form = GroupCodeForm(request.POST)
+
+        if form.is_valid():
+            # Get the ticket object
+            ticket = Ticket.objects.get(tiny_code=form.cleaned_data['tiny_code'])
+
+            # Redirect to run_experiment using the full ticket code
+            url = '%s?tc=%s'%(reverse('run_experiment', args=[experiment_id]), ticket.ticket_code)
+            return HttpResponseRedirect(url)
+
+    else:
+        form = GroupCodeForm()
+
+    template = 'pyensemble/get_group_ticket_code.html'
+    context = {
+        'form': form
+    }
+
+    return render(request, template, context)
