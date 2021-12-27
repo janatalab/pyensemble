@@ -81,17 +81,15 @@ def create_tickets(ticket_request_data):
                 encrypted_str = hashlib.md5(unencrypted_str.encode('utf-8')).hexdigest()
 
                 # Add a new ticket to our list
-                ticket_list.append(Ticket(
+                ticket = Ticket.objects.create(
                     ticket_code=encrypted_str, 
+                    tiny_code=encrypted_str[:4],
                     experiment=experiment, 
                     type=ticket_type, 
                     expiration_datetime=expiration_datetime,
                     subject = subject
-                    )
                 )
-
-    # Create the tickets in the database
-    Ticket.objects.bulk_create(ticket_list)
+                ticket_list.append(ticket)
 
     return ticket_list
 

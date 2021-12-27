@@ -312,6 +312,13 @@ class GroupForm(forms.ModelForm):
 
         exclude = ()
 
+    def __init__(self, *args, **kwargs):
+        super(GroupForm, self).__init__(*args, **kwargs)
+
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.add_input(Submit('submit', 'Submit'))
+
 class GroupCodeForm(forms.ModelForm):
     class Meta:
         model = Ticket
@@ -357,5 +364,9 @@ class GroupSessionForm(forms.ModelForm):
 
         # Generate a set of possible group choices, including a new group
         self.fields['group'] = forms.ModelChoiceField(queryset=Group.objects.all(), empty_label='New Group')
+        self.fields['group'].required = False
 
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.add_input(Submit('submit', 'Submit'))
 

@@ -25,9 +25,9 @@ from django.urls import reverse, reverse_lazy
 from django.conf import settings
 from django.views.generic.edit import CreateView, UpdateView, FormView
 
-from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, Group
+from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, Group, GroupSession
 
-from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm, GroupForm, GroupCodeForm
+from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm, GroupForm, GroupCodeForm, GroupSessionForm
 
 from .tasks import get_expsess_key, fetch_subject_id, get_or_create_prolific_subject, create_tickets
 
@@ -325,7 +325,7 @@ class EnumCreateView(LoginRequiredMixin,CreateView):
 class GroupCreateView(LoginRequiredMixin,CreateView):
     model = Group
     form_class = GroupForm
-    template_name = 'pyensemble/group_create.html'
+    template_name = 'pyensemble/group/create.html'
     
     def get_success_url(self):
         return reverse_lazy('start_groupsession')
@@ -342,13 +342,15 @@ def start_groupsession(request):
         form = GroupSessionForm(request.POST)
 
         if form.is_valid():
-            pdb.set_trace()
+            # Check whether we need to create a new group
+            if form.cleaned_data['group'] == None:
+                return HttpResponseRedirect(reverse('create_group'))
 
             # Get our experiment
-            experiment = Experiment.objects.get(title=form.cleaned_data['experiment_title'])
+            experiment = form.cleaned_data['experiment']
 
             # Get our group
-            group = Group.objects.get(name=form.cleaned_data['group_name'])
+            group = form.cleaned_data['group']
 
             # Generate a ticket
             expiration_datetime = timezone.now() + timezone.timedelta(minutes=10)
@@ -369,20 +371,66 @@ def start_groupsession(request):
 
             # Initialize a group session object in the session cache
             cache_key = group_session.get_cache_key()
-            request.session[group_session.get_cache_key()] = {'session': group_session}
+            request.session['group_session_key'] = cache_key
+            request.session[cache_key] = {'id': group_session.id}
 
-            # Initialize a group session object in the shared cache
-            cache.set(group_session.get_cache_key(), {'state': 'INITIALIZED'})
+            # Set the state of our group session
+            group_session.state = group_session.States.READY
+            group_session.save()
 
-            context = {}
-            return render(request, 'pyensemble/start_groupsession_success.html', context)
+            return HttpResponseRedirect(reverse('groupsession_status', kwargs={'session_id': group_session.id}))
 
     else:
         form = GroupSessionForm()
 
 
-    template = 'pysensemble/start_groupsession.html'
-    context = {}
+    template = 'pyensemble/group/session_start.html'
+    context = {
+        'form': form
+    }
+
+    return render(request, template, context)
+
+@login_required
+def abort_groupsession(request, session_id=None):
+    template = 'pyensemble/group/session_status.html'
+
+    session = GroupSession.objects.get(pk=session_id)
+
+    session.state = session.States.ABORTED
+    session.save()
+
+    context = {
+        'session': session,
+    }
+
+    return render(request, template, context)
+
+@login_required
+def end_groupsession(request, session_id=None):
+    template = 'pyensemble/group/session_status.html'
+
+    session = GroupSession.objects.get(pk=session_id)
+
+    session.state = session.States.COMPLETED
+    session.save()
+    
+    context = {
+        'session': session,
+    }
+
+    return render(request, template, context)
+
+
+@login_required
+def groupsession_status(request, session_id=None):
+    template = 'pyensemble/group/session_status.html'
+
+    session = GroupSession.objects.get(pk=session_id)
+
+    context = {
+        'session': session,
+    }
 
     return render(request, template, context)
 

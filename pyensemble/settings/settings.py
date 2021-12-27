@@ -108,7 +108,7 @@ FIELD_ENCRYPTION_KEY = config['django']['field_encryption_key']
 # Specify cache engine
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.memcached.PyMemcacheCache',
+        'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
         'LOCATION': ['127.0.0.1:11211'],
         'TIMEOUT': 60*60*6,
         'NAME': '',

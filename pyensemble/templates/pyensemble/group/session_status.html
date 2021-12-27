@@ -1,0 +1,39 @@
+{% extends "pyensemble/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block header %}
+<h1>Group Session Status</h1>
+{% endblock %}
+
+{% block main %}
+    <div class="container">
+        <div class="row">
+            <div class="col-12 border p-3 my-3">
+                <div class="row"><div class="col-3 text-right">Experiment:</div><div class="col text-left text-muted pl-2">{{session.experiment.title}}</div></div>
+                <div class="row"><div class="col-3 text-right">Group:</div><div class="col text-left text-muted pl-2">{{session.group.name}}</div></div>
+                <div class="row"><div class="col-3 text-right">ID:</div><div class="col text-left text-muted pl-2">{{session.id}}</div></div>
+                <div class="row"><div class="col-3 text-right">Code:</div><div class="col text-left text-muted pl-2">{{session.ticket.tiny_code}}</div></div>
+                <div class="row"><div class="col-3 text-right">Status:</div><div class="col text-left text-muted pl-2">
+                {% for state in session.States %}
+                    {% if state == session.state %}
+                        {{state.label}}
+                    {% endif %}
+                {% endfor %}
+                </div></div>
+            </div>
+        </div>
+        <div class="row justify-content-around my-3">
+            <div class="col-3"><a href="{% url 'groupsession_status' session_id=session.id %}">Update</a></div>
+            <div class="col-3"><a href="{% url 'abort_groupsession' session_id=session.id %}">Abort</a></div>
+            <div class="col-3"><a href="{% url 'end_groupsession' session_id=session.id %}">End</a></div>
+        </div>
+        <div class="row border-top my-3">
+            <div class='col-12 text-center h3 pt-3'>Participants</div>
+            {% for participant in session.groupsessionsubjectsession_set.all %}
+                <div class='col-3 card'>
+                    {{participant.user_session.subject.id}}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}

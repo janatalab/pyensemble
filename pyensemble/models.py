@@ -600,14 +600,14 @@ class GroupSession(models.Model):
     end_datetime = models.DateTimeField(blank=True, null=True)
 
     # Mechanism for indicating session state
-    SESSION_STATES = [
-        (0, 'UNKNOWN'),
-        (1, 'READY'),
-        (2, 'RUNNING'),
-        (3, 'COMPLETED'),
-        (4, 'ABORTED'),
-    ]
-    state = models.PositiveSmallIntegerField(choices=SESSION_STATES, default=0)
+    class States(models.IntegerChoices):
+        UNKNOWN = 0
+        READY = 1
+        RUNNING = 2
+        COMPLETED = 3
+        ABORTED = 4
+    
+    state = models.PositiveSmallIntegerField(choices=States.choices, default=States.UNKNOWN)
 
     # Mechanism for caching current context
     context = models.JSONField(null=True)

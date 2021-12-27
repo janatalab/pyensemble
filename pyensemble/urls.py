@@ -20,7 +20,7 @@ from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
-from .views import EditorView, ExperimentListView, ExperimentCreateView, ExperimentUpdateView, FormListView, FormCreateView, FormUpdateView, FormPresentView, QuestionListView, QuestionCreateView, QuestionUpdateView, QuestionPresentView, EnumListView, EnumCreateView, run_experiment, serve_form, add_experiment_form, add_form_question, create_ticket, reset_session, copy_experiment, GroupCreateView, start_groupsession
+from .views import EditorView, ExperimentListView, ExperimentCreateView, ExperimentUpdateView, FormListView, FormCreateView, FormUpdateView, FormPresentView, QuestionListView, QuestionCreateView, QuestionUpdateView, QuestionPresentView, EnumListView, EnumCreateView, run_experiment, serve_form, add_experiment_form, add_form_question, create_ticket, reset_session, copy_experiment, GroupCreateView, start_groupsession, groupsession_status, abort_groupsession, end_groupsession
 
 import pyensemble.errors as error
 from pyensemble import importers
@@ -58,6 +58,10 @@ app_patterns = [
     path('ticket/create/', create_ticket, name='create_ticket'),
     path('group/create/', GroupCreateView.as_view(), name='create_group'),
     path('group/session/start/', start_groupsession, name='start_groupsession'),
+    path('group/session/status/<int:session_id>/', groupsession_status, name="groupsession_status"),
+    path('group/session/abort/<int:session_id>/', abort_groupsession, name="abort_groupsession"),
+    path('group/session/end/<int:session_id>/', end_groupsession, name="end_groupsession"),
+
     path('run/<int:experiment_id>/start/',run_experiment, name='run_experiment'),
     path('run/<int:experiment_id>/',serve_form, name='serve_form'),    
     path('session/reset/<int:experiment_id>/',reset_session, name='reset_session'),
