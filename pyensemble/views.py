@@ -25,9 +25,9 @@ from django.urls import reverse, reverse_lazy
 from django.conf import settings
 from django.views.generic.edit import CreateView, UpdateView, FormView
 
-from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, Group, GroupSession
+from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, Group, GroupSession, GroupSessionSubjectSession
 
-from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm, GroupForm, GroupCodeForm, GroupSessionForm
+from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm, GroupForm, get_group_code_form, GroupSessionForm
 
 from .tasks import get_expsess_key, fetch_subject_id, get_or_create_prolific_subject, create_tickets
 
@@ -414,7 +414,7 @@ def end_groupsession(request, session_id=None):
 
     session.state = session.States.COMPLETED
     session.save()
-    
+
     context = {
         'session': session,
     }
@@ -428,8 +428,11 @@ def groupsession_status(request, session_id=None):
 
     session = GroupSession.objects.get(pk=session_id)
 
+    # participant_sessions = GroupSessionSubjectSession.objects.filter(group_session=session)
+
     context = {
         'session': session,
+        # 'participant_sessions': participant_sessions
     }
 
     return render(request, template, context)
@@ -470,10 +473,7 @@ def run_experiment(request, experiment_id=None):
         if not ticket_code:
             # Check whether this is a group experiment and fetch the group ticket code if necessary
             if experiment.is_group:
-                # Prompt the participant to enter a group ID
-                response = get_group_ticket_code(request, experiment_id=experiment_id)
-
-                return response
+                return HttpResponseRedirect(reverse('attach_participant'))
 
             return HttpResponseBadRequest('A ticket is required to start the experiment')
 
@@ -952,22 +952,51 @@ def reset_session(request, experiment_id):
 
     return render(request,'pyensemble/message.html',{'msg':msg})
 
-def get_group_ticket_code(request, experiment_id=None):
+def attach_participant(request):
     if request.method == 'POST':
+        GroupCodeForm = get_group_code_form(code_type='participant')
         form = GroupCodeForm(request.POST)
 
         if form.is_valid():
             # Get the ticket object
-            ticket = Ticket.objects.get(tiny_code=form.cleaned_data['tiny_code'])
+            ticket = Ticket.objects.get(participant_code=form.cleaned_data['participant_code'])
 
             # Redirect to run_experiment using the full ticket code
-            url = '%s?tc=%s'%(reverse('run_experiment', args=[experiment_id]), ticket.ticket_code)
+            url = '%s?tc=%s'%(reverse('run_experiment', args=[ticket.experiment.id]), ticket.ticket_code)
+
             return HttpResponseRedirect(url)
 
     else:
-        form = GroupCodeForm()
+        form = get_group_code_form(code_type='participant')
 
-    template = 'pyensemble/get_group_ticket_code.html'
+    template = 'pyensemble/group/attach_to_session.html'
+    context = {
+        'form': form
+    }
+
+    return render(request, template, context)
+
+@login_required
+def attach_experimenter(request):
+    if request.method == 'POST':
+        GroupCodeForm = get_group_code_form(code_type='experimenter')
+        form = GroupCodeForm(request.POST)
+
+        if form.is_valid():
+            # Get the ticket object
+            ticket = Ticket.objects.get(experimenter_code=form.cleaned_data['experimenter_code'])
+
+            # Get the session
+            session = GroupSession.objects.get(ticket=ticket)
+            session.experimenter_attached = True
+            session.save()
+
+            return HttpResponseRedirect(reverse('groupsession_status', kwargs={'session_id': session.id}))
+
+    else:
+        form = get_group_code_form(code_type='experimenter')
+
+    template = 'pyensemble/group/attach_to_session.html'
     context = {
         'form': form
     }

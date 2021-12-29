@@ -4,6 +4,7 @@ import re
 from django.conf import settings
 
 import django.forms as forms
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from crispy_forms.helper import FormHelper
@@ -319,36 +320,51 @@ class GroupForm(forms.ModelForm):
         self.helper.form_method = 'post'
         self.helper.add_input(Submit('submit', 'Submit'))
 
-class GroupCodeForm(forms.ModelForm):
-    class Meta:
-        model = Ticket
-        fields = ('tiny_code',)
-        labels = {
-            'tiny_code': 'Code provided by experimenter',
-        }
+def get_group_code_form(code_type='participant'):
+    if code_type == 'participant':
+        code_field = 'participant_code'
+        field_label = 'Code provided by experimenter'
 
-    def __init__(self, *args, **kwargs):
-        super(GroupCodeForm, self).__init__(*args, **kwargs)
+    elif code_type == 'experimenter':
+        code_field = 'experimenter_code'
+        field_label = 'Experimenter code'
 
-        self.helper = FormHelper()
-        self.helper.form_method = 'post'
-        self.helper.add_input(Submit('submit', 'Submit'))
+    else:
+        raise ValueError(f'code_type {code_type} is not a valid code type')
 
-    def clean_tiny_code(self):
-        data = self.cleaned_data['tiny_code']
+    class GroupCodeForm(forms.ModelForm):
+        class Meta:
+            model = Ticket
+            fields = (code_field,)
+            labels = {
+                code_field: field_label,
+            }
 
-        # See whether a group ticket with this tiny_code exists
-        try:
-            ticket = Ticket.objects.get(tiny_code=data, type='group')
+        def __init__(self, *args, **kwargs):
+            super(GroupCodeForm, self).__init__(*args, **kwargs)
 
-        except:
-            raise ValidationError('Failed to retrieve ticket matching this code')
+            self.helper = FormHelper()
+            self.helper.form_method = 'post'
+            self.helper.add_input(Submit('submit', 'Submit'))
 
-        # Check for ticket expiration
-        if ticket.expired:
-            raise ValidationError('The ticket matching this code has expired')
+        def clean_participant_code(self):
+            data = self.cleaned_data[code_field]
 
-        return data     
+            # See whether a group ticket with this participant_code exists
+            try:
+                ticket_info = {code_field: data, 'type': 'group'}
+                ticket = Ticket.objects.get(**ticket_info)
+
+            except:
+                raise ValidationError('Failed to retrieve ticket matching this code')
+
+            # Check for ticket expiration
+            if ticket.expired:
+                raise ValidationError('The ticket matching this code has expired')
+
+            return data     
+
+    return GroupCodeForm
 
 
 class GroupSessionForm(forms.ModelForm):

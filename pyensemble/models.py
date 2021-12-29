@@ -6,6 +6,8 @@ import hashlib
 
 from django.db import models
 from django.urls import reverse
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField, EncryptedDateField
 
@@ -265,7 +267,8 @@ class Ticket(models.Model):
     ]
 
     ticket_code = models.CharField(max_length=32)
-    tiny_code = models.CharField(max_length=4, blank=True, default='')
+    participant_code = models.CharField(max_length=4, blank=True, default='')
+    experimenter_code = models.CharField(max_length=4, blank=True, default='')
 
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     type = models.CharField(
@@ -286,6 +289,12 @@ class Ticket(models.Model):
             self._expired=False
 
         return self._expired
+
+@receiver(pre_save, sender=Ticket)
+def generate_tiny_codes(sender, instance, **kwargs):
+    instance.participant_code=instance.ticket_code[:4]
+    instance.experimenter_code=instance.ticket_code[-4:]
+
 
 #
 # Linking tables
@@ -598,6 +607,7 @@ class GroupSession(models.Model):
     ticket = models.ForeignKey('Ticket', db_constraint=True, on_delete=models.CASCADE, related_name='+')
     start_datetime = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     end_datetime = models.DateTimeField(blank=True, null=True)
+    experimenter_attached = models.BooleanField(default=False)
 
     # Mechanism for indicating session state
     class States(models.IntegerChoices):
@@ -608,6 +618,16 @@ class GroupSession(models.Model):
         ABORTED = 4
     
     state = models.PositiveSmallIntegerField(choices=States.choices, default=States.UNKNOWN)
+
+    terminal_states = [States.COMPLETED, States.ABORTED]
+
+    @property
+    def modifiable(self):
+        self._modifiable=True
+        if self.state in terminal_states:
+            self._modifiable=False
+
+        return self._modifiable
 
     # Mechanism for caching current context
     context = models.JSONField(null=True)

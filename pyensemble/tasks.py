@@ -83,7 +83,6 @@ def create_tickets(ticket_request_data):
                 # Add a new ticket to our list
                 ticket = Ticket.objects.create(
                     ticket_code=encrypted_str, 
-                    tiny_code=encrypted_str[:4],
                     experiment=experiment, 
                     type=ticket_type, 
                     expiration_datetime=expiration_datetime,
