@@ -348,6 +348,12 @@ def get_group_code_form(code_type='participant'):
             self.helper.add_input(Submit('submit', 'Submit'))
 
         def clean_participant_code(self):
+            return self.check_code()
+
+        def clean_experimenter_code(self):
+            return self.check_code()
+
+        def check_code(self):
             data = self.cleaned_data[code_field]
 
             # See whether a group ticket with this participant_code exists

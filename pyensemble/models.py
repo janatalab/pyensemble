@@ -144,9 +144,11 @@ class Response(models.Model):
     response_order = models.PositiveSmallIntegerField(null=False,default=None)
     response_text = models.TextField(blank=True)
     response_enum = models.IntegerField(blank=True, null=True)
-    jspsych_data = models.TextField(blank=True)
+    jspsych_data = models.TextField(blank=True) # field for storing data returned by jsPsych
     decline = models.BooleanField(default=False)
     misc_info = models.TextField(blank=True)
+
+    trial_info = models.JSONField(null=True) # field for storing trial information/context
 
     def response_value(self):
         if self.question.data_format.df_type == 'enum':

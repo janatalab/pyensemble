@@ -37,7 +37,7 @@
             <div class="col-md-5 py-2">
                 <div class="row">
                      <div class="col-5 text-right">Session status:</div>
-                     <div class="col text-left text-muted pl-2">
+                     <div id="groupsession_status" class="col text-left text-muted pl-2">
                         {% for state in session.States %}
                             {% if state == session.state %}
                                 {{state.label}}

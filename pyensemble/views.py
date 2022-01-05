@@ -18,7 +18,8 @@ import django.forms as forms
 from django.db import transaction, IntegrityError
 from django.db.models import Q
 
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, JsonResponse
+
 from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
 
@@ -353,7 +354,7 @@ def start_groupsession(request):
             group = form.cleaned_data['group']
 
             # Generate a ticket
-            expiration_datetime = timezone.now() + timezone.timedelta(minutes=10)
+            expiration_datetime = timezone.now() + timezone.timedelta(minutes=60)
             ticket_list = create_tickets({
                 'experiment_id': experiment.id,
                 'num_group': 1,
@@ -991,6 +992,9 @@ def attach_experimenter(request):
             session.experimenter_attached = True
             session.save()
 
+            # Initialize a session variables cache
+            request.session['groupsession_id'] = session.id
+
             return HttpResponseRedirect(reverse('groupsession_status', kwargs={'session_id': session.id}))
 
     else:
@@ -1002,3 +1006,15 @@ def attach_experimenter(request):
     }
 
     return render(request, template, context)
+
+@login_required
+def get_groupsession_participants(request):
+    # Get our groupsession ID
+    groupsession_id = request.session['groupsession_id']
+
+    pinfo = GroupSessionSubjectSession.objects.filter(group_session=groupsession_id).values(*['user_session__subject','user_session__subject__name_first','user_session__subject__name_last'])
+
+    # Create a regular dict
+    participants = {p['user_session__subject']:{'first': p['user_session__subject__name_first'], 'last': p['user_session__subject__name_last']} for p in pinfo}
+    
+    return JsonResponse(participants)
