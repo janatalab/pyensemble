@@ -23,13 +23,13 @@
       fetchItemList('{{item_type}}s');
     });
 
-    $('#addItemSubmit').on('click',function(ev){
-      ev.preventDefault();
-      submitItemAdditions('{{item_type}}s');
-    })
-
     $('#addItemTable').on('shown.bs.modal', function () {
       $('#addItemTable table').bootstrapTable('resetView');
-    })
-  })
+    });
+
+    $('#addItemTable').on('hidden.bs.modal',function(ev){
+      submitItemAdditions('{{item_type}}s');
+    });
+
+  });
 </script>

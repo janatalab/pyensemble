@@ -4,6 +4,8 @@ from .settings import *
 
 DEBUG=True
 
+ALLOWED_HOSTS += ['localhost']
+
 INSTALLED_APPS += ['sslserver']
 
 DATABASES = {
@@ -13,6 +15,7 @@ DATABASES = {
     }
 }
 
+MEDIA_URL = 'https://atonal.ucdavis.edu/ensemble/stimuli/'
 
 LOG_DIR = os.path.join(os.environ['HOME'],'log')
 if not os.path.exists(LOG_DIR):

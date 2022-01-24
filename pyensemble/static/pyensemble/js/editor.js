@@ -195,7 +195,7 @@ function setEditStatus(status){
         status = true;
     }
 
-    if (!status){
+    if (status){
         $(".editor input,textarea").attr({'readonly':false});
         $(".editor input:checkbox, select").attr({'disabled':false});
         $(".editor .dateinput").attr({'disabled':false});
