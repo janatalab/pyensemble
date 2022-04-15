@@ -38,8 +38,6 @@ from pyensemble import experiments
 from crispy_forms.layout import Submit
 
 
-import pdb
-
 class EditorView(LoginRequiredMixin,TemplateView):
     template_name = 'editor_base.html'
 
@@ -257,7 +255,6 @@ class QuestionCreateView(LoginRequiredMixin,CreateView):
     template_name = 'pyensemble/question_create.html'
 
     def form_valid(self, form):
-        pdb.set_trace()
         context = self.get_context_data()
 
         form.instance.data_format = DataFormat.objects.get(id=form.cleaned_data['dfid'])
@@ -561,7 +558,6 @@ def serve_form(request, experiment_id=None):
                 question = formset.forms[0]
                 response = int(question.cleaned_data.get('option',''))
 
-                # pdb.set_trace()
                 choices = question.instance.choices()
                 if choices[response][1].lower() != 'agree':
                     return render(request,'pyensemble/message.html',{
