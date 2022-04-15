@@ -26,14 +26,14 @@ MarkupSafe==2.0.1
 matplotlib==3.2.1
 mod-wsgi==4.7.1
 mysqlclient==1.4.6
-numpy==1.21.0
+numpy==1.19.5
 oauthlib==3.1.0
 packaging==20.9
 pandas==1.0.4
 parso==0.5.2
 pexpect==4.7.0
 pickleshare==0.7.5
-Pillow==9.0.1
+Pillow==8.4.0
 polling2==0.5.0
 prompt-toolkit==3.0.2
 ptyprocess==0.6.0
