@@ -6,6 +6,8 @@ import hashlib
 
 from django.db import models
 from django.urls import reverse
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
 
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField, EncryptedDateField
 
@@ -65,8 +67,8 @@ class Question(models.Model):
 
     forms = models.ManyToManyField('Form', through='FormXQuestion')
 
-    class Meta:
-        unique_together = (("_unique_hash", "data_format"),)
+    # class Meta:
+    #     unique_together = (("_unique_hash", "data_format"),)
 
     def __unicode__(self):
         return self.text
@@ -80,7 +82,7 @@ class Question(models.Model):
         if self.text:
             m = hashlib.md5()
             m.update(self.text.encode('utf-8'))
-            self._unique_hash = m.digest()
+            self._unique_hash = m.hexdigest()
         else:
             self._unique_hash = ''
 
@@ -114,13 +116,22 @@ class Experiment(models.Model):
     params = models.TextField(blank=True)
     locked = models.BooleanField(default=False)
 
+    is_group = models.BooleanField(default=False, help_text="Subjects participate in groups")
+
     forms = models.ManyToManyField('Form', through='ExperimentXForm')
+
+    def __str__(self):
+        return self.title
+
+    def get_cache_key(self):
+        return f'experiment_{self.id}'
 
 class Response(models.Model):
     date_time = models.DateTimeField(auto_now_add=True)
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE)
     session = models.ForeignKey('Session', db_constraint=True, on_delete=models.CASCADE)
+
     form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
     form_order = models.PositiveSmallIntegerField(null=False,default=None)
 
@@ -133,9 +144,11 @@ class Response(models.Model):
     response_order = models.PositiveSmallIntegerField(null=False,default=None)
     response_text = models.TextField(blank=True)
     response_enum = models.IntegerField(blank=True, null=True)
-    jspsych_data = models.TextField(blank=True)
+    jspsych_data = models.TextField(blank=True) # field for storing data returned by jsPsych
     decline = models.BooleanField(default=False)
     misc_info = models.TextField(blank=True)
+
+    trial_info = models.JSONField(null=True) # field for storing trial information/context
 
     def response_value(self):
         if self.question.data_format.df_type == 'enum':
@@ -252,9 +265,13 @@ class Ticket(models.Model):
     TICKET_TYPE_CHOICES=[
         ('master','Master'),
         ('user','User'),
+        ('group','Group')
     ]
 
     ticket_code = models.CharField(max_length=32)
+    participant_code = models.CharField(max_length=4, blank=True, default='')
+    experimenter_code = models.CharField(max_length=4, blank=True, default='')
+
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     type = models.CharField(
         max_length=6,
@@ -274,7 +291,13 @@ class Ticket(models.Model):
             self._expired=False
 
         return self._expired
-    
+
+@receiver(pre_save, sender=Ticket)
+def generate_tiny_codes(sender, instance, **kwargs):
+    instance.participant_code=instance.ticket_code[:4]
+    instance.experimenter_code=instance.ticket_code[-4:]
+
+
 #
 # Linking tables
 #
@@ -355,6 +378,7 @@ class ExperimentXForm(models.Model):
         ('form_consent','form_consent'),
         ('form_subject_register','form_subject_register'),
         ('form_subject_email','form_subject_email'),
+        ('group_trial','group_trial'),
     ]
 
     form_handler = models.CharField(max_length=50, blank=True, choices=FORM_HANDLER_OPTIONS, default='form_generic')
@@ -559,3 +583,110 @@ class ExperimentXForm(models.Model):
 class ExperimentXAttribute(models.Model):
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     attribute = models.ForeignKey('Attribute', db_constraint=True, on_delete=models.CASCADE)
+
+#
+# Models for supporting group sessions
+#
+
+class Group(models.Model):
+    name = models.CharField(max_length=256, unique=True, blank=False)
+    description = models.TextField(max_length=1024, blank=True)
+
+    def __str__(self):
+        return self.name
+
+
+class GroupSubject(models.Model):
+    group = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
+    subject = models.ForeignKey('Subject', db_constraint=True, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'{self.group.name}: {self.subject.name_first} {self.subject.name_last}'
+
+
+class GroupSession(models.Model):
+    group = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+    ticket = models.OneToOneField('Ticket', db_constraint=True, on_delete=models.CASCADE)
+    start_datetime = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+    end_datetime = models.DateTimeField(blank=True, null=True)
+    experimenter_attached = models.BooleanField(default=False)
+
+    # Mechanism for saving overall session parameters
+    params = models.JSONField(default=dict)
+
+    # Mechanism for caching current context
+    context = models.JSONField(default=dict)
+
+    # Mechanism for indicating session state
+    class States(models.IntegerChoices):
+        UNKNOWN = 0
+        READY = 1
+        RUNNING = 2
+        COMPLETED = 3
+        ABORTED = 4
+    
+    state = models.PositiveSmallIntegerField(choices=States.choices, default=States.UNKNOWN)
+
+    terminal_states = [States.COMPLETED, States.ABORTED]
+
+    @property
+    def num_users(self):
+        return self.user_session_set.count()
+
+    @property
+    def modifiable(self):
+        self._modifiable=True
+        if self.state in terminal_states:
+            self._modifiable=False
+
+        return self._modifiable
+
+    def responding_complete(self, trial_num):
+        self._responding_complete = False
+        if trial_num == 0:
+            self._responding_complete =  True
+
+        else:
+            # Search the trial_info field the Response table contains an entry for the designated trial for all session users
+            responded = Response.objects.filter(session__in=self.user_session_set, trial_info__trial_num=trial_num)
+
+            if responded.count() == self.num_users:
+                self._responding_complete =  True
+
+        return self._responding_complete
+
+    def users_ready(self):
+        # Get number of users attached to this session
+        num_users = self.groupsessionsubjectsession_set.count()
+
+        # Get number of users in ready state
+        ready_users = self.groupsessionsubjectsession_set.filter(state=GroupSessionSubjectSession.States.READY)
+
+        return num_users == ready_users.count()
+
+
+    class Meta:
+        unique_together = (("group","experiment","ticket"),)
+
+    def __str__(self):
+        return "Group: %s, Experiment: %s, Session %d"%(self.group.name, self.experiment.title, self.id)
+
+    def get_cache_key(self):
+        return f'groupsession_{self.id}'
+
+
+class GroupSessionSubjectSession(models.Model):
+    group_session = models.ForeignKey('GroupSession', db_constraint=True, on_delete=models.CASCADE)
+    user_session = models.ForeignKey('Session', db_constraint=True, on_delete=models.CASCADE)
+
+    # Mechanism for indicating participant session state
+    class States(models.IntegerChoices):
+        UNKNOWN = 0
+        READY = 1
+        RESPONSE_PENDING = 2
+    
+    state = models.PositiveSmallIntegerField(choices=States.choices, default=States.UNKNOWN)
+
+    class Meta:
+        unique_together = (('group_session','user_session'),)

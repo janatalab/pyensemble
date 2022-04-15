@@ -1,0 +1,11 @@
+{% extends "pyensemble/handlers/form_generic.html" %}
+
+{% block appscript %}
+    <script>
+        $(document).ready(function () {
+            $('#questions').addClass('d-none');
+
+            {% include "pyensemble/js/group_trial_ended.js" %}
+        });
+    </script>
+{% endblock %}

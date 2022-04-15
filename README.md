@@ -40,6 +40,8 @@ PyEnsemble is a Python-backed version of the PHP/MATLAB web-based experiment sys
     - [jsPsych](#jspsych)
         - [Using jsPsych](#using_jspsych)
     - [Participants from other sources](#participant_sources)
+    - [Group sessions](#groups)
+
 - [Frequently Asked Questions (FAQs)](#faqs)
 
 <a name="requirements"/></a>
@@ -441,7 +443,54 @@ If one chooses to collect responses within jsPsych, rather than with one or more
 
 <a name="participant_sources"/></a>
 ### Participants from other sources
-Nominal support is provided from handling referrals from participant pools. SONA and Prolific are currently supported. Prolific subject IDs can be used in lieu of the default IDs created within PyEnsemble, thus providing the ability to link responses in PyEnsemble with demographic and other metadata that can be downloaded from Prolific. Moreover, Prolific session IDs are also stored in the PyEnsemble Session table.
+Nominal support is provided for handling referrals from participant pools. SONA and Prolific are currently supported. Prolific subject IDs can be used in lieu of the default IDs created within PyEnsemble, thus providing the ability to link responses in PyEnsemble with demographic and other metadata that can be downloaded from Prolific. Moreover, Prolific session IDs are also stored in the PyEnsemble Session table.
+
+<a name="groups"/></a>
+### Group experiments
+PyEnsemble supports the concept of a group experiment, thereby providing a mechanism for collecting data from individual participants who are participating together as a group. For example, the participants may experience the same stimulus and/or experimental trial, and provide their responses for that trial before moving on to the next trial. The stimulus to be presented on the next trial may depend on the responses of all the participants. In such cases, it is necessary to control the experiment flow for each of the individual sessions together. Thus arises the need for separate communication channels with PyEnsemble for the experimenter and participants, along with a mechanism for interactions between active experimenter and participant sessions within PyEnsemble.
+
+#### Designating an experiment as a group experiment
+To enable the group session interfaces for an experiment, check the "Is group" checkbox in the experiment information.
+
+#### Initiating a group session
+The endpoint relative to the base PyEnsemble URL for starting a group session is:
+
+`/group/session/start/`
+
+This interface allows an experimenter to select an experiment and a group. If the appropriate group doesn't yet exist, it can be created by selecting the default "New Group" option. When a new group is created, the experimenter is taken to the session initiation interface and can select the experiment and the group that was created. If one is creating a new group it is possible to go directly to the group creation page via `group/create/` from where one is redirected to `/group/session/start/`.
+
+Upon submitting the experiment and group selection, a ticket with a limited duration of validity is created for the group session and the session is considered initiated. The experimenter is redirected to the group session status interface at:
+
+`group/session/status/<int:session_id>/`
+
+#### Attaching a participant to a group session
+A participant can attach to a group session and start the experiment in one of two ways:
+
+- The participant follows the basic link for starting an experiment session, but without a ticket code. 
+    - For example, to launch experiment with ID #3, 
+
+`run/3/start/`
+
+- By directly calling the endpoint that prompts for the participant code
+`group/session/attach/participant/`
+
+In both cases, PyEnsemble will prompt the user the enter a 4-character code (Participant code) that the experimenter communicates to the participant. This code appears on the group session status page. The code is checked against valid (not expired) codes for the experiment, and the participant is redirected to the experiment with the correponding ticket code. 
+
+During initiation of the PyEnsemble participant session, the participant session is attached to the group session. Updating the group session status page will show any additional participants who have joined the session.
+
+#### Attaching an experimenter to a group session
+Attaching an experimenter to a group session requires the experimenter to authenticate in PyEnsemble and indicate which group session is being attached to. This is done by providing the Experimenter code that is made available on the session status page.
+
+#### Controlling flow in the group session
+There are multiple options for implementing the control of flow in the group session, and are currently left to the author of any given experiment to implement. Any given implementation depends on the requirements of the particular experiment. 
+
+When deciding on how to implement the flow of a group session using PyEnsemble's core framework of form handlers and experiment-specific callbacks, it is critical to consider the ways in which information is stored within sessions and communicated between experimenter and participant sessions in order to indicate state across trials. 
+
+There are three principle ways of storing session information. The first is within the database, the second is in the session-level cache accessible in request.session, the third is in the global cache (maintined in memcached). Note that separate session-level caches, identified with the sessionid cookie, are maintained for each participant who has connected from a browser, the experiment browser that was used to launch the group session, and potentially any other application used for running the experiment. Session-level caches are not visible to other sessions.
+
+The context field of the GroupSession object is conceived of as a temporary mutable cache that all sessions can read. This is a more secure means of storing information than in the global cache.
+
+
 
 <a name="faqs"/></a>
 # Frequently Asked Questions (FAQs)

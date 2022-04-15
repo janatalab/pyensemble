@@ -1,0 +1,86 @@
+{% extends "pyensemble/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block header %}
+<h1>Group Session Status</h1>
+{% endblock %}
+
+{% block main %}
+    <div class="container">
+        <div class="row border">
+            <div class="col-md-7 py-2">
+                <div class="row">
+                    <div class="col-5 text-right">Experiment:</div>
+                    <div class="col text-left text-muted pl-2">{{session.experiment.title}}</div>
+                </div>
+                <div class="row">
+                    <div class="col-5 text-right">Group:</div>
+                    <div class="col text-left text-muted pl-2">{{session.group.name}}</div>
+                </div>
+                <div class="row">
+                    <div class="col-5 text-right">ID:</div>
+                    <div class="col text-left text-muted pl-2">{{session.id}}</div>
+                </div>
+                <div class="row">
+                    <div class="col-5 text-right">Participant Code:</div>
+                    <div class="col text-left text-muted pl-2">{{session.ticket.participant_code}}</div>
+                </div>
+                <div class="row">
+                    <div class="col-5 text-right">Experimenter Code:</div>
+                    <div class="col text-left text-muted pl-2">{{session.ticket.experimenter_code}}
+                        {% if session.experimenter_attached %}
+                        <span class="text-success">(attached)</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-5 py-2">
+                <div class="row">
+                     <div class="col-5 text-right">Session status:</div>
+                     <div id="groupsession_status" class="col text-left text-muted pl-2">
+                        {% for state in session.States %}
+                            {% if state == session.state %}
+                                {{state.label}}
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="row">
+                     <div class="col-5 text-right">Ticket status:</div>
+                     <div class="col text-left text-muted pl-2">
+                        {% if session.ticket.expired %}
+                            <span class="text-danger">Expired</span>
+                        {% else %}
+                            <span class="text-success">Active</span>
+                        {% endif %}
+                    </div>
+
+                </div>
+            </div>
+        </div>
+        <div class="row justify-content-around my-3">
+            <a class="btn btn-primary" href="{% url 'groupsession_status' session_id=session.id %}">Update</a>
+            <a class="btn btn-danger" href="{% url 'abort_groupsession' session_id=session.id %}">Abort</a>
+            <a class="btn btn-success" href="{% url 'end_groupsession' session_id=session.id %}">End</a>
+        </div>
+        <div class="row border-top my-3">
+            <div class='col-12 text-center h3 pt-3'>Participants</div>
+            <div class="col-12">
+                <div class="row">
+                    {% for gsss in session.groupsessionsubjectsession_set.all %}
+                        <div class="card">
+                            <div class="card-body">
+                                 <h5 class="card-title">
+                                    {{gsss.user_session.subject.subject_id}}
+                                </h5>
+                                <div class="card-body">
+                                   {{gsss.user_session.subject.name_first}} {{gsss.user_session.subject.name_last}} 
+                               </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

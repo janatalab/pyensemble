@@ -2,7 +2,10 @@
 import os, re
 import json
 import hashlib
+
 from django.utils import timezone
+
+from django.core.cache import cache
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -15,14 +18,15 @@ import django.forms as forms
 from django.db import transaction, IntegrityError
 from django.db.models import Q
 
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, JsonResponse
+
 from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
 
 from django.conf import settings
 from django.views.generic.edit import CreateView, UpdateView, FormView
 
-from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
+from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, GroupSession, GroupSessionSubjectSession
 
 from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
 
@@ -33,8 +37,6 @@ from pyensemble import experiments
 
 from crispy_forms.layout import Submit
 
-
-import pdb
 
 class EditorView(LoginRequiredMixin,TemplateView):
     template_name = 'editor_base.html'
@@ -318,9 +320,12 @@ class EnumCreateView(LoginRequiredMixin,CreateView):
 
     def get_success_url(self):
         return reverse_lazy('editor')
+
 #
 # Views for running experiments
 #
+
+
 
 # Start experiment
 @require_http_methods(['GET'])
@@ -331,6 +336,9 @@ def run_experiment(request, experiment_id=None):
     # Get cached information for this experiment and session, if we have it
     expsess_key = get_expsess_key(experiment_id)
     expsessinfo = request.session.get(expsess_key,{})
+
+    # Get our experiment object
+    experiment = Experiment.objects.get(id=experiment_id)
 
     # Check whether we have a running session, and initialize a new one if not.
     if not expsessinfo.get('running',False): 
@@ -352,6 +360,10 @@ def run_experiment(request, experiment_id=None):
 
         # Process the ticket
         if not ticket_code:
+            # Check whether this is a group experiment and fetch the group ticket code if necessary
+            if experiment.is_group:
+                return HttpResponseRedirect(reverse('attach_participant'))
+
             return HttpResponseBadRequest('A ticket is required to start the experiment')
 
         # Get our ticket entry
@@ -390,6 +402,19 @@ def run_experiment(request, experiment_id=None):
 
         # Initialize a session in the PyEnsemble session table
         session = Session.objects.create(experiment = ticket.experiment, ticket = ticket, subject = subject, origin_sessid = origin_sessid)
+
+        # If this is a group experiment, attach the session to a group session
+        if experiment.is_group:
+            # Get the group session object associated with this ticket
+            group_session = GroupSession.objects.get(ticket=ticket)
+
+            # Add the subject to the group session
+            GroupSessionSubjectSession.objects.create(
+                group_session = group_session,
+                user_session = session,
+                )
+
+
 
         # Update our ticket entry
         ticket.used = True
@@ -533,7 +558,6 @@ def serve_form(request, experiment_id=None):
                 question = formset.forms[0]
                 response = int(question.cleaned_data.get('option',''))
 
-                # pdb.set_trace()
                 choices = question.instance.choices()
                 if choices[response][1].lower() != 'agree':
                     return render(request,'pyensemble/message.html',{
@@ -815,3 +839,4 @@ def reset_session(request, experiment_id):
         request.session[expsess_key] = {}
 
     return render(request,'pyensemble/message.html',{'msg':msg})
+

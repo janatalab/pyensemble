@@ -7,11 +7,7 @@ import pdb
 
 def get_expsess_key(experiment_id):
     return f'experiment_{experiment_id}'
-
-def hash_text(text):
-    m = hashlib.md5()
-    m.update(text.encode('utf-8'))
-    return m.digest()
+    
 
 def fetch_subject_id(subject, scheme='nhdl'):
     from pyensemble.models import Subject
@@ -81,17 +77,14 @@ def create_tickets(ticket_request_data):
                 encrypted_str = hashlib.md5(unencrypted_str.encode('utf-8')).hexdigest()
 
                 # Add a new ticket to our list
-                ticket_list.append(Ticket(
+                ticket = Ticket.objects.create(
                     ticket_code=encrypted_str, 
                     experiment=experiment, 
                     type=ticket_type, 
                     expiration_datetime=expiration_datetime,
                     subject = subject
-                    )
                 )
-
-    # Create the tickets in the database
-    Ticket.objects.bulk_create(ticket_list)
+                ticket_list.append(ticket)
 
     return ticket_list
 

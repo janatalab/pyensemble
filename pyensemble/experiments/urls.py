@@ -28,6 +28,14 @@ for experiment in experiment_dirs:
     if url_file.exists():
         experiment_name = experiment.name
 
+        '''
+        The reason that the module import is within a try/except block is 
+        to prevent having the failure of any given experiment's code keep 
+        the core PyEnsemble installation from running.
+        However, some logging of module loading failures should be added
+        in order to apprise a person of issues that otherwise remain a bit opaque.
+        '''
+
         try:
             # Import the urls module
             module = import_module('pyensemble.experiments.'+experiment_name+'.urls')

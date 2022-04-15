@@ -20,6 +20,11 @@
         <li class="nav-item">
             <a id="copyLink" class="nav-link" role="button" href="#" data-toggle="modal" data-target="#copyItemModal">Copy</a>
         </li>
+        {% if form.is_group %}
+            <li class="nav-item">
+                <a class="nav-link" role="button" href="{% url 'start_groupsession' %}">Start</a>
+            </li>        
+        {% endif %}
     {% endif %}
 {% endblock %}
 

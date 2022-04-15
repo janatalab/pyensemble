@@ -5,7 +5,6 @@ import json
 from django.shortcuts import render
 
 from pyensemble.models import Experiment, Form, Question, ExperimentXForm, FormXQuestion, DataFormat
-from pyensemble.tasks import hash_text
 
 from .forms import ImportForm
 

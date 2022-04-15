@@ -22,6 +22,8 @@ from django.conf.urls.static import static
 
 from .views import EditorView, ExperimentListView, ExperimentCreateView, ExperimentUpdateView, FormListView, FormCreateView, FormUpdateView, FormPresentView, QuestionListView, QuestionCreateView, QuestionUpdateView, QuestionPresentView, EnumListView, EnumCreateView, run_experiment, serve_form, add_experiment_form, add_form_question, create_ticket, reset_session, copy_experiment
 
+import pyensemble.group_views as group
+
 import pyensemble.errors as error
 from pyensemble import importers
 
@@ -55,11 +57,22 @@ app_patterns = [
     path('admin/', admin.site.urls),
     path('editor/', EditorView.as_view(template_name='pyensemble/editor_base.html'),name='editor'),
     path('editor/', include(editor_patterns)),
+    path('ticket/create/', create_ticket, name='create_ticket'),
+
+    path('group/create/', group.GroupCreateView.as_view(), name='create_group'),
+    path('group/session/start/', group.start_groupsession, name='start_groupsession'),
+    path('group/session/status/<int:session_id>/', group.groupsession_status, name="groupsession_status"),
+    path('group/session/abort/<int:session_id>/', group.abort_groupsession, name="abort_groupsession"),
+    path('group/session/end/<int:session_id>/', group.end_groupsession, name="end_groupsession"),
+    path('group/session/attach/participant/', group.attach_participant, name='attach_participant'),
+    path('group/session/attach/experimenter/', group.attach_experimenter, name='attach_experimenter'),
+    path('group/session/participants/get/', group.get_groupsession_participants, name='get_groupsession_participants'),
+    path('group/trial/status/', group.trial_status, name='group_trial_status'),
+
     path('run/<int:experiment_id>/start/',run_experiment, name='run_experiment'),
     path('run/<int:experiment_id>/',serve_form, name='serve_form'),    
     path('session/reset/<int:experiment_id>/',reset_session, name='reset_session'),
     path('error/<slug:feature_string>/', error.feature_not_enabled, name='feature_not_enabled'),
-    path('ticket/create/', create_ticket, name='create_ticket'),
     path('stimuli/upload/', importers.import_stimuli.import_file),
     # Add user specific experiment URLs
     path('experiments/', include(experiment_urls, namespace='experiments')),
