@@ -65,6 +65,8 @@ coverage.xml
 *.log
 django-debug.txt
 
+*/settings/local/
+
 # celery
 *.pid
 
