@@ -221,7 +221,7 @@ class ExperimentForm(forms.ModelForm):
 
 ExperimentFormFormset = forms.inlineformset_factory(Experiment, ExperimentXForm, 
     form=ExperimentFormForm, 
-    fields=('form_order', 'form_handler', 'goto','repeat','condition_script','stimulus_script', 'break_loop_button', 'break_loop_button_text', 'continue_button_text'), 
+    fields=('form_order', 'form_handler', 'goto','repeat','condition_script','stimulus_script', 'break_loop_button', 'break_loop_button_text', 'continue_button_text','use_clientside_validation'), 
     can_order=True,
     can_delete=True,
     extra=0,

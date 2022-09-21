@@ -772,6 +772,7 @@ def serve_form(request, experiment_id=None):
         'skip_trial': skip_trial,
         'stimulus': stimulus,
         'feedback': feedback,
+        'clientside_validation': currform.use_clientside_validation,
        }
 
     if settings.DEBUG:

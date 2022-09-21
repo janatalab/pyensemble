@@ -390,6 +390,7 @@ class ExperimentXForm(models.Model):
     break_loop_button = models.BooleanField(default=False)
     break_loop_button_text = models.CharField(max_length=50, blank=True)
     continue_button_text = models.CharField(max_length=50, blank=True, default='Next')
+    use_clientside_validation = models.BooleanField(default=False)
 
     class Meta:
         unique_together = (("experiment", "form", "form_order"),)

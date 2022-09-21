@@ -32,7 +32,7 @@
                                         </label>
                                     </div>
                                     <div class='col-12'>
-                                        <input type="{%if field|is_radioselect%}radio{%else%}checkbox{%endif%}" class="form-check-input{% if field.errors %} is-invalid{% endif %}"{% if choice.0|stringformat:"s" == field.value|default_if_none:""|stringformat:"s" %} checked="checked"{% endif %} name="{{ field.html_name }}" id="id_{{ field.html_name }}_{{ forloop.counter }}" value="{{ choice.0|unlocalize }}" {{ field.field.widget.attrs|flatatt }}>
+                                        <input type="{%if field|is_radioselect%}radio{%else%}checkbox{%endif%}" class="form-check-input{% if field.errors %} is-invalid{% endif %}"{% if choice.0|stringformat:"s" == field.value|default_if_none:""|stringformat:"s" %} checked="checked"{% endif %} name="{{ field.html_name }}" id="id_{{ field.html_name }}_{{ forloop.counter }}" value="{{ choice.0|unlocalize }}" {{ field.field.widget.attrs|flatatt }} {% if required%}required{%endif%}>
                                     </div>
 
                                     {% if field.errors and forloop.last and not inline_class %}
