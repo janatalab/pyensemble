@@ -22,7 +22,7 @@ import pdb
 class GroupCreateView(LoginRequiredMixin,CreateView):
     model = Group
     form_class = GroupForm
-    template_name = 'pyensemble/group/create.html'
+    template_name = 'group/create.html'
     
     def get_success_url(self):
         return reverse_lazy('start_groupsession')
@@ -33,8 +33,6 @@ def get_session_id(request):
     session_id = request.session[session_key]['id']
     return session_id
 
-
-# Start group session
 @login_required
 def start_groupsession(request):
 
@@ -84,7 +82,7 @@ def start_groupsession(request):
         form = GroupSessionForm()
 
 
-    template = 'pyensemble/group/session_start.html'
+    template = 'group/session_start.html'
     context = {
         'form': form
     }
@@ -93,7 +91,11 @@ def start_groupsession(request):
 
 @login_required
 def abort_groupsession(request, session_id=None):
-    template = 'pyensemble/group/session_status.html'
+    template = 'group/session_status.html'
+
+    if not session_id:
+        # Get the session ID from the session cache
+        session_id = get_session_id(request)        
 
     session = GroupSession.objects.get(pk=session_id)
 
@@ -108,7 +110,11 @@ def abort_groupsession(request, session_id=None):
 
 @login_required
 def end_groupsession(request, session_id=None):
-    template = 'pyensemble/group/session_status.html'
+    template = 'group/session_status.html'
+
+    if not session_id:
+        # Get the session ID from the session cache
+        session_id = get_session_id(request)
 
     session = GroupSession.objects.get(pk=session_id)
 
@@ -117,22 +123,6 @@ def end_groupsession(request, session_id=None):
 
     context = {
         'session': session,
-    }
-
-    return render(request, template, context)
-
-
-@login_required
-def groupsession_status(request, session_id=None):
-    template = 'pyensemble/group/session_status.html'
-
-    session = GroupSession.objects.get(pk=session_id)
-
-    # participant_sessions = GroupSessionSubjectSession.objects.filter(group_session=session)
-
-    context = {
-        'session': session,
-        # 'participant_sessions': participant_sessions
     }
 
     return render(request, template, context)
@@ -210,11 +200,89 @@ def get_groupsession_participants(request):
     
     return JsonResponse(participants)
 
+@login_required
+def groupsession_status(request, session_id=None):
+    template = 'group/session_status.html'
+
+    if not session_id:
+        # Get the session ID from the session cache
+        session_id = get_session_id(request)
+
+    session = GroupSession.objects.get(pk=session_id)
+
+    context = {
+        'session': session,
+    }
+
+    return render(request, template, context)
+
+# Method to indiciate participant readiness and wait until all participants have indicated readiness
+def set_user_ready(request):
+    # Get the group session ID from the session cache
+    groupsession_id = get_session_id(request)
+
+    # Get the group session
+    group_session = GroupSession.objects.get(pk=groupsession_id)
+
+    # Get the experiment info from the user's session cache
+    expsessinfo = request.session[group_session.experiment.get_cache_key()]
+
+    # Get the user session
+    user_session = Session.objects.get(pk=expsessinfo['session_id'])
+
+    # Get the conjoint group and user session entry
+    gsus = GroupSessionSubjectSession.objects.get(group_session=group_session, user_session=user_session)
+
+    # Set the state of this user to READY 
+    gsus.state = gsus.States.READY
+    gsus.save()
+    
+    return True
+
+def get_trial_state(request):
+    # Get the session ID from the session cache
+    session_id = get_session_id(request)
+
+    # Get the group session
+    session = GroupSession.objects.get(pk=session_id)
+
+    # Get the state from the 
+    if not session.context:
+        state = 'undefined'
+    else:
+        state = session.context['state']
+
+    return state
+
+def set_trial_state(request, state):
+    # Get the session ID from the session cache
+    session_id = get_session_id(request)
+
+    # Get the group session
+    session = GroupSession.objects.get(pk=session_id)
+
+    # Set the trial state in the context dictionary
+    context = session.context
+    context.update({'state': state})
+    session.context = context
+    session.save()
+
 def trial_status(request):
     # Get our session ID
-    cache_key = request.session['group_session_key']
-    session_id = request.session[cache_key]['id']
+    session_id = get_session_id(request)
 
     data = {'state': GroupSession.objects.get(pk=session_id).context['state']}
 
     return JsonResponse(data)
+
+@login_required
+def start_trial(request):
+    set_trial_state(request, 'running')
+
+    return HttpResponse(status=200)
+
+@login_required
+def end_trial(request):
+    set_trial_state(request, 'ended')
+
+    return HttpResponse(status=200)

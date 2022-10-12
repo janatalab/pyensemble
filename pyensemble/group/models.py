@@ -19,6 +19,8 @@ class GroupSubject(models.Model):
     def __str__(self):
         return f'{self.group.name}: {self.subject.name_first} {self.subject.name_last}'
 
+def init_session_context():
+    return {'state': ''}
 
 class GroupSession(models.Model):
     group = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
@@ -31,8 +33,8 @@ class GroupSession(models.Model):
     # Mechanism for saving overall session parameters
     params = models.JSONField(default=dict)
 
-    # Mechanism for caching current context
-    context = models.JSONField(default=dict)
+    # Mechanism for caching current (trial) context
+    context = models.JSONField(default=init_session_context)
 
     # Mechanism for indicating session state
     class States(models.IntegerChoices):

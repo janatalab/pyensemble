@@ -133,7 +133,7 @@ python/src
 pyensemble/experiments/*/
 
 # PyEnsemble migrations
-pyensemble/migrations
+migrations/
 
 # Dev settings
 settings/*dev*.py
