@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'captcha',
     'crispy_forms',
     'pyensemble',
+    'pyensemble.group',
 ]
 
 MIDDLEWARE = [

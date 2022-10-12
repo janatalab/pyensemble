@@ -11,8 +11,10 @@ from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadReque
 from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
 
-from pyensemble.models import Group, GroupSession, GroupSessionSubjectSession, Ticket
-from pyensemble.forms import GroupForm, get_group_code_form, GroupSessionForm
+from .models import Group, GroupSession, GroupSessionSubjectSession
+from .forms import GroupForm, get_group_code_form, GroupSessionForm
+
+from pyensemble.models import Ticket
 from pyensemble.tasks import create_tickets
 
 import pdb
