@@ -74,14 +74,14 @@ class GroupSession(models.Model):
 
         return self._responding_complete
 
-    def users_ready(self):
+    def group_ready(self):
         # Get number of users attached to this session
-        num_users = self.groupsessionsubjectsession_set.count()
+        # num_users = self.groupsessionsubjectsession_set.count()
 
         # Get number of users in ready state
         ready_users = self.groupsessionsubjectsession_set.filter(state=GroupSessionSubjectSession.States.READY)
 
-        return num_users == ready_users.count()
+        return self.num_users == ready_users.count()
 
 
     class Meta:

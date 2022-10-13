@@ -120,7 +120,7 @@ The instructions below apply both to installing a production server user, e.g. p
 <a name="git_repos"/></a>
 ## Clone the necessary git repos
 
-<a name="pysensemble_git"/></a>
+<a name="pyensemble_git"/></a>
 ### Clone the PyEnsemble git repo
 
 ```
@@ -210,7 +210,7 @@ This assumes that the root of your pyensemble project is located at /var/www/htm
 > ln -s /home/pyensemble/git/pyensemble /var/www/html/pyensemble
 ```
 
-Make sure that permissions on /home/pysensemble will allow at least the apache group to get through.
+Make sure that permissions on /home/pyensemble will allow at least the apache group to get through.
 
 ```
 > cd /home

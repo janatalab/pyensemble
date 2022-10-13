@@ -2,6 +2,7 @@
 import os, re
 import json
 import hashlib
+import polling2
 
 from django.utils import timezone
 
@@ -34,6 +35,8 @@ from .tasks import get_expsess_key, fetch_subject_id, get_or_create_prolific_sub
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 from pyensemble import experiments 
+
+from pyensemble.group.views import set_groupuser_state
 
 from crispy_forms.layout import Submit
 
@@ -643,6 +646,10 @@ def serve_form(request, experiment_id=None):
                 if responses:
                     Response.objects.bulk_create(responses)
 
+            # Now that the responses have been saved, the user's state, in a group experiment is again unknown
+            if handler_name == 'group_trial':
+                user_state = set_groupuser_state(request,'UNKNOWN')
+
             # Update our visit count
             num_visits = expsessinfo['visit_count'].get(form_idx,0)
             num_visits +=1
@@ -679,6 +686,8 @@ def serve_form(request, experiment_id=None):
             return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
         # Execute a stimulus selection script if one has been specified
+        # The use of the stimulus_script field goes beyond stimulus selection and is ultimately dependent on the form_handler that is associated with this form in this experiment context.
+
         if currform.stimulus_script:
             # Use regexp to get the function name that we're calling
             funcdict = parse_function_spec(currform.stimulus_script)
@@ -693,7 +702,34 @@ def serve_form(request, experiment_id=None):
                 # Call the method to generate the feedback content
                 feedback = method(request, *funcdict['args'],**funcdict['kwargs'])
 
+            elif handler_name in ['group_trial']:
+                # Group trials may be of different types. Some may present no stimulus at all whereas others might. Yet other group trials might be controlled by an experimenter (proxy) that controls the trial.
+
+                # What group trials have in common is the need for the participants to be synchronized at the start of the trial. Having gotten to this point means that the user is ready for this form to be handled, so indicate that fact.
+
+                user_state = set_groupuser_state(request,'READY')
+
+                # Now call the method that will set the parameters for this trial for the whole group
+                # One issue is whether to wait for synchronization among users here or within the method. If it is implement here, there is no need to call it in every method we call
+                
+                try:
+                    polling2.poll(session.group_ready, step=0.5, timeout=120)
+                except:
+                    return HttpResponseGone()
+
+                group_trial = method(request, *funcdict['args'],**funcdict['kwargs'])
+
+                # Unpack the result
+                timeline = group_trial.get('timeline',{})
+                feedback = group_trial.get('feedback','')
+                expsessinfo['stimulus_id'] = group_trial.get('stimulus_id', None)
+                presents_stimulus = group_trial.get('presents_stimulus', False)
+
+                # Now that the user will be served the form, the response is officially pending
+                user_state = set_groupuser_state(request,'RESPONSE_PENDING')
+
             else:
+                # The default assumption, if selecting a stimulus, is that we will be presenting the stimulus via jsPsych
                 presents_stimulus = True
 
                 # Call the select function with the parameters to get the trial timeline specification
@@ -704,8 +740,9 @@ def serve_form(request, experiment_id=None):
             timeline = {}
 
         #
-        # If this form requires a stimulus and there is no stimulus, this means that we have exhausted our stimuli and so we should move on to the next form
-        #
+        # If this form requires a stimulus and there is no stimulus, this means that we have exhausted our stimuli and so we should move on to the next form. 
+        # NOTE: Rather than infer this in this way, it would be better to have the state explicitly set in expsessinfo by the method that selects the stimulus and builds the timeline.
+
         if presents_stimulus and not timeline:
             # If we are at the start of a loop, then any forms within the loop should not be presented, so skip to the form after the end of the loop
             if form_idx in expsessinfo['last_in_loop'].keys():
