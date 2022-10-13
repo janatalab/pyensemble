@@ -25,7 +25,7 @@ class GroupCreateView(LoginRequiredMixin,CreateView):
     template_name = 'group/create.html'
     
     def get_success_url(self):
-        return reverse_lazy('start_groupsession')
+        return reverse_lazy('pyensemble-group:start_groupsession')
 
 
 def get_session_id(request):
@@ -42,7 +42,7 @@ def start_groupsession(request):
         if form.is_valid():
             # Check whether we need to create a new group
             if form.cleaned_data['group'] == None:
-                return HttpResponseRedirect(reverse('create_group'))
+                return HttpResponseRedirect(reverse('pyensemble-group:create_group'))
 
             # Get our experiment
             experiment = form.cleaned_data['experiment']
@@ -76,7 +76,7 @@ def start_groupsession(request):
             group_session.state = group_session.States.READY
             group_session.save()
 
-            return HttpResponseRedirect(reverse('groupsession_status', kwargs={'session_id': group_session.id}))
+            return HttpResponseRedirect(reverse('pyensemble-group:groupsession_status', kwargs={'session_id': group_session.id}))
 
     else:
         form = GroupSessionForm()
@@ -147,7 +147,7 @@ def attach_experimenter(request):
             request.session['group_session_key'] = cache_key
             request.session[cache_key] = {'id': ticket.groupsession.id}
 
-            return HttpResponseRedirect(reverse('groupsession_status', kwargs={'session_id': session.id}))
+            return HttpResponseRedirect(reverse('pyensemble-group:groupsession_status', kwargs={'session_id': session.id}))
 
     else:
         form = get_group_code_form(code_type='experimenter')
@@ -174,7 +174,7 @@ def attach_participant(request):
             request.session[cache_key] = {'id': ticket.groupsession.id}
 
             # Redirect to run_experiment using the full ticket code
-            url = '%s?tc=%s'%(reverse('run_experiment', args=[ticket.experiment.id]), ticket.ticket_code)
+            url = '%s?tc=%s'%(reverse('pyensemble:run_experiment', args=[ticket.experiment.id]), ticket.ticket_code)
 
             return HttpResponseRedirect(url)
 

@@ -30,6 +30,8 @@ from .importers import urls as importer_urls
 
 # from django.contrib.auth.decorators import login_required
 
+app_name = 'pyensemble'
+
 editor_patterns = [
     path('experiments/', ExperimentListView.as_view(), name='experiment_list'),
     path('experiments/create/', ExperimentCreateView.as_view(), name='experiment_create'),

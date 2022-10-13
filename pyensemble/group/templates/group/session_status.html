@@ -59,9 +59,9 @@
             </div>
         </div>
         <div class="row justify-content-around my-3">
-            <a class="btn btn-primary" href="{% url 'groupsession_status' session_id=session.id %}">Update</a>
-            <a class="btn btn-danger" href="{% url 'abort_groupsession' session_id=session.id %}">Abort</a>
-            <a class="btn btn-success" href="{% url 'end_groupsession' session_id=session.id %}">End</a>
+            <a class="btn btn-primary" href="{% url 'pyensemble-group:groupsession_status' session_id=session.id %}">Update</a>
+            <a class="btn btn-danger" href="{% url 'pyensemble-group:abort_groupsession' session_id=session.id %}">Abort</a>
+            <a class="btn btn-success" href="{% url 'pyensemble-group:end_groupsession_w_id' session_id=session.id %}">End</a>
         </div>
         <div class="row border-top my-3">
             <div class='col-12 text-center h3 pt-3'>Participants</div>
