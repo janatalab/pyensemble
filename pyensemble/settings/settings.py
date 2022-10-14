@@ -20,8 +20,11 @@ DEBUG = False
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# What is our label for this particular installation of PyEnsemble. This is what helps to distinguish multiple PyEnsemble instances on a single server from each other.
+INSTANCE_LABEL = 'pyensemble'
+
 # Specify the path to password files
-PASS_DIR = os.path.dirname('/var/www/private/pyensemble/')
+PASS_DIR = os.path.dirname(os.path.join('/var/www/private', INSTANCE_LABEL))
 
 # Specify the directory where experiments will be located
 EXPERIMENT_DIR = os.path.join(BASE_DIR,'pyensemble/experiments')
@@ -166,7 +169,7 @@ STATICFILES_DIRS = [
 ]
 
 
-STATIC_ROOT = '/var/www/html/static/'
+STATIC_ROOT = os.path.join('/var/www/html/static/', INSTANCE_LABEL)
 STATIC_URL = '/static/'
 
 MEDIA_ROOT = config['django']['media_root']
