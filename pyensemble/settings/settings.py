@@ -20,8 +20,11 @@ DEBUG = False
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# What is our label for this particular installation of PyEnsemble. This is what helps to distinguish multiple PyEnsemble instances on a single server from each other. Make sure to use a trailing slash.
+INSTANCE_LABEL = 'pyensemble/'
+
 # Specify the path to password files
-PASS_DIR = os.path.dirname('/var/www/private/pyensemble/')
+PASS_DIR = os.path.dirname(os.path.join('/var/www/private', INSTANCE_LABEL))
 
 # Specify the directory where experiments will be located
 EXPERIMENT_DIR = os.path.join(BASE_DIR,'pyensemble/experiments')
@@ -48,6 +51,7 @@ INSTALLED_APPS = [
     'captcha',
     'crispy_forms',
     'pyensemble',
+    'pyensemble.group',
 ]
 
 MIDDLEWARE = [
@@ -97,10 +101,13 @@ DATABASES = {
         'OPTIONS': {
             'ssl': {
                 'ca': config['django-db']['ssl_certpath'],
-            }  
+            },
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
         }
     }
 }
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
 # Get the encryption key for the Subject table fields
 FIELD_ENCRYPTION_KEY = config['django']['field_encryption_key'] 
@@ -165,7 +172,7 @@ STATICFILES_DIRS = [
 ]
 
 
-STATIC_ROOT = '/var/www/html/static/'
+STATIC_ROOT = os.path.join('/var/www/html/static/', INSTANCE_LABEL)
 STATIC_URL = '/static/'
 
 MEDIA_ROOT = config['django']['media_root']
