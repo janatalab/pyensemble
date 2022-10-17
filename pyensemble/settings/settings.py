@@ -101,7 +101,8 @@ DATABASES = {
         'OPTIONS': {
             'ssl': {
                 'ca': config['django-db']['ssl_certpath'],
-            }  
+            },
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
         }
     }
 }
