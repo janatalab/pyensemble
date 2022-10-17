@@ -106,6 +106,8 @@ DATABASES = {
     }
 }
 
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
+
 # Get the encryption key for the Subject table fields
 FIELD_ENCRYPTION_KEY = config['django']['field_encryption_key'] 
 

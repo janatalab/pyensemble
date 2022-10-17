@@ -137,3 +137,4 @@ migrations/
 
 # Dev settings
 settings/*dev*.py
+settings/local/
