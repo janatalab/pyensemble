@@ -173,7 +173,7 @@ STATICFILES_DIRS = [
 
 
 STATIC_ROOT = os.path.join('/var/www/html/static/', INSTANCE_LABEL)
-STATIC_URL = '/static/'
+STATIC_URL = '/static/'+INSTANCE_LABEL
 
 MEDIA_ROOT = config['django']['media_root']
 MEDIA_URL = config['django']['media_url']
