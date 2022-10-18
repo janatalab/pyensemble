@@ -152,7 +152,7 @@ def attach_experimenter(request):
     else:
         form = get_group_code_form(code_type='experimenter')
 
-    template = 'pyensemble/group/attach_to_session.html'
+    template = 'group/attach_to_session.html'
     context = {
         'form': form
     }
@@ -174,14 +174,14 @@ def attach_participant(request):
             request.session[cache_key] = {'id': ticket.groupsession.id}
 
             # Redirect to run_experiment using the full ticket code
-            url = '%s?tc=%s'%(reverse('pyensemble:run_experiment', args=[ticket.experiment.id]), ticket.ticket_code)
+            url = '%s?tc=%s'%(reverse('run_experiment', args=[ticket.experiment.id]), ticket.ticket_code)
 
             return HttpResponseRedirect(url)
 
     else:
         form = get_group_code_form(code_type='participant')
 
-    template = 'pyensemble/group/attach_to_session.html'
+    template = 'group/attach_to_session.html'
     context = {
         'form': form
     }
