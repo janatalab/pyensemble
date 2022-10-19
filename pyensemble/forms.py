@@ -157,7 +157,7 @@ QuestionModelFormSet = forms.modelformset_factory(Question, form=QuestionPresent
 class QuestionModelFormSetHelper(FormHelper):
     def __init__(self, *args, **kwargs):
         super(QuestionModelFormSetHelper, self).__init__(*args, **kwargs)
-
+        self.template = 'pyensemble/partly_crispy/question_formset.html'
         self.form_method='post'  
 
 class FormQuestionForm(forms.ModelForm):

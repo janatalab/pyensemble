@@ -241,13 +241,16 @@ def is_group_ready(request):
     return group_session.group_ready()
 
 
-def trial_status(request):
-    # Get the group session 
-    group_session = get_group_session(request)
+def init_group_trial():
+    group_trial = {
+        'timeline': {},
+        'feedback': '',
+        'stimulus_id': None,
+        'presents_stimulus': False,
+    }
 
-    data = {'state': group_session.get_context_state()}
+    return group_trial
 
-    return JsonResponse(data)
 
 @login_required
 def start_trial(request):
@@ -257,6 +260,7 @@ def start_trial(request):
     group_session.set_context_state('running')
 
     return HttpResponse(status=200)
+
 
 @login_required
 def end_trial(request):
@@ -270,3 +274,12 @@ def end_trial(request):
     group_session.set_response_pending()
 
     return HttpResponse(status=200)
+
+
+def trial_status(request):
+    # Get the group session 
+    group_session = get_group_session(request)
+
+    data = {'state': group_session.get_context_state()}
+
+    return JsonResponse(data)
