@@ -164,6 +164,8 @@ class Session(models.Model):
     subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
     age = models.PositiveSmallIntegerField(null=True)
 
+    expired = models.BooleanField(default=False, blank=True)
+
     # If the participant is being referred from a source other than PyEnsemble, e.g. Prolific, have a field for storing the session identifier at the origin, if available and desired.
     origin_sessid = models.CharField(max_length=64, null=True, blank=True)
 
@@ -171,6 +173,8 @@ class Session(models.Model):
         if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
             self.age = relativedelta(datetime.now(),self.subject.dob).years
         super().save(*args, **kwargs)
+
+
 
 
 class Stimulus(models.Model):

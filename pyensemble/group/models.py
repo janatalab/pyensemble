@@ -1,5 +1,9 @@
 from django.db import models
 
+from django.utils import timezone
+
+import pdb
+
 #
 # Models for supporting group sessions
 #
@@ -48,42 +52,6 @@ class GroupSession(models.Model):
 
     terminal_states = [States.COMPLETED, States.ABORTED]
 
-    @property
-    def num_users(self):
-        return self.user_session_set.count()
-
-    @property
-    def modifiable(self):
-        self._modifiable=True
-        if self.state in terminal_states:
-            self._modifiable=False
-
-        return self._modifiable
-
-    def responding_complete(self, trial_num):
-        self._responding_complete = False
-        if trial_num == 0:
-            self._responding_complete =  True
-
-        else:
-            # Search the trial_info field the Response table contains an entry for the designated trial for all session users
-            responded = Response.objects.filter(session__in=self.user_session_set, trial_info__trial_num=trial_num)
-
-            if responded.count() == self.num_users:
-                self._responding_complete =  True
-
-        return self._responding_complete
-
-    def group_ready(self):
-        # Get number of users attached to this session
-        # num_users = self.groupsessionsubjectsession_set.count()
-
-        # Get number of users in ready state
-        ready_users = self.groupsessionsubjectsession_set.filter(state=GroupSessionSubjectSession.States.READY)
-
-        return self.num_users == ready_users.count()
-
-
     class Meta:
         unique_together = (("group","experiment","ticket"),)
 
@@ -93,6 +61,86 @@ class GroupSession(models.Model):
     def get_cache_key(self):
         return f'groupsession_{self.id}'
 
+    @property
+    def num_users(self):
+        return self.groupsessionsubjectsession_set.count()
+
+    # The place we need to enforce modifiability is on our save() method in order to prevent changes once we've saved ourselves once in a terminal state. So, we need to overwrite the default save method.
+    @property
+    def modifiable(self):
+        self._modifiable=True
+        if self.state in terminal_states:
+            self._modifiable=False
+
+        return self._modifiable
+
+
+    def set_context_state(self, state):
+        # Set the trial state in the context dictionary
+        context = self.context
+        context.update({'state': state})
+
+        self.context = context
+        self.save()
+
+    def get_context_state(self):
+        if not self.context:
+            state = 'undefined'
+        else:
+            state = self.context.get('state','undefined')
+        return state
+
+    def cleanup(self):
+        # Expire the ticket
+        self.ticket.used = True
+        self.ticket.expiration_datetime = timezone.now()
+        self.ticket.save()
+
+        # Flag all the user sessions as expired
+        self.groupsessionsubjectsession_set.update(user_session__expired=True)
+
+
+    # Methods that operate across users connected to this session
+    def responding_complete(self, trial_num):
+        self._responding_complete = False
+        if trial_num == 0:
+            self._responding_complete =  True
+
+        else:
+            # Search the trial_info field the Response table contains an entry for the designated trial for all session users
+            responded = Response.objects.filter(session__in=self.groupsessionsubjectsession_set, trial_info__trial_num=trial_num)
+
+            if responded.count() == self.num_users:
+                self._responding_complete =  True
+
+        return self._responding_complete
+
+    def group_ready(self):
+        return self.groupsessionsubjectsession_set.all().ready()
+
+    def set_response_pending(self):
+        self.groupsessionsubjectsession_set.all().set_state('RESPONSE_PENDING')
+
+
+class GroupSessionSubjectSessionQuerySet(models.QuerySet):
+    def ready(self):
+        return self.count() == self.filter(state=self.model.States.READY).count()
+
+    def set_state(self, state):
+        if type(state) == str:
+            state = state.upper()
+
+            if state not in self.model.States.names:
+                raise ValueError(f"{state} not a valid state")
+
+            state = self.model.States[state]
+
+        self.update(state=state)
+
+
+class GroupSessionSubjectSessionManager(models.Manager):
+    def get_queryset(self):
+        return GroupSessionSubjectSessionQuerySet(self.model, using=self._db)
 
 class GroupSessionSubjectSession(models.Model):
     group_session = models.ForeignKey('GroupSession', db_constraint=True, on_delete=models.CASCADE)
@@ -105,6 +153,8 @@ class GroupSessionSubjectSession(models.Model):
         RESPONSE_PENDING = 2
     
     state = models.PositiveSmallIntegerField(choices=States.choices, default=States.UNKNOWN)
+
+    objects = GroupSessionSubjectSessionManager()
 
     class Meta:
         unique_together = (('group_session','user_session'),)

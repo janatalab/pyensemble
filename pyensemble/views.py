@@ -19,7 +19,7 @@ import django.forms as forms
 from django.db import transaction, IntegrityError
 from django.db.models import Q
 
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, JsonResponse, HttpResponseGone
 
 from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
@@ -28,7 +28,6 @@ from django.conf import settings
 from django.views.generic.edit import CreateView, UpdateView, FormView
 
 from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
-from pyensemble.group.models import GroupSession, GroupSessionSubjectSession
 
 from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
 
@@ -37,10 +36,12 @@ from .tasks import get_expsess_key, fetch_subject_id, get_or_create_prolific_sub
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 from pyensemble import experiments 
 
-from pyensemble.group.views import set_groupuser_state
+from pyensemble.group.models import GroupSession, GroupSessionSubjectSession
+from pyensemble.group.views import get_session_id, set_groupuser_state
 
 from crispy_forms.layout import Submit
 
+import pdb
 
 class EditorView(LoginRequiredMixin,TemplateView):
     template_name = 'editor_base.html'
@@ -671,6 +672,12 @@ def serve_form(request, experiment_id=None):
         # Process the GET request for this form
         #
 
+        # Validate that our subject is still active, i.e. that their session is not expired
+        session = Session.objects.get(pk=expsessinfo['session_id'])
+
+        if session.expired:
+            reset_session(request, experiment_id)
+
         # Initialize variables
         skip_trial = False
         presents_stimulus = False # Does this form present a stimulus. Note that this is not the same as requiring a stimulus for the response(s) to this form to be associated with
@@ -706,6 +713,12 @@ def serve_form(request, experiment_id=None):
             elif handler_name in ['group_trial']:
                 # Group trials may be of different types. Some may present no stimulus at all whereas others might. Yet other group trials might be controlled by an experimenter (proxy) that controls the trial.
 
+                # Get the group session ID from the session cache
+                groupsession_id = get_session_id(request)
+
+                # Get the group session
+                groupsession = GroupSession.objects.get(pk=groupsession_id)
+
                 # What group trials have in common is the need for the participants to be synchronized at the start of the trial. Having gotten to this point means that the user is ready for this form to be handled, so indicate that fact.
 
                 user_state = set_groupuser_state(request,'READY')
@@ -714,20 +727,24 @@ def serve_form(request, experiment_id=None):
                 # One issue is whether to wait for synchronization among users here or within the method. If it is implement here, there is no need to call it in every method we call
                 
                 try:
-                    polling2.poll(session.group_ready, step=0.5, timeout=120)
+                    polling2.poll(groupsession.group_ready, step=0.5, timeout=120)
                 except:
-                    return HttpResponseGone()
+                    if settings.DEBUG:
+                        pdb.set_trace()
 
-                group_trial = method(request, *funcdict['args'],**funcdict['kwargs'])
+                    return HttpResponseGone("Session timed out")
+
+                group_trial = {}
+
+                # Call a pre-trial method if one is registered
+                if method:
+                    group_trial = method(request, *funcdict['args'],**funcdict['kwargs'])
 
                 # Unpack the result
                 timeline = group_trial.get('timeline',{})
                 feedback = group_trial.get('feedback','')
                 expsessinfo['stimulus_id'] = group_trial.get('stimulus_id', None)
                 presents_stimulus = group_trial.get('presents_stimulus', False)
-
-                # Now that the user will be served the form, the response is officially pending
-                user_state = set_groupuser_state(request,'RESPONSE_PENDING')
 
             else:
                 # The default assumption, if selecting a stimulus, is that we will be presenting the stimulus via jsPsych

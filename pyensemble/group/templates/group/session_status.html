@@ -1,5 +1,6 @@
 {% extends "pyensemble/base.html" %}
 {% load crispy_forms_tags %}
+{% load index %}
 
 {% block header %}
 <h1>Group Session Status</h1>
@@ -33,6 +34,16 @@
                         {% endif %}
                     </div>
                 </div>
+                <div class="row">
+                    <div class="col-5 text-right">Ticket status:</div>
+                    <div class="col text-left text-muted pl-2">
+                        {% if session.ticket.expired %}
+                            <span class="text-danger">Expired</span>
+                        {% else %}
+                            <span class="text-success">Active</span>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
             <div class="col-md-5 py-2">
                 <div class="row">
@@ -44,24 +55,17 @@
                             {% endif %}
                         {% endfor %}
                     </div>
-                </div>
-                <div class="row">
-                     <div class="col-5 text-right">Ticket status:</div>
-                     <div class="col text-left text-muted pl-2">
-                        {% if session.ticket.expired %}
-                            <span class="text-danger">Expired</span>
-                        {% else %}
-                            <span class="text-success">Active</span>
-                        {% endif %}
+                    <div class="col-12 text-left p-2">
+                        Context: <span class="text-muted">{{ session.context | pprint}}</span>
                     </div>
-
                 </div>
+
             </div>
         </div>
         <div class="row justify-content-around my-3">
-            <a class="btn btn-primary" href="{% url 'pyensemble-group:groupsession_status' session_id=session.id %}">Update</a>
-            <a class="btn btn-danger" href="{% url 'pyensemble-group:abort_groupsession' session_id=session.id %}">Abort</a>
-            <a class="btn btn-success" href="{% url 'pyensemble-group:end_groupsession_w_id' session_id=session.id %}">End</a>
+            <a class="btn btn-primary" href="{% url 'pyensemble-group:groupsession_status' %}">Update</a>
+            <a class="btn btn-danger" href="{% url 'pyensemble-group:abort_groupsession' %}">Abort</a>
+            <a class="btn btn-success" href="{% url 'pyensemble-group:end_groupsession' %}">End</a>
         </div>
         <div class="row border-top my-3">
             <div class='col-12 text-center h3 pt-3'>Participants</div>
@@ -76,6 +80,9 @@
                                 <div class="card-body">
                                    {{gsss.user_session.subject.name_first}} {{gsss.user_session.subject.name_last}} 
                                </div>
+                            </div>
+                            <div class="card-body">
+                                State: {{gsss.States.names | index:gsss.state}}
                             </div>
                         </div>
                     {% endfor %}
