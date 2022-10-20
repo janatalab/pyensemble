@@ -108,7 +108,19 @@ def create_experiment(request):
     return HttpResponse('create_experiment: success')
 
 # Each participant's session calls this init_trial once the serve_form method has determined that everyone in the group is ready
-def init_trial_wo_experimenter(request):
+def init_trial(request):
+    # Initialize our trial
+    trial_data = init_group_trial()
+
+    # Get the group's session
+    group_session = get_group_session(request)
+
+    # Do whatever you want with the knowledge of which group and participants we are dealing with, e.g. checking for previous responses, etc.
+
+    
+    return trial_data
+
+def trial_feedback(request):
     # Initialize our trial
     trial_data = init_group_trial()
 

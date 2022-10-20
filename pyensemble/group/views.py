@@ -234,6 +234,11 @@ def set_groupuser_state(request, state):
     
     return gsus.state
 
+def set_client_ready(request):
+    status = set_groupuser_state(request, 'READY_CLIENT')
+
+    return HttpResponse(status)
+
 def is_group_ready(request):
     # Get the group session 
     group_session = get_group_session(request)

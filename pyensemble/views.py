@@ -330,8 +330,6 @@ class EnumCreateView(LoginRequiredMixin,CreateView):
 # Views for running experiments
 #
 
-
-
 # Start experiment
 @require_http_methods(['GET'])
 def run_experiment(request, experiment_id=None):
@@ -418,8 +416,6 @@ def run_experiment(request, experiment_id=None):
                 group_session = group_session,
                 user_session = session,
                 )
-
-
 
         # Update our ticket entry
         ticket.used = True
@@ -745,19 +741,17 @@ def serve_form(request, experiment_id=None):
 
                 # What group trials have in common is the need for the participants to be synchronized at the start of the trial. Having gotten to this point means that the user is ready for this form to be handled, so indicate that fact.
 
-                user_state = set_groupuser_state(request,'READY')
+                user_state = set_groupuser_state(request,'READY_SERVER')
 
-                # Now call the method that will set the parameters for this trial for the whole group
-                # One issue is whether to wait for synchronization among users here or within the method. If it is implement here, there is no need to call it in every method we call
-                
-                group_ready = group_session.wait_group_ready()
+                # Now wait until everyone has reached this point
+                group_ready = group_session.wait_group_ready_server()
 
                 if not group_ready:
                     return HttpResponseGone("Group not ready. Try resubmitting the form")
 
+                # Now call the method that will set the parameters for this trial for the whole group. If none is specified, we'll simply serve the next form
                 group_trial = init_group_trial()
-
-                # Call a pre-trial method if one is registered
+            
                 if method:
                     data = method(request, *funcdict['args'],**funcdict['kwargs'])
                     group_trial.update(data)
@@ -829,10 +823,10 @@ def serve_form(request, experiment_id=None):
 
 
     if handler_name == 'form_consent':
-        context.update('captcha': {
+        context.update({'captcha': {
             'form': CaptchaForm(),
             'site_key': settings.RECAPTCHA_PUBLIC_KEY
-            })
+            }})
 
     # Get our formset helper and add the input buttons that we need for this particular form instance
     helper = QuestionModelFormSetHelper()

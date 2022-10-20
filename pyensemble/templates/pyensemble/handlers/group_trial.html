@@ -5,7 +5,9 @@
         $(document).ready(function () {
             $('#questions').addClass('d-none');
 
-            {% include "pyensemble/js/group_trial_ended.js" %}
+            {% include "group/js/set_ready.js" %}
+
+            {% include "group/js/trial_ended.js" %}
         });
     </script>
 {% endblock %}
