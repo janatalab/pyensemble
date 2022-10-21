@@ -1,13 +1,26 @@
 {% extends "pyensemble/handlers/form_generic.html" %}
+{% load static %}
+
+{% block feedback %}
+    {{ feedback | safe }}
+{% endblock %}
 
 {% block appscript %}
+    <script type="text/javascript" src="{% static 'thirdparty/jq/jquery.cookie.js' %}"></script>
+    
     <script>
         $(document).ready(function () {
-            $('#questions').addClass('d-none');
-
             {% include "group/js/set_ready.js" %}
 
-            {% include "group/js/trial_ended.js" %}
+            {% if feedback %}
+                $('#feedback').removeClass('d-none');
+                $('#questions').removeClass('d-none');
+            {% elif autorun %}
+                $('#questions').removeClass('d-none');
+            {% else %}
+                $('#questions').addClass('d-none');
+                {% include "group/js/trial_ended.js" %}
+            {% endif %}
         });
     </script>
 {% endblock %}

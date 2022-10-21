@@ -2,10 +2,10 @@
 
 {% load crispy_forms_tags %}
 
-{% block main %}
+{% block feedback %}
+    {{feedback | safe}}
+{% endblock %}
 
-    {{feedback | safe}}   
-
+{% block questions %}
     {% crispy formset helper %}
-
 {% endblock %}

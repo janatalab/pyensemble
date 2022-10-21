@@ -452,7 +452,7 @@ class ExperimentXForm(models.Model):
         met_conditions = True
 
         expsess_key = 'experiment_%d'%(self.experiment.id,)
-        expsessinfo = request.session[expsess_key]
+        expsessinfo = request.session.get(expsess_key,None)
 
         #
         # First check for conditions specified within the database

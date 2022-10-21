@@ -15,6 +15,11 @@
 
 {% block main %}
 <div id="presentation" class="row align-items-center py-3">
+    <div id="feedback" class="col-12 d-none">
+        {% block feedback %}
+        {% endblock %}        
+    </div>
+
     <div id="trialrunner" class="col-12 d-none">
         {% block trialrunner %}
         {% endblock %}
@@ -24,6 +29,7 @@
         {% block questions %}
         {% endblock %}
     </div>
+
 </div>
 {% endblock %}
 

@@ -395,16 +395,16 @@ def run_experiment(request, experiment_id=None):
             if subject.id_origin == 'PRLFC':
                 prolific_pid = subject_id
 
-        # Enter the person as an anonymous user for the time being
+        # If the participant has not yet registered, create a new temporary entry. The id needs to be a unique hash, otherwise we run into collisions.
         if not subject:
-            subject_id = 'anonymous'
-            subject, created = Subject.objects.get_or_create(subject_id=subject_id)
+            tmp_subject_id = request.session._session_key
+            tmp_subject, created = Subject.objects.get_or_create(subject_id=tmp_subject_id)
 
         # See whether we were passed in an explicit session_id as a URL parameter
         origin_sessid = request.GET.get('SESSION_ID', None)
 
         # Initialize a session in the PyEnsemble session table
-        session = Session.objects.create(experiment = ticket.experiment, ticket = ticket, subject = subject, origin_sessid = origin_sessid)
+        session = Session.objects.create(experiment = ticket.experiment, ticket = ticket, subject = tmp_subject, origin_sessid = origin_sessid)
 
         # If this is a group experiment, attach the session to a group session
         if experiment.is_group:
@@ -460,6 +460,7 @@ def serve_form(request, experiment_id=None):
         'form_show_errors': True,
         'captcha': {},
         'timeline': {},
+        'timeline_json':'',
         'stimulus': None,
         'skip_trial': False,
         'feedback': '',
@@ -496,7 +497,7 @@ def serve_form(request, experiment_id=None):
     # Add the form to our context
     context.update({
         'form': form,
-        'clientside_validation': form.use_clientside_validation
+        'clientside_validation': currform.use_clientside_validation
         })
 
     # Check to see whether we are dealing with a special form that requires different handling. This is largely to try to maintain backward compatibility with the legacy PHP version of Ensemble
@@ -569,10 +570,19 @@ def serve_form(request, experiment_id=None):
                 subject.save()
                 expsessinfo['subject_id'] = subject_id
 
-                # Update the session table
+                # Replace the temporary subject with our actual subject in our session instance
                 session = Session.objects.get(pk=expsessinfo['session_id'])
+
+                # Get the temporary subject
+                tmp_subject = session.subject
+
+                # Attach the registered subject and save the session
                 session.subject = subject
                 session.save()
+
+                # Now that we've saved our updated session it is safe to delete the temporary subject
+                tmp_subject.delete()
+
 
             elif handler_name == 'form_consent':
                 question = formset.forms[0]
@@ -908,7 +918,25 @@ def reset_session(request, experiment_id):
         msg = f'Experiment {experiment_id} session not initialized'
     else:
         msg = f'Experiment {experiment_id} session reset'
-        request.session[expsess_key] = {}
+        request.session.pop(expsess_key,None)
 
     return render(request,'pyensemble/message.html',{'msg':msg})
 
+def flush_session_cache(request):
+    flush_all = True
+
+    # Make a list of the keys we want to remove
+    remove_keys = []
+    for key in request.session.keys():
+        if flush_all:
+            remove_keys.append(key)
+        elif key.startswith('exper') or key.startswith('group'):
+            remove_keys.append(key)
+
+    num_flushed_keys = 0
+    for key in remove_keys:
+        if request.session.pop(key, None):
+            num_flushed_keys += 1
+
+    request.session.modified=True
+    return render(request, 'pyensemble/message.html', {'msg': f"Flushed {num_flushed_keys} session cache entries"})

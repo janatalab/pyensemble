@@ -55,8 +55,8 @@
                             {% endif %}
                         {% endfor %}
                     </div>
-                    <div class="col-12 text-left p-2">
-                        Context: <span class="text-muted">{{ session.context | pprint}}</span>
+                    <div class="col-5 text-right">Context:</div>
+                    <div id="groupsession_context" class="col text-left text-muted pl-2">{{ session.context | pprint}}</div>
                     </div>
                 </div>
 

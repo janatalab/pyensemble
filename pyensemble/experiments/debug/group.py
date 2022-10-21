@@ -33,14 +33,14 @@ def create_experiment(request):
     for df in data_formats:
         dfo, created = DataFormat.objects.get_or_create(**df)
 
-        if df.get('enum_values','').find('Disagree'):
-            disagree_df = dfo
+        if "Disagree" in dfo.enum_values:
+            disagree_dfo = dfo
 
     # Define some question data as a list of dictionaries
     question_data = [
         {
             'text': 'I experienced this trial to be difficult.',
-            'data_format': disagree_df,
+            'data_format': disagree_dfo,
             'html_field_type': 'radiogroup'
         }
     ]
@@ -56,6 +56,12 @@ def create_experiment(request):
             'form_handler': 'form_subject_register'
         },
         {
+            'name': 'Wait',
+            'questions': [],
+            'header': 'Please wait for instructions from the experimenter.',
+            'form_handler': 'form_generic'
+        },
+        {
             'name': 'Debug Group Post Trial',
             'questions': [qo],
             'form_handler': 'group_trial'
@@ -67,6 +73,7 @@ def create_experiment(request):
         },
         {
             'name': 'End Session',
+            'header': 'Thank you for your participation',
             'questions': [],
             'form_handler': 'form_end_session'
         }
@@ -92,7 +99,7 @@ def create_experiment(request):
         elif f['name'] == 'Debug Group Feedback':
             goto = [f['name'] for f in form_data].index('Debug Group Post Trial')+1
             repeat = 10
-            stimulus_script = 'debug.group.trial_feedback'
+            stimulus_script = 'debug.group.trial_feedback()'
 
         efo, created = ExperimentXForm.objects.get_or_create(
             experiment=eo,
@@ -108,7 +115,7 @@ def create_experiment(request):
     return HttpResponse('create_experiment: success')
 
 # Each participant's session calls this init_trial once the serve_form method has determined that everyone in the group is ready
-def init_trial(request):
+def init_trial(request, *args, **kwargs):
     # Initialize our trial
     trial_data = init_group_trial()
 
@@ -116,11 +123,11 @@ def init_trial(request):
     group_session = get_group_session(request)
 
     # Do whatever you want with the knowledge of which group and participants we are dealing with, e.g. checking for previous responses, etc.
-
+    trial_data['autorun'] = True # Set to true if participants view are NOT controlled by an experimenter process that sets trial state 'ended'
     
     return trial_data
 
-def trial_feedback(request):
+def trial_feedback(request, *args, **kwargs):
     # Initialize our trial
     trial_data = init_group_trial()
 
@@ -128,6 +135,6 @@ def trial_feedback(request):
     group_session = get_group_session(request)
 
     # Do whatever you want with the knowledge of which group and participants we are dealing with, e.g. checking for previous responses, etc.
+    trial_data['feedback'] = f'There are {group_session.num_users} participants connected to this session'
 
-    
     return trial_data

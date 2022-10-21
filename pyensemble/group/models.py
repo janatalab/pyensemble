@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 
 from django.utils import timezone
 
@@ -99,7 +100,7 @@ class GroupSession(models.Model):
         self.ticket.save()
 
         # Flag all the user sessions as expired
-        self.groupsessionsubjectsession_set.update(user_session__expired=True)
+        self.groupsessionsubjectsession_set.all().expire_sessions()
 
     # Methods that operate across users connected to this session
     def responding_complete(self, trial_num):
@@ -165,6 +166,11 @@ class GroupSessionSubjectSessionQuerySet(models.QuerySet):
             state = self.model.States[state]
 
         self.update(state=state)
+
+    def expire_sessions(self):
+        for session in self:
+            session.user_session.expired=True
+            session.user_session.save()
 
 
 class GroupSessionSubjectSessionManager(models.Manager):

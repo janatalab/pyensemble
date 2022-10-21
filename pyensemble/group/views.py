@@ -1,6 +1,7 @@
 # Views related to running group sessions
 
 from django.utils import timezone
+from django.conf import settings
 
 from django.views.generic.edit import CreateView
 
@@ -93,34 +94,26 @@ def start_groupsession(request):
     return render(request, template, context)
 
 @login_required
-def end_groupsession(request):
+def terminate_groupsession(request, manner):
     session = get_group_session(request)
 
-    session.cleanup()
+    if manner in session.terminal_states:
+        session.cleanup()
+        session.state = manner
+        session.save()
 
-    # Set our session to completed
-    session.state = session.States.COMPLETED
-    session.save()
-
-    context = {
-        'session': session,
-    }
     template = 'group/session_status.html'
-    return render(request, template, context)
+    return render(request, template, {'session':session})
+
+@login_required
+def end_groupsession(request):
+    return terminate_groupsession(request, GroupSession.States.COMPLETED)
+
 
 @login_required
 def abort_groupsession(request):
-    session = get_group_session(request)
+    return terminate_groupsession(request, GroupSession.States.ABORTED)
 
-    session.state = session.States.ABORTED
-    session.save()
-
-    context = {
-        'session': session,
-    }
-
-    template = 'group/session_status.html'
-    return render(request, template, context)
 
 @login_required
 def attach_experimenter(request):
@@ -252,6 +245,7 @@ def init_group_trial():
         'feedback': '',
         'stimulus_id': None,
         'presents_stimulus': False,
+        'autorun': False,
     }
 
     return group_trial
