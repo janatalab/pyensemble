@@ -9,5 +9,5 @@ from . import group
 app_name = 'debug'
 
 urlpatterns = [
-    path('group/create_experiment', group.create_experiment),
+    path('group/create_experiment/', group.create_experiment),
 ]

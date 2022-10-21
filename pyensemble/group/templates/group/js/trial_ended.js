@@ -4,7 +4,7 @@ function group_trial_ended(){
     // Check the current trial state
     $.ajax({
         dataType: "json",
-        url: "{% url 'group_trial_status' %}",
+        url: "{% url 'pyensemble-group:group_trial_status' %}",
         type: 'GET',
         data: {},
         success: function(data){

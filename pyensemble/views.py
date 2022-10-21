@@ -19,7 +19,7 @@ import django.forms as forms
 from django.db import transaction, IntegrityError
 from django.db.models import Q
 
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, JsonResponse, HttpResponseGone
 
 from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
@@ -28,7 +28,6 @@ from django.conf import settings
 from django.views.generic.edit import CreateView, UpdateView, FormView
 
 from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
-from pyensemble.group.models import GroupSession, GroupSessionSubjectSession
 
 from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
 
@@ -37,10 +36,12 @@ from .tasks import get_expsess_key, fetch_subject_id, get_or_create_prolific_sub
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 from pyensemble import experiments 
 
-from pyensemble.group.views import set_groupuser_state
+from pyensemble.group.models import GroupSession, GroupSessionSubjectSession
+from pyensemble.group.views import get_group_session, set_groupuser_state, init_group_trial
 
 from crispy_forms.layout import Submit
 
+import pdb
 
 class EditorView(LoginRequiredMixin,TemplateView):
     template_name = 'editor_base.html'
@@ -329,8 +330,6 @@ class EnumCreateView(LoginRequiredMixin,CreateView):
 # Views for running experiments
 #
 
-
-
 # Start experiment
 @require_http_methods(['GET'])
 def run_experiment(request, experiment_id=None):
@@ -396,16 +395,16 @@ def run_experiment(request, experiment_id=None):
             if subject.id_origin == 'PRLFC':
                 prolific_pid = subject_id
 
-        # Enter the person as an anonymous user for the time being
+        # If the participant has not yet registered, create a new temporary entry. The id needs to be a unique hash, otherwise we run into collisions.
         if not subject:
-            subject_id = 'anonymous'
-            subject, created = Subject.objects.get_or_create(subject_id=subject_id)
+            tmp_subject_id = request.session._session_key
+            tmp_subject, created = Subject.objects.get_or_create(subject_id=tmp_subject_id)
 
         # See whether we were passed in an explicit session_id as a URL parameter
         origin_sessid = request.GET.get('SESSION_ID', None)
 
         # Initialize a session in the PyEnsemble session table
-        session = Session.objects.create(experiment = ticket.experiment, ticket = ticket, subject = subject, origin_sessid = origin_sessid)
+        session = Session.objects.create(experiment = ticket.experiment, ticket = ticket, subject = tmp_subject, origin_sessid = origin_sessid)
 
         # If this is a group experiment, attach the session to a group session
         if experiment.is_group:
@@ -417,8 +416,6 @@ def run_experiment(request, experiment_id=None):
                 group_session = group_session,
                 user_session = session,
                 )
-
-
 
         # Update our ticket entry
         ticket.used = True
@@ -455,6 +452,21 @@ def run_experiment(request, experiment_id=None):
 # serve_form is the view that handles the running of the experiment following initialization by run_experiment
 #
 def serve_form(request, experiment_id=None):
+    # Initialize our context
+    context = {
+        'form': None,
+        'formset': None,
+        'helper': None,
+        'form_show_errors': True,
+        'captcha': {},
+        'timeline': {},
+        'timeline_json':'',
+        'stimulus': None,
+        'skip_trial': False,
+        'feedback': '',
+        'group': {},
+    }
+
     # Get the key that we can use to retrieve experiment-specific session information for this user   
     expsess_key = get_expsess_key(experiment_id)
 
@@ -482,13 +494,14 @@ def serve_form(request, experiment_id=None):
     form.header = form.header.replace('\\','')
     form.footer = form.footer.replace('\\','')
 
+    # Add the form to our context
+    context.update({
+        'form': form,
+        'clientside_validation': currform.use_clientside_validation
+        })
+
     # Check to see whether we are dealing with a special form that requires different handling. This is largely to try to maintain backward compatibility with the legacy PHP version of Ensemble
     handler_name = os.path.splitext(currform.form_handler)[0]
-
-    # Initialize other context
-    timeline = []
-    stimulus = None
-    feedback = None
 
     if request.method == 'POST':
         #
@@ -510,8 +523,10 @@ def serve_form(request, experiment_id=None):
             formset = QuestionModelFormSet(request.POST)
 
         else:
-            # form = Form.objects.get(form_id=currform.form_id)
             formset = QuestionModelFormSet(request.POST)
+
+        # Add the formset to our context
+        context.update({'formset': formset})
 
         # Pull in any miscellaneous info that has been set by the experiment 
         # This can be an arbitrary string, though json-encoded strings are recommended
@@ -522,6 +537,8 @@ def serve_form(request, experiment_id=None):
         else:
             stimulus = None
 
+        # Add the stimulus to our context
+        context.update({'stimulus': stimulus})
 
         if passes_captcha and formset.is_valid():
             expsessinfo['response_order']+=1
@@ -553,10 +570,19 @@ def serve_form(request, experiment_id=None):
                 subject.save()
                 expsessinfo['subject_id'] = subject_id
 
-                # Update the session table
+                # Replace the temporary subject with our actual subject in our session instance
                 session = Session.objects.get(pk=expsessinfo['session_id'])
+
+                # Get the temporary subject
+                tmp_subject = session.subject
+
+                # Attach the registered subject and save the session
                 session.subject = subject
                 session.save()
+
+                # Now that we've saved our updated session it is safe to delete the temporary subject
+                tmp_subject.delete()
+
 
             elif handler_name == 'form_consent':
                 question = formset.forms[0]
@@ -664,19 +690,18 @@ def serve_form(request, experiment_id=None):
             return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
         # If the form was not valid and we have to present it again, skip the trial running portion of it, so that we only present the questions
-        skip_trial = True
+        context.update({'skip_trial':True})
 
     else:
         #
         # Process the GET request for this form
         #
 
-        # Initialize variables
-        skip_trial = False
-        presents_stimulus = False # Does this form present a stimulus. Note that this is not the same as requiring a stimulus for the response(s) to this form to be associated with
+        # Validate that our subject is still active, i.e. that their session is not expired. 
+        session = Session.objects.get(pk=expsessinfo['session_id'])
 
-        # Determine whether the handler name ends in _s indicating that the form is handling stimuli
-        requires_stimulus = True if re.search('_s$',handler_name) else False  
+        if session.expired:
+            reset_session(request, experiment_id)
 
         # Determine whether any conditions on this form have been met
         if not currform.conditions_met(request):
@@ -686,8 +711,20 @@ def serve_form(request, experiment_id=None):
             request.session.modified=True
             return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
+        #
+        # Initialize variables that help control the trial preparation logic
+        #
+
+        presents_stimulus = False # Does this form present a stimulus. Note that this is not the same as requiring a stimulus for the response(s) to this form to be associated with
+
+        # Determine whether the handler name ends in _s indicating that the form is handling stimuli
+        requires_stimulus = True if re.search('_s$',handler_name) else False  
+
+        timeline = {}
+        stimulus_id = None
+
         # Execute a stimulus selection script if one has been specified
-        # The use of the stimulus_script field goes beyond stimulus selection and is ultimately dependent on the form_handler that is associated with this form in this experiment context.
+        # NOTE: The use of the stimulus_script field transcends stimulus selection: what it accomplishes depends on what the form_handler that is associated with this form in this particular experiment context requires.
 
         if currform.stimulus_script:
             # Use regexp to get the function name that we're calling
@@ -703,31 +740,38 @@ def serve_form(request, experiment_id=None):
                 # Call the method to generate the feedback content
                 feedback = method(request, *funcdict['args'],**funcdict['kwargs'])
 
+                # Add feedback to our context
+                context.update({'feedback': feedback})
+
             elif handler_name in ['group_trial']:
                 # Group trials may be of different types. Some may present no stimulus at all whereas others might. Yet other group trials might be controlled by an experimenter (proxy) that controls the trial.
 
+                # Get the group session ID from the session cache
+                group_session = get_group_session(request)
+
                 # What group trials have in common is the need for the participants to be synchronized at the start of the trial. Having gotten to this point means that the user is ready for this form to be handled, so indicate that fact.
 
-                user_state = set_groupuser_state(request,'READY')
+                user_state = set_groupuser_state(request,'READY_SERVER')
 
-                # Now call the method that will set the parameters for this trial for the whole group
-                # One issue is whether to wait for synchronization among users here or within the method. If it is implement here, there is no need to call it in every method we call
-                
-                try:
-                    polling2.poll(session.group_ready, step=0.5, timeout=120)
-                except:
-                    return HttpResponseGone()
+                # Now wait until everyone has reached this point
+                group_ready = group_session.wait_group_ready_server()
 
-                group_trial = method(request, *funcdict['args'],**funcdict['kwargs'])
+                if not group_ready:
+                    return HttpResponseGone("Group not ready. Try resubmitting the form")
 
-                # Unpack the result
-                timeline = group_trial.get('timeline',{})
-                feedback = group_trial.get('feedback','')
-                expsessinfo['stimulus_id'] = group_trial.get('stimulus_id', None)
+                # Now call the method that will set the parameters for this trial for the whole group. If none is specified, we'll simply serve the next form
+                group_trial = init_group_trial()
+            
+                if method:
+                    data = method(request, *funcdict['args'],**funcdict['kwargs'])
+                    group_trial.update(data)
+
+                # Add the group trial info to our context
+                context.update(group_trial)
+
+                # Unpack other elements of the result
+                stimulus_id = group_trial.get('stimulus_id', None)
                 presents_stimulus = group_trial.get('presents_stimulus', False)
-
-                # Now that the user will be served the form, the response is officially pending
-                user_state = set_groupuser_state(request,'RESPONSE_PENDING')
 
             else:
                 # The default assumption, if selecting a stimulus, is that we will be presenting the stimulus via jsPsych
@@ -736,9 +780,14 @@ def serve_form(request, experiment_id=None):
                 # Call the select function with the parameters to get the trial timeline specification
                 timeline, stimulus_id  = method(request, *funcdict['args'],**funcdict['kwargs'])
 
-                expsessinfo['stimulus_id'] = stimulus_id
-        else:
-            timeline = {}
+        if timeline:
+            context.update({
+                'timeline': timeline,
+                'timeline_json': json.dumps(timeline)
+                })
+
+        if stimulus_id:
+            expsessinfo['stimulus_id'] = stimulus_id
 
         #
         # If this form requires a stimulus and there is no stimulus, this means that we have exhausted our stimuli and so we should move on to the next form. 
@@ -758,13 +807,13 @@ def serve_form(request, experiment_id=None):
         #
         # Reset our session stimulus_id variable if appropriate
         #
-        stimulus = None
         if not requires_stimulus:
             expsessinfo['stimulus_id'] = None
-        else:
-            stimulus_id = expsessinfo.get('stimulus_id',None)
-            if stimulus_id:
-                stimulus = Stimulus.objects.get(id=stimulus_id)
+
+        # Get our stimulus and add it to the context
+        stimulus_id = expsessinfo.get('stimulus_id', None)
+        if stimulus_id:
+            context.update({'stimulus': Stimulus.objects.get(id=stimulus_id)})
 
         #
         # Get our blank form
@@ -779,49 +828,37 @@ def serve_form(request, experiment_id=None):
         else:
             formset = QuestionModelFormSet(queryset=form.questions.all().order_by('formxquestion__form_question_num'))
 
-    captcha = {}
-    if handler_name == 'form_consent':
-        captcha['form'] = CaptchaForm()
-        captcha['site_key'] = settings.RECAPTCHA_PUBLIC_KEY
+        # Add the formset info to our context
+        context.update({'formset': formset})
 
-    # Get our formset helper. The following helper information should ostensibly stored with the form definitions, but that wasn't working
+
+    if handler_name == 'form_consent':
+        context.update({'captcha': {
+            'form': CaptchaForm(),
+            'site_key': settings.RECAPTCHA_PUBLIC_KEY
+            }})
+
+    # Get our formset helper and add the input buttons that we need for this particular form instance
     helper = QuestionModelFormSetHelper()
-    helper.template = 'pyensemble/partly_crispy/question_formset.html'
+    # helper.template = 'pyensemble/partly_crispy/question_formset.html'
 
     # Add our submit button(s)
     if currform.break_loop_button:
         helper.add_input(Submit("submit", currform.break_loop_button_text,css_class='btn-secondary'))
 
-    continue_button_text = getattr(currform,'continue_button_text','')
+    continue_button_text = getattr(currform, 'continue_button_text', '')
     if not continue_button_text:
         continue_button_text = 'Next'
 
-    helper.add_input(Submit("submit",continue_button_text))
+    helper.add_input(Submit("submit", continue_button_text))
 
-    # Create our context to pass to the template
-    context = {
-        'form': form,
-        'formset': formset,
-        'form_show_errors': True,
-        'helper': helper,
-        'captcha': captcha,
-        'timeline': timeline,
-        'timeline_json': json.dumps(timeline),
-        'skip_trial': skip_trial,
-        'stimulus': stimulus,
-        'feedback': feedback,
-        'clientside_validation': currform.use_clientside_validation,
-       }
-
-    if settings.DEBUG:
-        print(context['timeline_json'])
-
-    # Determine our form template (based on the form_handler field)
-    form_template = os.path.join('pyensemble/handlers/', f'{handler_name}.html')
+    # Add the helper to our context
+    context.update({'helper': helper})
 
     # Update the last_visited session variable
     expsessinfo['last_visited'] = form_idx
 
+    # If this is the last form we are presenting, take any necessary cleanup actions
     if handler_name == 'form_end_session':
         # Close out our session
         session = Session.objects.get(id=expsessinfo['session_id'])
@@ -832,7 +869,7 @@ def serve_form(request, experiment_id=None):
         sona_code = expsessinfo['sona']
 
         # Remove our cached session info
-        request.session.pop(expsess_key,None)
+        request.session.pop(expsess_key, None)
 
         # Redirect to the SONA site to grant credit if we have a code
         if sona_code:
@@ -848,9 +885,15 @@ def serve_form(request, experiment_id=None):
                 if isinstance(experiment_params,dict):
                     context['prolific_completion_url'] = experiment_params.get('prolific_completion_url', None)
 
+    if settings.DEBUG:
+        print(context['timeline_json'])
+
+    # Determine our form template (based on the form_handler field)
+    template = os.path.join('pyensemble/handlers/', f'{handler_name}.html')
+
     # Make sure to save any changes to our session cache
-    request.session.modified=True
-    return render(request, form_template, context)
+    request.session.modified = True
+    return render(request, template, context)
 
 @login_required
 def create_ticket(request):
@@ -875,7 +918,25 @@ def reset_session(request, experiment_id):
         msg = f'Experiment {experiment_id} session not initialized'
     else:
         msg = f'Experiment {experiment_id} session reset'
-        request.session[expsess_key] = {}
+        request.session.pop(expsess_key,None)
 
     return render(request,'pyensemble/message.html',{'msg':msg})
 
+def flush_session_cache(request):
+    flush_all = True
+
+    # Make a list of the keys we want to remove
+    remove_keys = []
+    for key in request.session.keys():
+        if flush_all:
+            remove_keys.append(key)
+        elif key.startswith('exper') or key.startswith('group'):
+            remove_keys.append(key)
+
+    num_flushed_keys = 0
+    for key in remove_keys:
+        if request.session.pop(key, None):
+            num_flushed_keys += 1
+
+    request.session.modified=True
+    return render(request, 'pyensemble/message.html', {'msg': f"Flushed {num_flushed_keys} session cache entries"})

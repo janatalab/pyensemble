@@ -9,6 +9,8 @@ from importlib import import_module
 from django.urls import include, path
 from django.conf import settings
 
+import pdb
+
 app_name='experiments'
 
 # Initialize or list of urlpatterns
@@ -43,4 +45,6 @@ for experiment in experiment_dirs:
             # Include it in the url patterns
             urlpatterns.append(path(f'{experiment_name}/', include(module)))
         except:
+            if settings.DEBUG:
+                pdb.set_trace()
             pass
