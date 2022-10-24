@@ -30,8 +30,15 @@ class GroupCreateView(LoginRequiredMixin,CreateView):
 
 
 def get_session_id(request):
-    session_key = request.session['group_session_key']
-    session_id = request.session[session_key]['id']
+    session_id = None
+    session_key = request.session.get('group_session_key', None)
+    if not session_key:
+        if settings.DEBUG:
+            pdb.set_trace()
+
+    else:
+        session_id = request.session[session_key]['id']
+
     return session_id
 
 def get_group_session(request):
@@ -80,6 +87,7 @@ def start_groupsession(request):
             group_session.state = group_session.States.READY
             group_session.save()
 
+            request.session.modified = True
             return HttpResponseRedirect(reverse('pyensemble-group:groupsession_status'))
 
     else:
@@ -199,13 +207,7 @@ def groupsession_status(request):
     template = 'group/session_status.html'
     return render(request, template, context)
 
-# Method for setting the states of individual subjects in the group
-def set_groupuser_state(request, state):
-    # Make sure we have a valid state
-    state = state.upper()
-    if state not in GroupSessionSubjectSession.States.names:
-        raise ValueError(f"{state} not a valid state")
-
+def get_groupuser_session(request):
     # Get the group session ID from the session cache
     groupsession_id = get_session_id(request)
 
@@ -221,6 +223,25 @@ def set_groupuser_state(request, state):
     # Get the conjoint group and user session entry
     gsus = GroupSessionSubjectSession.objects.get(group_session=group_session, user_session=user_session)
 
+    return gsus
+
+
+# Methods for getting and setting the states of individual subjects in the group
+def get_groupuser_state(request):
+    # Get our user session
+    gsus = get_groupuser_session(request)
+
+    return gsus.States(gsus.state).name
+
+
+def set_groupuser_state(request, state):
+    # Make sure we have a valid state
+    state = state.upper()
+    if state not in GroupSessionSubjectSession.States.names:
+        raise ValueError(f"{state} not a valid state")
+
+    gsus = get_groupuser_session(request)
+
     # Set the state
     gsus.state = gsus.States[state]
     gsus.save()
@@ -231,13 +252,6 @@ def set_client_ready(request):
     status = set_groupuser_state(request, 'READY_CLIENT')
 
     return HttpResponse(status)
-
-def is_group_ready(request):
-    # Get the group session 
-    group_session = get_group_session(request)
-
-    return group_session.group_ready()
-
 
 def init_group_trial():
     group_trial = {
@@ -256,7 +270,7 @@ def start_trial(request):
     group_session = get_group_session(request)
 
     # Set the context to indicate the trial is running
-    group_session.set_context_state('running')
+    group_session.set_context_state('trial:running')
 
     return HttpResponse(status=200)
 
@@ -267,10 +281,10 @@ def end_trial(request):
     group_session = get_group_session(request)
 
     # Set the context to indicate the trial has ended
-    group_session.set_context_state('ended')
+    group_session.set_context_state('trial:ended')
 
     # We are now officially waiting for participant responses
-    group_session.set_response_pending()
+    group_session.set_group_response_pending()
 
     return HttpResponse(status=200)
 
@@ -282,3 +296,10 @@ def trial_status(request):
     data = {'state': group_session.get_context_state()}
 
     return JsonResponse(data)
+
+def groupuser_state(request):
+    state = {}
+    if request.method == 'GET':
+        state = get_groupuser_state(request)
+
+    return JsonResponse(state, safe=False)

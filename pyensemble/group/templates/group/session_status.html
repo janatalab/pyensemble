@@ -9,25 +9,25 @@
 {% block main %}
     <div class="container">
         <div class="row border">
-            <div class="col-md-7 py-2">
+            <div class="col-md-6 py-2">
                 <div class="row">
-                    <div class="col-5 text-right">Experiment:</div>
+                    <div class="col-6 text-right">Experiment:</div>
                     <div class="col text-left text-muted pl-2">{{session.experiment.title}}</div>
                 </div>
                 <div class="row">
-                    <div class="col-5 text-right">Group:</div>
+                    <div class="col-6 text-right">Group:</div>
                     <div class="col text-left text-muted pl-2">{{session.group.name}}</div>
                 </div>
                 <div class="row">
-                    <div class="col-5 text-right">ID:</div>
+                    <div class="col-6 text-right">ID:</div>
                     <div class="col text-left text-muted pl-2">{{session.id}}</div>
                 </div>
                 <div class="row">
-                    <div class="col-5 text-right">Participant Code:</div>
+                    <div class="col-6 text-right">Participant Code:</div>
                     <div class="col text-left text-muted pl-2">{{session.ticket.participant_code}}</div>
                 </div>
                 <div class="row">
-                    <div class="col-5 text-right">Experimenter Code:</div>
+                    <div class="col-6 text-right">Experimenter Code:</div>
                     <div class="col text-left text-muted pl-2">{{session.ticket.experimenter_code}}
                         {% if session.experimenter_attached %}
                         <span class="text-success">(attached)</span>
@@ -35,7 +35,7 @@
                     </div>
                 </div>
                 <div class="row">
-                    <div class="col-5 text-right">Ticket status:</div>
+                    <div class="col-6 text-right">Ticket status:</div>
                     <div class="col text-left text-muted pl-2">
                         {% if session.ticket.expired %}
                             <span class="text-danger">Expired</span>
@@ -45,16 +45,14 @@
                     </div>
                 </div>
             </div>
-            <div class="col-md-5 py-2">
+            <div class="col-md-6 py-2">
                 <div class="row">
                      <div class="col-5 text-right">Session status:</div>
                      <div id="groupsession_status" class="col text-left text-muted pl-2">
-                        {% for state in session.States %}
-                            {% if state == session.state %}
-                                {{state.label}}
-                            {% endif %}
-                        {% endfor %}
+                         {{session.States.names | index:session.state}}
                     </div>
+                </div>
+                <div class="row">
                     <div class="col-5 text-right">Context:</div>
                     <div id="groupsession_context" class="col text-left text-muted pl-2">{{ session.context | pprint}}</div>
                     </div>

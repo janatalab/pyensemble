@@ -103,6 +103,7 @@ class GroupSession(models.Model):
         self.groupsessionsubjectsession_set.all().expire_sessions()
 
     # Methods that operate across users connected to this session
+    # We don't currently use the responding_complete method, relying instead on setting of user state. This method affords an added layer of verification that all users are synchronized at the same location in the progression through a series of trials
     def responding_complete(self, trial_num):
         self._responding_complete = False
         if trial_num == 0:
