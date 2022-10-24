@@ -8,7 +8,7 @@ function group_trial_ended(){
         type: 'GET',
         data: {},
         success: function(data){
-            if (data.state == 'ended'){
+            if (data.state == 'trial:ended'){
                 $('#questions').removeClass('d-none');
             } else {
                 setTimeout(group_trial_ended, 500);

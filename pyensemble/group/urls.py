@@ -13,6 +13,7 @@ urlpatterns = [
     path('session/attach/participant/', views.attach_participant, name='attach_participant'),
     path('session/attach/experimenter/', views.attach_experimenter, name='attach_experimenter'),
     path('session/participants/get/', views.get_groupsession_participants, name='get_groupsession_participants'),
+    path('participant/state/', views.groupuser_state, name='groupuser_state'),
     path('trial/status/', views.trial_status, name='group_trial_status'),
     path('trial/start/', views.start_trial, name='start_trial'),
     path('trial/end/', views.end_trial, name='end_trial'),

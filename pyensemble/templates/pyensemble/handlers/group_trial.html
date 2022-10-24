@@ -19,7 +19,7 @@
                 $('#questions').removeClass('d-none');
             {% else %}
                 $('#questions').addClass('d-none');
-                {% include "group/js/trial_ended.js" %}
+                {% include "group/js/get_participant_state.js" %}
             {% endif %}
         });
     </script>

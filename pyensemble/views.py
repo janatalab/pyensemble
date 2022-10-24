@@ -464,7 +464,7 @@ def serve_form(request, experiment_id=None):
         'stimulus': None,
         'skip_trial': False,
         'feedback': '',
-        'group': {},
+        # 'group': {},
     }
 
     # Get the key that we can use to retrieve experiment-specific session information for this user   
@@ -530,7 +530,10 @@ def serve_form(request, experiment_id=None):
 
         # Pull in any miscellaneous info that has been set by the experiment 
         # This can be an arbitrary string, though json-encoded strings are recommended
-        misc_info = expsessinfo.get('misc_info','')
+        misc_info = expsessinfo.get('misc_info', '')
+
+        # Similarly, if we have trial information, get that
+        trial_info = expsessinfo.get('trial_info', '')
 
         if expsessinfo['stimulus_id']:
             stimulus = Stimulus.objects.get(pk=expsessinfo['stimulus_id'])
@@ -651,6 +654,12 @@ def serve_form(request, experiment_id=None):
                     else:
                         jspsych_data = ''
 
+                    # If we are in group session trial, write group session context to trial info for the first response
+                    if not idx and handler_name in ['group_trial']:
+                        group_session = get_group_session(request)
+                        trial_info = group_session.context['params']
+
+                    # Create a Response object and append it to our list
                     responses.append(Response(
                         experiment=currform.experiment,
                         subject=Subject.objects.get(subject_id=expsessinfo['subject_id']),
@@ -667,6 +676,7 @@ def serve_form(request, experiment_id=None):
                         jspsych_data=jspsych_data,
                         decline=declined,
                         misc_info=misc_info,
+                        trial_info=trial_info,
                         )
                     )
 
