@@ -398,13 +398,13 @@ def run_experiment(request, experiment_id=None):
         # If the participant has not yet registered, create a new temporary entry. The id needs to be a unique hash, otherwise we run into collisions.
         if not subject:
             tmp_subject_id = request.session._session_key
-            tmp_subject, created = Subject.objects.get_or_create(subject_id=tmp_subject_id)
+            subject, created = Subject.objects.get_or_create(subject_id=tmp_subject_id)
 
         # See whether we were passed in an explicit session_id as a URL parameter
         origin_sessid = request.GET.get('SESSION_ID', None)
 
         # Initialize a session in the PyEnsemble session table
-        session = Session.objects.create(experiment = ticket.experiment, ticket = ticket, subject = tmp_subject, origin_sessid = origin_sessid)
+        session = Session.objects.create(experiment = ticket.experiment, ticket = ticket, subject = subject, origin_sessid = origin_sessid)
 
         # If this is a group experiment, attach the session to a group session
         if experiment.is_group:
