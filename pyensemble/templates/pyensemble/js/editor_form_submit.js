@@ -2,7 +2,7 @@
     $(function(){
         $(".editor-form").on('submit',function(ev){
             ev.preventDefault();
-            submitEditorForm();
+            submitForm($(".editor-form"));
         });
     });
 </script>

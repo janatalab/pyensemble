@@ -27,8 +27,9 @@
     <script type="text/javascript">
         $(function(){
             $(".editor.form-actions button").on('click',function(ev){
+                ev.stopImmediatePropagation();
                 ev.preventDefault();
-                submitEditorForm();
+                submitForm($(".editor-form"));
             });
         });
     </script>
