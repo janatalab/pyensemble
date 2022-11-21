@@ -23,13 +23,9 @@
     <script type="text/javascript">
         $(function(){
             $('select').chosen();
-            $(".editor.form-actions button").on('click',function(ev){
-                ev.stopImmediatePropagation();
-                ev.preventDefault();
-                submitForm($(".editor-form"));
-            });
             $("#formTableEditButton").addClass('d-none');
         });
     </script>
 
+    {% include "pyensemble/js/custom_form_submit.js" %}
 {% endblock %}
