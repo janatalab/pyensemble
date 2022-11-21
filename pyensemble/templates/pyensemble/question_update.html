@@ -23,10 +23,12 @@
         $(function(){
             $('select').chosen();
             $(".editor.form-actions button").on('click',function(ev){
+                ev.stopImmediatePropagation();
                 ev.preventDefault();
-                submitEditorForm();
+                submitForm($(".editor-form"));
             });
             $("#formTableEditButton").addClass('d-none');
         });
     </script>
+
 {% endblock %}

@@ -159,22 +159,6 @@ function submitNewItemForm(item_type){
     });    
 }
 
-function submitEditorForm(){
-    var form=$(".editor-form");
-    $.ajax({
-        type: form.attr('method'),
-        url: form.attr('action'),
-        data: form.serialize(),
-        success: function(response){
-            $("#content-right").html(response);
-        },
-        error: function(response){
-            $("#content-right").html();
-            alert(response.responseText);
-        }
-    });
-}
-
 function submitForm(target){
     $.ajax({
         type: target.attr('method'),
