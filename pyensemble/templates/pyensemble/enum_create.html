@@ -24,14 +24,8 @@
         <button type="submit" class="btn btn-primary">Submit enum</button>
     </div>
 
-    <script type="text/javascript">
-        $(function(){
-            $(".editor.form-actions button").on('click',function(ev){
-                ev.stopImmediatePropagation();
-                ev.preventDefault();
-                submitForm($(".editor-form"));
-            });
-        });
-    </script>
+{% endblock %}
 
+{% block formscript %}
+    {% include "pyensemble/js/custom_form_submit.js" %}
 {% endblock %}

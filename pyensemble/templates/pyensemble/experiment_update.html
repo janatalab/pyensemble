@@ -14,12 +14,17 @@
         <li class="nav-item">
             <a class="nav-link" href="#experimentForms">Forms</a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link" href="#experimentTickets">Tickets</a>
-        </li>
+
         <li class="nav-item">
             <a id="copyLink" class="nav-link" role="button" href="#" data-toggle="modal" data-target="#copyItemModal">Copy</a>
         </li>
+
+        {% if not form.is_group %}
+            <li class="nav-item">
+                <a class="nav-link" href="#experimentTickets">Tickets</a>
+            </li>
+        {% endif %}
+
         {% if form.is_group %}
             <li class="nav-item">
                 <a class="nav-link" role="button" href="{% url 'pyensemble-group:start_groupsession' %}">Start</a>
@@ -33,9 +38,11 @@
     {% crispy form %}
 
     {% if form.instance.pk %}
-        {% include "pyensemble/tickets.html" with tickets=tickets %}
+        {% if not form.is_group %}
+            {% include "pyensemble/tickets.html" with tickets=tickets %}
 
-        {% include "pyensemble/modals/tickets.html" with title=experiment.experiment_title tickets=tickets %}
+            {% include "pyensemble/modals/tickets.html" with title=experiment.experiment_title tickets=tickets %}
+        {% endif %}
     {% endif %}
 
     {% include "pyensemble/modals/add_item_modal.html" with item_type='form' %}

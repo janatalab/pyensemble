@@ -1,6 +1,6 @@
 <script type="text/javascript">
     $(function(){
-        $(".editor-form").on('submit',function(ev){
+        $(".editor.form-actions button").on('click',function(ev){
             ev.stopImmediatePropagation();
             ev.preventDefault();
             submitForm($(".editor-form"));
