@@ -657,7 +657,7 @@ def serve_form(request, experiment_id=None):
                     # If we are in group session trial, write group session context to trial info for the first response
                     if not idx and handler_name in ['group_trial']:
                         group_session = get_group_session(request)
-                        trial_info = group_session.context['params']
+                        trial_info = group_session.context.get('params',{})
 
                     # Create a Response object and append it to our list
                     responses.append(Response(

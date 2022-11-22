@@ -76,7 +76,9 @@
                                     {{gsss.user_session.subject.subject_id}}
                                 </h5>
                                 <div class="card-body">
-                                   {{gsss.user_session.subject.name_first}} {{gsss.user_session.subject.name_last}} 
+                                    {{gsss.user_session.subject.name_first}} {{gsss.user_session.subject.name_last}} 
+                               </div>
+                               <div class="card-body text-secondary">Most recent form:<br>    {{gsss.user_session.response_set.last.form.name}}
                                </div>
                             </div>
                             <div class="card-body">
