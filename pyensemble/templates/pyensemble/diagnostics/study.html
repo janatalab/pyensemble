@@ -1,0 +1,7 @@
+{% extends "pyensemble/diagnostics/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block main %}
+<div class="h1">Select a study on which to run diagnostics</div>
+{% crispy form %}
+{% endblock %}

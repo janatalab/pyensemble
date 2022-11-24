@@ -3,15 +3,20 @@
 # Specifies the core Ensemble models
 #
 import hashlib
+import json
 
 from django.db import models
 from django.urls import reverse
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 
+from django.http import JsonResponse
+from django.core.serializers.json import DjangoJSONEncoder
+
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField, EncryptedDateField
 
 from django.utils import timezone
+
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
@@ -120,6 +125,8 @@ class Experiment(models.Model):
 
     forms = models.ManyToManyField('Form', through='ExperimentXForm')
 
+    session_diagnostic_script = models.CharField(max_length=100, blank=True)
+
     def __str__(self):
         return self.title
 
@@ -166,14 +173,49 @@ class Session(models.Model):
 
     expired = models.BooleanField(default=False, blank=True)
 
+    # Should this session be excluded from consideration in experiment-wide calculations
+    exclude = models.BooleanField(default=False)
+
     # If the participant is being referred from a source other than PyEnsemble, e.g. Prolific, have a field for storing the session identifier at the origin, if available and desired.
     origin_sessid = models.CharField(max_length=64, null=True, blank=True)
+
+    diagnostics_data = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
 
     def save(self, *args, **kwargs):
         if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
             self.age = relativedelta(datetime.now(),self.subject.dob).years
         super().save(*args, **kwargs)
 
+    def diagnostics(self, *args, **kwargs):
+        if not self.experiment.session_diagnostic_script:
+            raise ValueError(f"No diagnostics script specified for {self.experiment.title}")
+
+        # Check whether we have cached diagnostics data
+        use_cached = kwargs.get('use_cached', False)
+
+        data = {}
+        if use_cached:
+            data = self.diagnostics_data
+
+        # Run the diagnostics if none are currently available
+        if not data:
+            # Parse the specified diagnostics script call
+            funcdict = parse_function_spec(self.experiment.session_diagnostic_script)
+
+            # Fetch the diagnostics method
+            method = fetch_experiment_method(funcdict['func_name'])
+
+            # Execute the method
+            response = method(self, *args, **kwargs)
+
+            # Convert the response data back out to a dict
+            data = json.loads(response.content)
+
+            # Cache the data
+            self.diagnostics_data = data
+            self.save()
+
+        return JsonResponse(data)
 
 
 
@@ -588,3 +630,24 @@ class ExperimentXForm(models.Model):
 class ExperimentXAttribute(models.Model):
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     attribute = models.ForeignKey('Attribute', db_constraint=True, on_delete=models.CASCADE)
+    attribute_value_double = models.FloatField(blank=True, null=True)
+    attribute_value_text = models.TextField(blank=True)
+
+
+class Study(models.Model):
+    title = models.CharField(unique=True, max_length=50)
+
+    def __str__(self):
+        return self.title
+
+
+class StudyXExperiment(models.Model):
+    study = models.ForeignKey('Study', db_constraint=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+    experiment_order = models.PositiveSmallIntegerField()
+
+    class Meta:
+        unique_together = (("study","experiment", "experiment_order"),)
+
+    def __str__(self):
+        return self.experiment.title

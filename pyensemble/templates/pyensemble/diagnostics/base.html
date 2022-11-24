@@ -1,0 +1,25 @@
+{% extends "pyensemble/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "PyEnsemble Diagnostics" %}{% endblock %}
+
+{% block header %}
+<nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light">
+    <a class="navbar-brand" href="{% url 'diagnostics' %}">PyEnsemble Diagnostics</a>
+    <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#editor-navbar" aria-expanded="false" aria-controls="editor-navbar">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="editor-navbar">
+        <ul class="navbar-nav mr-auto">
+            <li class="nav-item content-link"><a class="nav-link" href="{% url 'study-diagnostics' %}">Study</a></li>
+            <li><a class="nav-link content-link" href="{% url 'experiment-diagnostics' %}">Experiment</a></li>
+            <li><a class="nav-link content-link" href="{% url 'session-diagnostics' %}">Session</a></li>
+        </ul>
+    </div>
+  </div>
+</nav>
+{% endblock %}
+
+{% block main %}
+{% endblock %}

@@ -21,6 +21,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 from . import views
+from . import diagnostics
 
 import pyensemble.errors as error
 from pyensemble import importers
@@ -56,7 +57,6 @@ app_patterns = [
     path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
     path('admin/', admin.site.urls),
     path('editor/', views.EditorView.as_view(template_name='pyensemble/editor_base.html'),name='editor'),
-    path('editor/', include(editor_patterns)),
     path('ticket/create/', views.create_ticket, name='create_ticket'),
 
     path('run/<int:experiment_id>/start/', views.run_experiment, name='run_experiment'),
@@ -71,9 +71,18 @@ app_patterns = [
     path('group/', include('pyensemble.group.urls', namespace='pyensemble-group')),
 ]
 
+diagnostics_patterns = [
+    path('', diagnostics.index, name='diagnostics'),
+    path('study/', diagnostics.study, name='study-diagnostics'),
+    path('experiment/', diagnostics.experiment, name='experiment-diagnostics'),
+    path('session/', diagnostics.session, name='session-diagnostics'),
+]
+
 urlpatterns = [
 #   path('pyensemble/', include(app_patterns)),
     path('', include(app_patterns)),
+    path('editor/', include(editor_patterns)),
+    path('diagnostics/', include(diagnostics_patterns)),
 ]
 
 if settings.DEBUG:
