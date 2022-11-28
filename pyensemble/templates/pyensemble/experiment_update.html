@@ -38,7 +38,7 @@
     {% crispy form %}
 
     {% if form.instance.pk %}
-        {% if not form.is_group %}
+        {% if form.instance.is_group is False %}
             {% include "pyensemble/tickets.html" with tickets=tickets %}
 
             {% include "pyensemble/modals/tickets.html" with title=experiment.experiment_title tickets=tickets %}
