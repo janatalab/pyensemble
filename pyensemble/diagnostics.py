@@ -34,7 +34,7 @@ def study(request, *args, **kwargs):
 
             studydata = {
                 'study': study.title,
-                'experiment_data': []
+                'data': []
             }
 
             for sxe_item in sxe_list:
@@ -49,7 +49,11 @@ def study(request, *args, **kwargs):
                 # Call the experiment method to aggregate data for the experiment
                 response = get_experiment_data(experiment)
 
-                studydata['experiment_data'].append(json.loads(response.content))
+                # NOTE: We need to do some dataframe joining here on the subject indices. Need to handle case in which a participant may have initiated multiple sessions for a single experiment.
+
+
+                studydata['data'].append(json.loads(response.content))
+
 
             return JsonResponse(studydata)
 

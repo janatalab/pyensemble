@@ -310,4 +310,5 @@ class StudySelectForm(forms.Form):
     # widget=forms.Select(attrs={'class': 'form-control'})
 
     helper = FormHelper()
+    helper.form_class = 'diagnostics-selector-form'
     helper.add_input(Submit('submit', 'Submit'))

@@ -2,6 +2,52 @@
 {% load crispy_forms_tags %}
 
 {% block main %}
-<div class="h1">Select a study on which to run diagnostics</div>
-{% crispy form %}
+    <div class="h1">Select a study on which to run diagnostics</div>
+
+    {% crispy form %}
+
+    <div id="results">
+
+    </div>
+{% endblock %}
+
+{% block appscript %}
+<script>
+    function bindData(data){
+        d3.select("#results")
+            .append("table").attr("class","table table-hover")
+            .selectAll("tr")
+                .data(data.data).enter()
+                    .append("tr")
+            .selectAll("td")
+                .data(function(d) {
+                    return d;
+                }).enter()
+                    .append("td")
+                        .text(function(d) {
+                            return d;
+                        });
+    };
+
+    $(function (){
+        $(".diagnostics-selector-form").on('submit', function(ev){
+            ev.stopImmediatePropagation();
+            ev.preventDefault();
+
+            let target = $(".diagnostics-selector-form");
+
+            $.ajax({
+                type: target.attr('method'),
+                url: target.attr('action'),
+                data: target.serialize(),
+                success: function(data){
+                    bindData(data);
+                },
+                error: function(response,errorText){
+                    alert(response.responseText);
+                },
+            });
+        })
+    });
+</script>
 {% endblock %}
