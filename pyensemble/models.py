@@ -218,7 +218,6 @@ class Session(models.Model):
         return JsonResponse(data)
 
 
-
 class Stimulus(models.Model):
     name = models.CharField(max_length=200)
     description = models.CharField(max_length=30)

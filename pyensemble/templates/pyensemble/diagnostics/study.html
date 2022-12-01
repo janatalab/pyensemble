@@ -2,30 +2,83 @@
 {% load crispy_forms_tags %}
 
 {% block main %}
-    <div class="h1">Select a study on which to run diagnostics</div>
+    <div class="container">
+        <div class="h3">Select a study on which to run diagnostics</div>
 
-    {% crispy form %}
+        <div class="">
+            {% crispy form %}
+        </div>
+    </div>
 
-    <div id="results">
+    <div class="container">
+        <div id="results" class="col-12 mt-5 overflow-auto sticky-top">
 
+        </div>
     </div>
 {% endblock %}
 
 {% block appscript %}
 <script>
     function bindData(data){
-        d3.select("#results")
-            .append("table").attr("class","table table-hover")
-            .selectAll("tr")
-                .data(data.data).enter()
-                    .append("tr")
+        // Extract the column labels
+        let column_tuples = Object.keys(Object.values(data.data)[0]); 
+
+        // Build the header
+        let level_items = column_tuples.map(function(t){return t.split(",").map(function(d){return d.match(/\b.*\b/)[0]})})
+
+        let num_levels = level_items[0].length;
+
+        // Initialize our levels array
+        let levels = [];
+
+        for (let l=0; l<num_levels; l++){
+            levels[l] = level_items.map(function(d){return d[l]});
+        }
+
+        // Verify the number of levels
+        if (num_levels > 1) {
+            let counter = {};
+
+            for (item of levels[0]){
+                if (counter[item]) {
+                    counter[item] += 1;
+                } else {
+                    counter[item] = 1;
+                }
+            };
+
+            // Replace levels[0] with the counter data
+            levels[0] = d3.entries(counter);
+        }
+
+        // Create our basic table
+        let table = d3.select("#results").append("table").attr("class","table table-hover"),
+            thead = table.append("thead"),
+            tbody = table.append("tbody");
+
+        // Add the column labels
+        thead.selectAll("tr")
+            .data(levels)
+            .enter()
+            .append("tr")
+            .selectAll("th")
+                .data(function(d){return d;})
+                .enter()
+                .append("th")
+                    .attr("colspan", function(d){return d.value;})
+                    .text(function(d){return d.key ? d.key:d;});
+
+        tbody.selectAll("tr")
+            .data(d3.entries(data.data))
+            .enter()
+            .append("tr")
             .selectAll("td")
                 .data(function(d) {
-                    return d;
+                    return d3.entries(d.value);
                 }).enter()
                     .append("td")
                         .text(function(d) {
-                            return d;
+                            return d.value;
                         });
     };
 
@@ -41,6 +94,7 @@
                 url: target.attr('action'),
                 data: target.serialize(),
                 success: function(data){
+                    data.data = JSON.parse(data.data);
                     bindData(data);
                 },
                 error: function(response,errorText){

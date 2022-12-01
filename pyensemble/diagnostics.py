@@ -1,5 +1,6 @@
 # diagnostics.py
 import json
+import pandas as pd
 
 from django.contrib.auth.decorators import login_required
 
@@ -37,7 +38,7 @@ def study(request, *args, **kwargs):
                 'data': []
             }
 
-            for sxe_item in sxe_list:
+            for idx, sxe_item in enumerate(sxe_list):
                 # Get our experiment object
                 experiment = sxe_item.experiment
 
@@ -51,10 +52,32 @@ def study(request, *args, **kwargs):
 
                 # NOTE: We need to do some dataframe joining here on the subject indices so that we end up with a single dataframe. 
                 # NOTE: Need to handle case in which a participant may have initiated multiple sessions for a single experiment.
+                experiment_data = json.loads(response.content)
 
+                # Extract the session data
+                session_data = experiment_data['session_data']
 
-                studydata['data'].append(json.loads(response.content))
+                # Get our list of subjects
+                subjects = [sess['subject_id'] for sess in session_data]
 
+                # Create our multiindex
+                fields = session_data[0].keys()
+                colindex = pd.MultiIndex.from_product([[experiment.title],fields], names=['experiment','details'])
+
+                # Convert to Pandas dataframe
+                df = pd.DataFrame(session_data)
+
+                # Set the index
+                df.index =subjects
+
+                # Set the columns
+                df.columns = colindex
+
+                # Append the dataframe
+                studydata['data'].append(df)
+
+            # Join the dataframes together and convert to json
+            studydata['data'] = studydata['data'][0].join(studydata['data'][1:]).to_json(orient='index')
 
             return JsonResponse(studydata)
 
@@ -81,17 +104,49 @@ def session(request, *args, **kwargs):
 # The study, experiment, and session views ultimately are all expected to redirect to views that return JSON data that correspond to elements in a Pandas DataFrame
 
 def get_experiment_data(experiment, **kwargs):
-    # Get the list of sessions
-    sessions = experiment.session_set.all()
+    # There is a bit of tension here whether to return data organized by session or by subject. For most use cases, subject makes more sense.
+    data = {'experiment': experiment.title}
 
-    # Iterate over sessions
-    data = {
-        'experiment': experiment.title,
-        'session_data': [],
-    }
-    for session in sessions:
-        response = session.diagnostics(**kwargs)
+    if 'organize_by' in kwargs.keys():
+        organize_by = kwargs.get('organize_by', 'subject')
+    else:
+        organize_by = 'subject'
 
-        data['session_data'].append(json.loads(response.content))
+    if organize_by == 'session':
+        # Get the list of sessions
+        sessions = experiment.session_set.all()
+
+        # Iterate over sessions
+        data.update({'session_data': []})
+
+        for session in sessions:
+            response = session.diagnostics(**kwargs)
+
+            data['session_data'].append(json.loads(response.content))
+
+    elif organize_by == 'subject':
+        # Get the list of subjects
+        subjects = experiment.session_set.values_list('subject__subject_id',flat=True).distinct()
+
+        data.update({
+            'session_data': [],
+            'num_sessions_per_subject': [],
+            })
+
+        # Iterate over subjects
+        for subject in subjects:
+            sessions = experiment.session_set.filter(subject__subject_id=subject)
+
+            # Note the number of sessions for this subject
+            data['num_sessions_per_subject'].append((subject, sessions.count()))
+
+            # Only use the last session (this assumes previous sessions were failed attempts which may not always be a valid assumption)
+            session = sessions.last()
+
+            # Run the diagnostics
+            response = session.diagnostics(**kwargs)
+
+            data['session_data'].append(json.loads(response.content))
+
 
     return JsonResponse(data)
