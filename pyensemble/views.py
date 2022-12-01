@@ -397,8 +397,10 @@ def run_experiment(request, experiment_id=None):
 
         # If the participant has not yet registered, create a new temporary entry. The id needs to be a unique hash, otherwise we run into collisions.
         if not subject:
-            tmp_subject_id = request.session._session_key
-            subject, created = Subject.objects.get_or_create(subject_id=tmp_subject_id)
+            if not request.session.session_key:
+                request.session.save()
+
+            subject, created = Subject.objects.get_or_create(subject_id=request.session.session_key)
 
         # See whether we were passed in an explicit session_id as a URL parameter
         origin_sessid = request.GET.get('SESSION_ID', None)
