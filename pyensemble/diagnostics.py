@@ -49,7 +49,8 @@ def study(request, *args, **kwargs):
                 # Call the experiment method to aggregate data for the experiment
                 response = get_experiment_data(experiment)
 
-                # NOTE: We need to do some dataframe joining here on the subject indices. Need to handle case in which a participant may have initiated multiple sessions for a single experiment.
+                # NOTE: We need to do some dataframe joining here on the subject indices so that we end up with a single dataframe. 
+                # NOTE: Need to handle case in which a participant may have initiated multiple sessions for a single experiment.
 
 
                 studydata['data'].append(json.loads(response.content))
