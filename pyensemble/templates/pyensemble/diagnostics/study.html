@@ -11,7 +11,7 @@
     </div>
 
     <div class="container">
-        <div id="results" class="col-12 mt-5 overflow-auto sticky-top">
+        <div id="results" class="mt-5 overflow-auto sticky-top">
 
         </div>
     </div>
@@ -21,7 +21,7 @@
 <script>
     function bindData(data){
         // Extract the column labels
-        let column_tuples = Object.keys(Object.values(data.data)[0]); 
+        let column_tuples = Object.keys(Object.values(data.experiment_data)[0]); 
 
         // Build the header
         let level_items = column_tuples.map(function(t){return t.split(",").map(function(d){return d.match(/\b.*\b/)[0]})})
@@ -48,13 +48,13 @@
             };
 
             // Replace levels[0] with the counter data
-            levels[0] = d3.entries(counter);
+            levels[0] = [{"key": "index-label", "value": "Subject"}].concat(d3.entries(counter));
         }
 
         // Create our basic table
-        let table = d3.select("#results").append("table").attr("class","table table-hover"),
-            thead = table.append("thead"),
-            tbody = table.append("tbody");
+        let table = d3.select("#results").append("table").attr("class","diagnostics table table-hover"),
+            thead = table.append("thead").attr("class","diagnostics"),
+            tbody = table.append("tbody").attr("class","diagnostics");
 
         // Add the column labels
         thead.selectAll("tr")
@@ -65,20 +65,37 @@
                 .data(function(d){return d;})
                 .enter()
                 .append("th")
-                    .attr("colspan", function(d){return d.value;})
-                    .text(function(d){return d.key ? d.key:d;});
+                    .attr("rowspan", function(d){
+                        return d.key=="index-label" ? levels.length : 1;
+                    })
+                    .attr("colspan", function(d){
+                        return d.key=="index-label" ? 1 : d.value;
+                    })
+                    .attr("class", function(d){
+                        return d.key=="index-label" ? "freeze-pane index" : "";
+                    })
+                    .text(function(d){
+                        if (d.key=="index-label"){
+                            return d.value;
+                        } else {
+                            return d.key ? d.key:d;
+                        }
+                    });
 
         tbody.selectAll("tr")
-            .data(d3.entries(data.data))
+            .data(d3.entries(data.experiment_data))
             .enter()
             .append("tr")
             .selectAll("td")
                 .data(function(d) {
-                    return d3.entries(d.value);
+                    return [{"key":"index-label","value":d.key}].concat(d3.entries(d.value));
                 }).enter()
                     .append("td")
                         .text(function(d) {
                             return d.value;
+                        })
+                        .attr("class", function(d,i){
+                            return i ? "" : "text-info freeze-pane index";
                         });
     };
 
@@ -94,7 +111,7 @@
                 url: target.attr('action'),
                 data: target.serialize(),
                 success: function(data){
-                    data.data = JSON.parse(data.data);
+                    data.experiment_data = JSON.parse(data.experiment_data);
                     bindData(data);
                 },
                 error: function(response,errorText){

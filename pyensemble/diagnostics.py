@@ -35,7 +35,7 @@ def study(request, *args, **kwargs):
 
             studydata = {
                 'study': study.title,
-                'data': []
+                'experiment_data': []
             }
 
             for idx, sxe_item in enumerate(sxe_list):
@@ -57,9 +57,6 @@ def study(request, *args, **kwargs):
                 # Extract the session data
                 session_data = experiment_data['session_data']
 
-                # Get our list of subjects
-                subjects = [sess['subject_id'] for sess in session_data]
-
                 # Create our multiindex
                 fields = session_data[0].keys()
                 colindex = pd.MultiIndex.from_product([[experiment.title],fields], names=['experiment','details'])
@@ -68,16 +65,16 @@ def study(request, *args, **kwargs):
                 df = pd.DataFrame(session_data)
 
                 # Set the index
-                df.index =subjects
+                df.index = experiment_data['subjects']
 
                 # Set the columns
                 df.columns = colindex
 
                 # Append the dataframe
-                studydata['data'].append(df)
+                studydata['experiment_data'].append(df)
 
             # Join the dataframes together and convert to json
-            studydata['data'] = studydata['data'][0].join(studydata['data'][1:]).to_json(orient='index')
+            studydata['experiment_data'] = studydata['experiment_data'][0].join(studydata['experiment_data'][1:]).to_json(orient='index')
 
             return JsonResponse(studydata)
 
@@ -107,10 +104,7 @@ def get_experiment_data(experiment, **kwargs):
     # There is a bit of tension here whether to return data organized by session or by subject. For most use cases, subject makes more sense.
     data = {'experiment': experiment.title}
 
-    if 'organize_by' in kwargs.keys():
-        organize_by = kwargs.get('organize_by', 'subject')
-    else:
-        organize_by = 'subject'
+    organize_by = kwargs.get('organize_by', 'subject')
 
     if organize_by == 'session':
         # Get the list of sessions
@@ -129,6 +123,7 @@ def get_experiment_data(experiment, **kwargs):
         subjects = experiment.session_set.values_list('subject__subject_id',flat=True).distinct()
 
         data.update({
+            'subjects': list(subjects),
             'session_data': [],
             'num_sessions_per_subject': [],
             })

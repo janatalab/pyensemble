@@ -63,3 +63,27 @@ input[type=number] {
 #form_table .textinput {
     width: 300px;
 }
+
+#results {
+    min-height: 70vh;
+}
+
+table.diagnostics {
+    position: absolute; 
+    top: 0px;
+}
+
+thead.diagnostics {
+    position: sticky; 
+    top: 0; 
+    z-index: 50; 
+    background-color: #fafafa
+}
+
+.freeze-pane.index {
+    position: sticky;
+    left: 0; 
+    z-index: 20;
+    background-color: #fafafa
+}
+        
