@@ -1,6 +1,7 @@
 # diagnostics.py
 import json
 import pandas as pd
+import numpy as np
 
 from django.contrib.auth.decorators import login_required
 
@@ -73,8 +74,21 @@ def study(request, *args, **kwargs):
                 # Append the dataframe
                 studydata['experiment_data'].append(df)
 
-            # Join the dataframes together and convert to json
-            studydata['experiment_data'] = studydata['experiment_data'][0].join(studydata['experiment_data'][1:]).to_json(orient='index')
+            # Join the dataframes together
+            studydata['experiment_data'] = studydata['experiment_data'][0].join(studydata['experiment_data'][1:])
+
+            # Get column-level statistics that we want to communicate to the client
+            studydata['experiment_data'] = studydata['experiment_data'].fillna(value=np.nan)
+
+            studydata['stats'] = {
+                'min': studydata['experiment_data'].min().to_json(orient='index'),
+                'max': studydata['experiment_data'].max().to_json(orient='index'),
+                'mean': studydata['experiment_data'].mean().to_json(orient='index'),
+                'median': studydata['experiment_data'].median().to_json(orient='index'),
+            }
+
+            # Convert to json
+            studydata['experiment_data'] = studydata['experiment_data'].to_json(orient='index')
 
             return JsonResponse(studydata)
 
