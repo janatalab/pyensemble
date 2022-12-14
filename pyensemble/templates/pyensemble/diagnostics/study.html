@@ -2,29 +2,78 @@
 {% load crispy_forms_tags %}
 
 {% block main %}
-    <div class="container">
-        <div class="h3">Select a study on which to run diagnostics</div>
+    <div class="container" id="study_selection">
+        <div class="row justify-content-center">
+            <div class="h5 col-12">Select a study on which to run diagnostics</div>
 
-        <div class="">
-            {% crispy form %}
+            <div class="col-4">
+                {% crispy form %}
+            </div>
         </div>
     </div>
 
-    <div class="container">
-        <div id="results" class="mt-5 overflow-auto sticky-top">
-
-        </div>
+    <div class="container" id="results_section">    
+            <div id="study_title" class="m-3 h4"></div>
+            <div id="results_table" class="mt-2 overflow-auto sticky-top"></div>
     </div>
 {% endblock %}
 
 {% block appscript %}
 <script>
+    function parseColumnTuple(t){
+        return t.split(",").map(function(d){return d.match(/\b.*\b/)[0]})
+    }
+
+    function extractSessionIDs(subject_info){
+        let session_ids = Object.keys(subject_info)
+            .filter(function(d){
+                return (d.match(/session_id/) && subject_info[d]) ? true : false;
+            })
+            .map(function(d){return subject_info[d];});
+
+        return session_ids
+    }
+
+    function excludeSubject(){
+        if (!this.checked) {return};
+
+        let subject_id = this.id.match(/(\w*)-exclude/)[1];
+
+        let subject_info = d3.select(document.getElementById(subject_id)).datum();
+
+        var session_ids = extractSessionIDs(subject_info.value);
+
+        // let target = $(".exclude-subject-form");
+        $.ajax({
+                url: "{% url 'session-exclude' %}",
+                type: 'POST',
+                dataType: "json",        
+                data: {
+                    'study': $("#study_title").text(),
+                    'session_ids': session_ids
+                },
+                success: function(data){
+                    updateResults(data);
+                },
+                error: function(response,errorText){
+                    alert(response.responseText);
+                },
+        });
+    }
+
+    function updateResults(data){
+        $("#study_title").text(data.study); 
+        data.experiment_data = JSON.parse(data.experiment_data);
+        bindData(data);
+    }
+
     function bindData(data){
         // Extract the column labels
         let column_tuples = Object.keys(Object.values(data.experiment_data)[0]); 
 
         // Build the header
-        let level_items = column_tuples.map(function(t){return t.split(",").map(function(d){return d.match(/\b.*\b/)[0]})})
+        // let level_items = column_tuples.map(function(t){return t.split(",").map(function(d){return d.match(/\b.*\b/)[0]})})
+        let level_items = column_tuples.map(parseColumnTuple);
 
         let num_levels = level_items[0].length;
 
@@ -52,12 +101,14 @@
         }
 
         // Create our basic table
-        let table = d3.select("#results").append("table").attr("class","diagnostics table table-hover"),
-            thead = table.append("thead").attr("class","diagnostics"),
-            tbody = table.append("tbody").attr("class","diagnostics");
+        if (d3.select("#results_table").select("table").empty()){
+            var table = d3.select("#results_table").append("table").attr("class","diagnostics table table-hover"),
+                thead = table.append("thead").attr("class","diagnostics"),
+                tbody = table.append("tbody").attr("class","diagnostics");            
+        };
 
         // Add the column labels
-        thead.selectAll("tr")
+        d3.select("#results_table thead").selectAll("tr")
             .data(levels)
             .enter()
             .append("tr")
@@ -82,34 +133,45 @@
                         }
                     });
 
-        tbody.selectAll("tr")
-            .data(d3.entries(data.experiment_data))
-            .enter()
-            .append("tr")
-            .selectAll("td")
-                .data(function(d) {
-                    return [{"key":"index-label","value":d.key}].concat(d3.entries(d.value));
-                }).enter()
-                    .append("td")
-                        .html(function(d,i) {
-                            if (d.key.match(/exclude/)){
-                                let val = "<input type='checkbox' class='exclude-checkbox' ";
-                                if (d.value=="true") {
-                                    val += "checked";
+        let subjects = d3.select("#results_table tbody").selectAll("tr")
+            .data(d3.entries(data.experiment_data), function(d){return d.key;})
+
+        // Remove rows for excluded subjects
+        subjects.exit().remove();
+
+        // Create rows for any new subjects
+        subjects.enter()
+                .append("tr")
+                    .attr("id", function(d){
+                        return d.key;
+                    })
+                .selectAll("td")
+                    .data(function(d) {
+                        return [{"key":"index-label","value":d.key}].concat(d3.entries(d.value));
+                    }).enter()
+                        .append("td")
+                            .html(function(d,i) {
+                                if (d.key.match(/exclude/)){
+                                    let val = "<input type='checkbox' class='exclude-checkbox'";
+                                    if (d.value=="true") {
+                                        val += " checked";
+                                    }
+                                    val += ">";
+                                    return val
+                                } else {
+                                    let val = d.value;
+                                    if (d.key == "index-label"){
+                                        val += "<div class='text-danger'>Exclude <input type='checkbox' class='subject exclude-checkbox' id='"+d.value+"-exclude' ></div>";
+                                    }
+                                    return val;
                                 }
-                                val += ">";
-                                return val
-                            } else {
-                                let val = d.value;
-                                if (d.key == "index-label"){
-                                    val += "<div class='text-danger'>Exclude <input type='checkbox' class='subject exclude-checkbox'></div>";
-                                }
-                                return val;
-                            }
-                        })
-                        .attr("class", function(d,i){
-                            return i ? "" : "text-primary freeze-pane index";
-                        });
+                            })
+                            .attr("class", function(d,i){
+                                return i ? "" : "text-primary freeze-pane index";
+                            });
+
+        // Attach event handlers
+        d3.selectAll(".subject.exclude-checkbox").on("change", excludeSubject);
     };
 
     $(function (){
@@ -124,8 +186,7 @@
                 url: target.attr('action'),
                 data: target.serialize(),
                 success: function(data){
-                    data.experiment_data = JSON.parse(data.experiment_data);
-                    bindData(data);
+                    updateResults(data);
                 },
                 error: function(response,errorText){
                     alert(response.responseText);

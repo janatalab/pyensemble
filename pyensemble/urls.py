@@ -76,6 +76,7 @@ diagnostics_patterns = [
     path('study/', diagnostics.study, name='study-diagnostics'),
     path('experiment/', diagnostics.experiment, name='experiment-diagnostics'),
     path('session/', diagnostics.session, name='session-diagnostics'),
+    path('session/exclude/', diagnostics.exclude_session, name='session-exclude'),
 ]
 
 urlpatterns = [

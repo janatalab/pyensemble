@@ -64,7 +64,19 @@ input[type=number] {
     width: 300px;
 }
 
-#results {
+#study_selection {
+    position: relative;
+    top: 75px;
+}
+
+#results_section {
+    position: relative;
+    top: 75px;
+}
+
+
+#results_table {
+    position: relative;
     min-height: 70vh;
 }
 
