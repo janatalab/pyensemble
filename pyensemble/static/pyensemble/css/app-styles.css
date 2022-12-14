@@ -63,3 +63,42 @@ input[type=number] {
 #form_table .textinput {
     width: 300px;
 }
+
+#study_selection {
+    position: relative;
+    top: 75px;
+}
+
+#results_section {
+    position: relative;
+    top: 75px;
+}
+
+
+#results_table {
+    position: relative;
+    min-height: 65vh;
+}
+
+table.diagnostics {
+    position: absolute; 
+    top: 0px;
+}
+
+thead.diagnostics {
+    position: sticky; 
+    top: 0; 
+    z-index: 50; 
+    background-color: #fafafa
+}
+
+.freeze-pane.index {
+    position: sticky;
+    left: 0; 
+    z-index: 20;
+    background-color: #fafafa
+}
+        
+td.session_id {
+    border-left: 2px solid #aaaaff;
+}

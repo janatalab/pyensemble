@@ -32,7 +32,10 @@
                     <div class="col-4">{{form.end_date.label}}{% crispy_field form.end_date %}</div>
 
                     <div class="col-12">{{form.sona_url.label}}{% crispy_field form.sona_url %}</div>
+
                     <div class="col-12">{{form.params.label}}{% crispy_field form.params %}</div>
+
+                    <div class="col">{{form.session_diagnostic_script.label}}{% crispy_field form.session_diagnostic_script %}</div>
                 </div>
             </li>
             {% if form.instance.pk %}

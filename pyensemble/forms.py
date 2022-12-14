@@ -13,7 +13,7 @@ from crispy_forms.bootstrap import InlineRadios, InlineCheckboxes, UneditableFie
 
 from captcha.fields import ReCaptchaField
 
-from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket
+from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket, Study
 
 import pdb
 
@@ -304,3 +304,11 @@ class CaptchaForm(forms.Form):
     captcha = ReCaptchaField()
 
 
+class StudySelectForm(forms.Form):
+
+    study = forms.ModelChoiceField(queryset=Study.objects.all())
+    # widget=forms.Select(attrs={'class': 'form-control'})
+
+    helper = FormHelper()
+    helper.form_class = 'diagnostics-selector-form'
+    helper.add_input(Submit('submit', 'Submit'))

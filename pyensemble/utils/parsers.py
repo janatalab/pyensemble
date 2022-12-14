@@ -21,6 +21,7 @@ def parse_function_spec(function_str):
     # Further process the parameters to convert into args and kwargs
     params = specdict['params']
 
+    # Parameters are separated by commas
     params_array = params.split(',')
 
     args=[]
