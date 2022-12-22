@@ -110,14 +110,14 @@ def get_study_data(study, **kwargs):
     studydata['experiment_data'] = studydata['experiment_data'].fillna(value=np.nan)
 
     studydata['stats'] = {
-        'min': studydata['experiment_data'].min().to_json(orient='index'),
-        'max': studydata['experiment_data'].max().to_json(orient='index'),
-        'mean': studydata['experiment_data'].mean().to_json(orient='index'),
-        'median': studydata['experiment_data'].median().to_json(orient='index'),
+        'min': studydata['experiment_data'].min().to_json(orient='index', double_precision=2),
+        'max': studydata['experiment_data'].max().to_json(orient='index', double_precision=2),
+        'mean': studydata['experiment_data'].mean().to_json(orient='index', double_precision=2),
+        'median': studydata['experiment_data'].median().to_json(orient='index', double_precision=2),
     }
 
-    # Convert to json
-    studydata['experiment_data'] = studydata['experiment_data'].to_json(orient='index')
+    # Now convert the experiment data to json
+    studydata['experiment_data'] = studydata['experiment_data'].to_json(orient='index', double_precision=2)
 
     return studydata
 
