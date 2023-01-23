@@ -132,9 +132,6 @@ python/src
 # experiment directories
 pyensemble/experiments/*/
 
-# PyEnsemble migrations
-migrations/
-
 # Dev settings
 settings/*dev*.py
 settings/local/
