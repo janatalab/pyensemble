@@ -65,7 +65,17 @@
             <a class="btn btn-danger" href="{% url 'pyensemble-group:abort_groupsession' %}">Abort</a>
             <a class="btn btn-success" href="{% url 'pyensemble-group:end_groupsession' %}">End</a>
         </div>
-        <div class="row border-top my-3">
+
+        <div class="row my-3">
+            <div class='col-12 text-center h3 pt-3'>Session Notes</div>
+            <div id="session_notes" class='col-12'>
+                {% crispy form %}
+                <div id="notes_status" class="text-left text-muted"></div>
+            </div>
+            
+        </div>
+
+        <div class="row my-3">
             <div class='col-12 text-center h3 pt-3'>Participants</div>
             <div class="col-12">
                 <div class="row">
@@ -90,4 +100,40 @@
             </div>
         </div>
     </div>
+{% endblock %}
+
+{% block formscript %}
+    <script type="text/javascript">
+        $(document).ready(function () {
+            // Add your JavaScript code here
+
+            function submit_form(target){
+                $.ajax({
+                    type: target.attr('method'),
+                    url: target.attr('action'),
+                    data: target.serialize(),
+                    success: function(data){
+                        $("#notes_status").text("updated "+Date(Date.now()));
+                        // updateResults(data);
+                    },
+                    error: function(response,errorText){
+                        alert(response.responseText);
+                    },
+                });            
+            }
+
+            $(function (){
+                $("#id_notes").on('change', function(ev){
+                    ev.stopImmediatePropagation();
+                    ev.preventDefault();
+
+                    let target = $("#session-notes-form");
+
+                    submit_form(target);
+                })
+            });
+        });
+
+        
+    </script>
 {% endblock %}

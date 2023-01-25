@@ -13,7 +13,7 @@ from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
 
 from .models import Group, GroupSession, GroupSessionSubjectSession
-from .forms import GroupForm, get_group_code_form, GroupSessionForm
+from .forms import GroupForm, get_group_code_form, GroupSessionForm, GroupSessionNotesForm
 
 from pyensemble.models import Ticket, Session
 from pyensemble.tasks import create_tickets
@@ -198,14 +198,26 @@ def get_groupsession_participants(request):
 
 @login_required
 def groupsession_status(request):
-    session = get_group_session(request)
+    if request.method == 'POST':
+        form = GroupSessionNotesForm(request.POST)
 
-    context = {
-        'session': session,
-    }
+        if form.is_valid():
+            session = GroupSession.objects.get(pk=form.cleaned_data['id'])
+            session.notes = form.cleaned_data['notes']
+            session.save()
+            return HttpResponse("ok")
 
-    template = 'group/session_status.html'
-    return render(request, template, context)
+    else:
+        session = get_group_session(request)
+        form = GroupSessionNotesForm(instance=session, initial={'id': session.pk})
+
+        context = {
+            'session': session,
+            'form': form
+        }
+
+        template = 'group/session_status.html'
+        return render(request, template, context)
 
 def get_groupuser_session(request):
     # Get the group session ID from the session cache

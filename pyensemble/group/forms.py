@@ -13,6 +13,8 @@ from pyensemble.models import Ticket, Experiment
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit
 
+import pdb
+
 class GroupForm(forms.ModelForm):
     class Meta:
         model = Group
@@ -96,3 +98,20 @@ class GroupSessionForm(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.form_method = 'post'
         self.helper.add_input(Submit('submit', 'Submit'))
+
+class GroupSessionNotesForm(forms.ModelForm):
+    class Meta:
+        model = GroupSession
+        fields = ('notes',)
+
+    def __init__(self, *args, **kwargs):
+        super(GroupSessionNotesForm, self).__init__(*args, **kwargs)
+
+        self.fields['id'] = forms.IntegerField(widget=forms.HiddenInput)
+        self.fields['notes'] = forms.CharField(widget=forms.Textarea(attrs={'rows':5}))
+        self.fields['notes'].label = ''
+        self.fields['notes'].required = False
+
+        self.helper = FormHelper()
+        self.helper.form_id = 'session-notes-form'
+        self.helper.form_method = 'post'           

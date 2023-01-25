@@ -43,6 +43,9 @@ class GroupSession(models.Model):
     # Mechanism for caching current (trial) context
     context = models.JSONField(default=init_session_context)
 
+    # Group session notetaking
+    notes = models.TextField(blank=True)
+
     # Mechanism for indicating session state
     class States(models.IntegerChoices):
         UNKNOWN = 0
