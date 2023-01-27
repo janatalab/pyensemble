@@ -110,8 +110,7 @@ def terminate_groupsession(request, manner):
         session.state = manner
         session.save()
 
-    template = 'group/session_status.html'
-    return render(request, template, {'session':session})
+    return HttpResponseRedirect(reverse('pyensemble-group:groupsession_status'))
 
 @login_required
 def end_groupsession(request):
