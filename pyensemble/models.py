@@ -10,8 +10,12 @@ from django.urls import reverse
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 
+from django.template import loader
+
 from django.http import JsonResponse
 from django.core.serializers.json import DjangoJSONEncoder
+
+from django.core.mail import EmailMultiAlternatives
 
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField, EncryptedDateField
 
@@ -131,6 +135,8 @@ class Experiment(models.Model):
 
     session_diagnostic_script = models.CharField(max_length=100, blank=True)
 
+    post_session_callback = models.CharField(max_length=100, blank=True)
+
     def __str__(self):
         return self.title
 
@@ -220,6 +226,24 @@ class Session(models.Model):
             self.save()
 
         return JsonResponse(data)
+
+    def run_post_session(self, *args, **kwargs):
+        # Get our callback
+        callback = self.experiment.post_session_callback
+
+        if not callback:
+            return
+
+        # We may want to set this up so that it runs asynchronously
+
+        # Parse the function call specification
+        funcdict = parse_function_spec(callback)
+
+        # Get our method
+        method = fetch_experiment_method(funcdict['func_name'])
+
+        # Evaluate our method
+        response = method(self, *funcdict['args'],**funcdict['kwargs'])
 
 
 class Stimulus(models.Model):
@@ -637,6 +661,12 @@ class ExperimentXAttribute(models.Model):
     attribute_value_text = models.TextField(blank=True)
 
 
+#
+# Study models - studies are sets of experiments
+#
+
+# TODO: Create an Editor view, like the Experiment editor, that allows one to generate a study.
+
 class Study(models.Model):
     title = models.CharField(unique=True, max_length=50)
 
@@ -654,3 +684,78 @@ class StudyXExperiment(models.Model):
 
     def __str__(self):
         return self.experiment.title
+
+# One of the needs associated with studies is to send various notifications with reminders or links pertaining to their participation. It would be nice for this to be automated rather than managed manually. 
+# Necessary tasks include:
+# 1) Generating subject specific tickets for each experiment
+# 2) Sending notifications (via email) before and/or after any given experiment
+#   Notifications should be scheduled by experiment-specific scheduling callbacks. These can be registered in a field in the StudyXExperiment model. These should probably kept separate from any ticket-generating callbacks. Actually, one can just specify a single experiment-specific post-session callback in the StudyXExperiment table and this callback can deal with generating any tickets and setting up notifications. Actually, just add this ability to the Experiment model. We then just need a celery process to scan the notifications table every few minutes to see whether any notifications need to go out.
+# The musmemfmri bioloop experiments are the test case of this
+
+# For now, we are making the assumption that if an experiment is part of a study it is part of only study. This allows for some simplifying logic.
+
+# Rather than rendering a notification at time of sending, render it fully and store the full notification message in the table/database. Either that or specify template and a JSONField containing context. The latter option is a bit less costly.
+
+# One issue we have to deal with is the timezone in which the participant completes the study in so that the timing of the messages is appropriate. We should store all times in UTC and leave it up to the experiment-specific scheduler to work out the appropriate offset.
+
+class Notification(models.Model):
+    subject = models.ForeignKey('Subject', db_constraint=True, on_delete=models.CASCADE)
+    created = models.DateTimeField(
+        auto_now_add=True,
+        blank=False,
+        null=False,
+        editable=False,
+        help_text="Time at which the notification entry was created"
+    )
+    scheduled = models.DateTimeField(
+        null=False,
+        help_text="Time for which sending of the notification is scheduled"
+    )
+    sent = models.DateTimeField(
+        null=True,
+        help_text="Time at which the notification was sent"
+    )
+
+    label = models.CharField(max_length=100, blank=True, help_text="Optional label for type of notification")
+    template = models.CharField(max_length=100, blank=False)
+    context = models.JSONField(null=False)
+
+    # Experiment that generated this notification
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE, null=True)
+
+    def dispatch(self):
+        # Get our template
+        template = loader.get_template(self.template)
+
+        # Render the content as HTML
+        html_content = template.render(self.context)
+        
+        # Create the text alternative
+        text_content = strip_tags(html_content)
+
+        # Get the from email address
+        from_email = settings.DEFAULT_FROM_EMAIL
+
+        # Get the message subject
+        msg_subject = self.context['subject']
+
+        # Get the subject's email
+        to_email = [self.subject.email]
+
+        # Construct the basic message
+        message = EmailMultiAlternatives(
+            msg_subject,
+            text_content,
+            from_email,
+            to_email
+        )
+
+        # Add the HTML-formatted version
+        message.attach_alternative(html_content, "text/html")
+
+        # Send the message
+        message.send()
+
+        # Log the time we sent the notification
+        self.sent = datetime.now()
+        self.save()

@@ -872,6 +872,9 @@ def serve_form(request, experiment_id=None):
         session.end_datetime = timezone.now()
         session.save()
 
+        # Run any post-session callback
+        session.run_post_session()
+
         # Check whether we have a SONA redirect to handle
         sona_code = expsessinfo['sona']
 
@@ -891,6 +894,7 @@ def serve_form(request, experiment_id=None):
                 # Check whether params are specified in a dictionary
                 if isinstance(experiment_params,dict):
                     context['prolific_completion_url'] = experiment_params.get('prolific_completion_url', None)
+        
 
     if settings.DEBUG:
         print(context['timeline_json'])
