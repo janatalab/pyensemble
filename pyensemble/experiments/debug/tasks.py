@@ -1,16 +1,19 @@
 # tasks.py
 
-
+from django.utils import timezone
 from django.http import HttpResponse
 
 from pyensemble.utils import defaults
 
-from pyensemble.models import DataFormat, Question, Form, Experiment, ExperimentXForm
+from pyensemble.models import DataFormat, Question, Form, FormXQuestion, Experiment, ExperimentXForm, Notification
 
 def create_experiment(request):
 
     # Create the experiment object
-    eo, created = Experiment.objects.get_or_create(title='Debug Further Participation')
+    eo, created = Experiment.objects.get_or_create(
+        title = 'Debug Further Participation',
+        post_session_callback = 'debug.tasks.post_session()'
+        )
 
     # Create basic data format entries
     defaults.create_default_dataformat_entries()
@@ -87,11 +90,12 @@ def create_experiment(request):
 def post_session(session, *args, **kwargs):
 
     # Deal with scheduling notifications
-    scheduled = schedule_notifications()
+    scheduled = schedule_notifications(session, *args, **kwargs)
 
     return True
 
 def schedule_notifications(session, *args, **kwargs):
+    context = {}
 
     # Fetch or create a User ticket
 

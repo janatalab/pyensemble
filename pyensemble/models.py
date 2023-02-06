@@ -245,6 +245,8 @@ class Session(models.Model):
         # Evaluate our method
         response = method(self, *funcdict['args'],**funcdict['kwargs'])
 
+        return response
+
 
 class Stimulus(models.Model):
     name = models.CharField(max_length=200)
