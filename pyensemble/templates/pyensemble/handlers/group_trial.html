@@ -10,16 +10,20 @@
     
     <script>
         $(document).ready(function () {
-            {% include "group/js/set_ready.js" %}
-
-            {% if feedback %}
-                $('#feedback').removeClass('d-none');
-                $('#questions').removeClass('d-none');
-            {% elif autorun %}
+            {% if skip_trial %}
                 $('#questions').removeClass('d-none');
             {% else %}
-                $('#questions').addClass('d-none');
-                {% include "group/js/get_participant_state.js" %}
+                {% include "group/js/set_ready.js" %}
+
+                {% if feedback %}
+                    $('#feedback').removeClass('d-none');
+                    $('#questions').removeClass('d-none');
+                {% elif autorun %}
+                    $('#questions').removeClass('d-none');
+                {% else %}
+                    $('#questions').addClass('d-none');
+                    {% include "group/js/get_participant_state.js" %}
+                {% endif %}
             {% endif %}
         });
     </script>
