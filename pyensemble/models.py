@@ -93,6 +93,11 @@ class Question(models.Model):
 
         return self._unique_hash
 
+@receiver(pre_save, sender=Question)
+def generate_question_hash(sender, instance, **kwargs):
+    pdb.set_trace()
+    instance.unique_hash
+
 class Form(models.Model):
     name = models.CharField(unique=True, max_length=50)
     category = models.CharField(max_length=19, blank=True)
