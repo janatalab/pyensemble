@@ -95,7 +95,6 @@ class Question(models.Model):
 
 @receiver(pre_save, sender=Question)
 def generate_question_hash(sender, instance, **kwargs):
-    pdb.set_trace()
     instance.unique_hash
 
 class Form(models.Model):
