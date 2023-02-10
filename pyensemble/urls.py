@@ -33,6 +33,22 @@ from .importers import urls as importer_urls
 
 app_name = 'pyensemble'
 
+app_patterns = [
+    path('', RedirectView.as_view(pattern_name='login',permanent=False)),
+    path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
+    path('admin/', admin.site.urls),
+    path('editor/', views.EditorView.as_view(template_name='pyensemble/editor_base.html'),name='editor'),
+    path('ticket/create/', views.create_ticket, name='create_ticket'),
+
+    path('run/<int:experiment_id>/start/', views.run_experiment, name='run_experiment'),
+    path('run/<int:experiment_id>/', views.serve_form, name='serve_form'),    
+    path('session/reset/<int:experiment_id>/', views.reset_session, name='reset_session'),
+    path('session/flush/', views.flush_session_cache, name='flush_session_cache'),
+    path('error/<slug:feature_string>/', error.feature_not_enabled, name='feature_not_enabled'),
+    path('stimuli/upload/', importers.import_stimuli.import_file),
+    path('record/timezone', views.record_timezone, name='record-timezone'),    
+]
+
 editor_patterns = [
     path('experiments/', views.ExperimentListView.as_view(), name='experiment_list'),
     path('experiments/create/', views.ExperimentCreateView.as_view(), name='experiment_create'),
@@ -52,25 +68,6 @@ editor_patterns = [
     path('enums/create/', views.EnumCreateView.as_view(), name='enum_create'),
 ]
 
-app_patterns = [
-    path('', RedirectView.as_view(pattern_name='login',permanent=False)),
-    path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
-    path('admin/', admin.site.urls),
-    path('editor/', views.EditorView.as_view(template_name='pyensemble/editor_base.html'),name='editor'),
-    path('ticket/create/', views.create_ticket, name='create_ticket'),
-
-    path('run/<int:experiment_id>/start/', views.run_experiment, name='run_experiment'),
-    path('run/<int:experiment_id>/', views.serve_form, name='serve_form'),    
-    path('session/reset/<int:experiment_id>/', views.reset_session, name='reset_session'),
-    path('session/flush/', views.flush_session_cache, name='flush_session_cache'),
-    path('error/<slug:feature_string>/', error.feature_not_enabled, name='feature_not_enabled'),
-    path('stimuli/upload/', importers.import_stimuli.import_file),
-    # Add user specific experiment URLs
-    path('experiments/', include(experiment_urls, namespace='experiments')),
-    path('importers/', include(importer_urls, namespace='importers')),
-    path('group/', include('pyensemble.group.urls', namespace='pyensemble-group')),
-]
-
 diagnostics_patterns = [
     path('', diagnostics.index, name='diagnostics'),
     path('study/', diagnostics.study, name='study-diagnostics'),
@@ -79,11 +76,15 @@ diagnostics_patterns = [
     path('session/exclude/', diagnostics.exclude_session, name='session-exclude'),
 ]
 
+# Collect our final set of patterns in the expected urlpatterns
+
 urlpatterns = [
-#   path('pyensemble/', include(app_patterns)),
     path('', include(app_patterns)),
+    path('group/', include('pyensemble.group.urls', namespace='pyensemble-group')),
     path('editor/', include(editor_patterns)),
+    path('experiments/', include(experiment_urls, namespace='experiments')),
     path('diagnostics/', include(diagnostics_patterns)),
+    path('importers/', include(importer_urls, namespace='importers')),
 ]
 
 if settings.DEBUG:

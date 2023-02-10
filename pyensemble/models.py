@@ -10,12 +10,8 @@ from django.urls import reverse
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 
-from django.template import loader
-
 from django.http import JsonResponse
 from django.core.serializers.json import DjangoJSONEncoder
-
-from django.core.mail import EmailMultiAlternatives
 
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField, EncryptedDateField
 
@@ -25,6 +21,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
+from pyensemble import tasks
 
 import pdb
 
@@ -176,6 +173,8 @@ class Response(models.Model):
 class Session(models.Model):
     date_time = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     end_datetime = models.DateTimeField(blank=True, null=True)
+    timezone = models.CharField(max_length=64, blank=True)
+
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     ticket = models.ForeignKey('Ticket', db_constraint=True, on_delete=models.CASCADE, related_name='+')
     subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
@@ -722,42 +721,20 @@ class Notification(models.Model):
     template = models.CharField(max_length=100, blank=False)
     context = models.JSONField(null=False)
 
-    # Experiment that generated this notification
+    # Experiment associated with this notification
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE, null=True)
 
+    # Session associated with this notification
+    session = models.ForeignKey('Session', db_constraint=True, on_delete=models.CASCADE, null=True)
+
     def dispatch(self):
-        # Get our template
-        template = loader.get_template(self.template)
+        context = {}
 
-        # Render the content as HTML
-        html_content = template.render(self.context)
-        
-        # Create the text alternative
-        text_content = strip_tags(html_content)
+        context.update({'subject': self.subject})
+        context.update(self.context)
 
-        # Get the from email address
-        from_email = settings.DEFAULT_FROM_EMAIL
-
-        # Get the message subject
-        msg_subject = self.context['subject']
-
-        # Get the subject's email
-        to_email = [self.subject.email]
-
-        # Construct the basic message
-        message = EmailMultiAlternatives(
-            msg_subject,
-            text_content,
-            from_email,
-            to_email
-        )
-
-        # Add the HTML-formatted version
-        message.attach_alternative(html_content, "text/html")
-
-        # Send the message
-        message.send()
+        tasks.send_email(self.template, context)
 
         # Log the time we sent the notification
-        self.sent = datetime.now()
+        self.sent = timezone.now()
         self.save()

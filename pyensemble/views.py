@@ -401,7 +401,11 @@ def run_experiment(request, experiment_id=None):
         origin_sessid = request.GET.get('SESSION_ID', None)
 
         # Initialize a session in the PyEnsemble session table
-        session = Session.objects.create(experiment = ticket.experiment, ticket = ticket, subject = subject, origin_sessid = origin_sessid)
+        session = Session.objects.create(
+            experiment = ticket.experiment, 
+            ticket = ticket, subject = subject, 
+            origin_sessid = origin_sessid
+            )
 
         # If this is a group experiment, attach the session to a group session
         if experiment.is_group:
@@ -437,7 +441,8 @@ def run_experiment(request, experiment_id=None):
             'running': True,
             'sona': sona_code,
             'subject_id': subject_id,
-            'prolific_pid': prolific_pid
+            'prolific_pid': prolific_pid,
+            'first_form': True, # will we be serving our first form
             })
 
     # Set the experiment session info
@@ -477,6 +482,9 @@ def serve_form(request, experiment_id=None):
 
     # Get the index of the form we're on
     form_idx = expsessinfo['curr_form_idx']
+
+    # Update our first form flag
+    context.update({'first_form': expsessinfo['first_form']})
 
     #
     # Get our form stack and extract our current form
@@ -521,6 +529,15 @@ def serve_form(request, experiment_id=None):
 
         else:
             formset = QuestionModelFormSet(request.POST)
+
+        # Flag the fact that we've served the first form, irrespective of whether the POST was valid. Write the local timezone for the session to the session object
+        if expsessinfo['first_form']:
+            session = Session.objects.get(id=expsessinfo['session_id'])
+            session.timezone = request.session['timezone']
+            session.save()
+
+        expsessinfo.update({'first_form': False})
+
 
         # Add the formset to our context
         context.update({'formset': formset})
@@ -951,3 +968,9 @@ def flush_session_cache(request):
 
     request.session.modified=True
     return render(request, 'pyensemble/message.html', {'msg': f"Flushed {num_flushed_keys} session cache entries"})
+
+def record_timezone(request):
+    if request.method == 'POST':
+        request.session['timezone'] = request.POST['timezone']
+
+        return HttpResponse("ok")

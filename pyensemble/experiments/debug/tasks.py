@@ -1,11 +1,16 @@
 # tasks.py
 
+import datetime
+
+
 from django.utils import timezone
 from django.http import HttpResponse
 
 from pyensemble.utils import defaults
 
 from pyensemble.models import DataFormat, Question, Form, FormXQuestion, Experiment, ExperimentXForm, Notification
+
+import pdb
 
 def create_experiment(request):
 
@@ -95,19 +100,44 @@ def post_session(session, *args, **kwargs):
     return True
 
 def schedule_notifications(session, *args, **kwargs):
-    context = {}
+    # Schedule our times. Note that these will be stored in 'UTC' and the notification will be sent at the scheduled time. So, calculate things in relation to the local time that this was completed in. These will then automatically be converted to UTC for storage in the database. Regardless of which timezone the server is running in, these will be dispatched in correctly for the user's timezone
+    notification_list = []
 
-    # Fetch or create a User ticket
+    # pdb.set_trace()
+    now = timezone.localtime()
 
-    # Create an entry in our notifications table
-    notification = Notification.objects.create(
-        subject = session.subject,
-        experiment = session.experiment,
+    # Create one notification to be sent in the next dispatch cycle
+    notification_list.append({
+        'template': 'debug/thank_you.html',
+        'context': {
+            'msg_subject': 'Thank you for participating!'
+        },
+        'datetime': now,
+    })
 
-        template = 'debug/reminder.html',
-        context = context,
+    # Create a notification to be sent tomorrow morning at 8:30 AM (localtime)
+    tomorrow = now.date()+timezone.timedelta(days=1)
+    time = datetime.time(8,30)
+    target_time = timezone.datetime.combine(tomorrow, time, tzinfo=now.tzinfo)
 
-        scheduled = timezone.now() + timezone.timedelta(minutes=5)
-    )
+    notification_list.append({
+        'template': 'debug/reminder.html',
+        'context': {
+            'msg_subject': "Reminder about today's experiment",
+        },
+        'datetime': target_time,    
+    })
+
+    for n in notification_list:
+        # Create an entry in our notifications table
+        nobj = Notification.objects.create(
+            subject = session.subject,
+            experiment = session.experiment,
+            session = session,
+
+            template = n['template'],
+            context = n['context'],
+            scheduled = n['datetime'],
+        )
 
     return True
