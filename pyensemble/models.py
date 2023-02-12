@@ -196,7 +196,10 @@ class Session(models.Model):
         if not self.age:
             if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
                 self.age = relativedelta(datetime.now(),self.subject.dob).years
-        super().save(*args, **kwargs)
+            else:
+                self.age = None
+
+        super(Session,self).save(*args, **kwargs)
 
     def diagnostics(self, *args, **kwargs):
         if not self.experiment.session_diagnostic_script:
