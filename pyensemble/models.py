@@ -190,9 +190,12 @@ class Session(models.Model):
 
     diagnostics_data = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
 
+    executed_postsession_callback = models.BooleanField(default=False)
+
     def save(self, *args, **kwargs):
-        if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
-            self.age = relativedelta(datetime.now(),self.subject.dob).years
+        if not self.age:
+            if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
+                self.age = relativedelta(datetime.now(),self.subject.dob).years
         super().save(*args, **kwargs)
 
     def diagnostics(self, *args, **kwargs):
@@ -243,6 +246,10 @@ class Session(models.Model):
 
         # Evaluate our method
         response = method(self, *funcdict['args'],**funcdict['kwargs'])
+
+        # Indicate that we've executed the callback
+        self.executed_postsession_callback = True
+        self.save()
 
         return response
 

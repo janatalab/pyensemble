@@ -1,0 +1,9 @@
+# crontab.txt
+#
+# For periodic launching of PyEnsemble tasks
+#
+# To use as user's crontab:
+#   crontab $HOME/git/pyensemble/crontab.txt
+
+# Launch every minute
+* * * * * $HOME/git/pyensemble/cron_tasks.sh >> $HOME/log/crontab_out.txt

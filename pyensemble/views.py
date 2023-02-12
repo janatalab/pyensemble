@@ -2,7 +2,6 @@
 import os, re
 import json
 import hashlib
-import polling2
 
 from django.utils import timezone
 
@@ -888,9 +887,6 @@ def serve_form(request, experiment_id=None):
         session = Session.objects.get(id=expsessinfo['session_id'])
         session.end_datetime = timezone.now()
         session.save()
-
-        # Run any post-session callback
-        session.run_post_session()
 
         # Check whether we have a SONA redirect to handle
         sona_code = expsessinfo['sona']

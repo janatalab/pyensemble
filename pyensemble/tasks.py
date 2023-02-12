@@ -1,7 +1,7 @@
 # tasks.py
 import hashlib
 
-from pyensemble.celery import app
+# from pyensemble.celery import app
 
 from django.conf import settings
 
@@ -146,3 +146,15 @@ def dispatch_notifications():
     for notification in notification_list:
         notification.dispatch()
 
+def execute_postsession_callbacks():
+    from pyensemble.models import Session 
+
+    # Get a list of completed Sessions for which the Experiment has a post_session_callback, and the callback has not been executed
+    sessions = Session.objects.exclude(
+            end_datetime__isnull = True,
+            experiment__post_session_callback__exact = "")
+
+    sessions = sessions.filter(executed_postsession_callback = False)
+
+    for session in sessions:
+        session.run_post_session()
