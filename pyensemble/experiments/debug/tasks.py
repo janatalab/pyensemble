@@ -2,6 +2,10 @@
 
 import datetime
 
+try:
+    import zoneinfo
+except ImportError:
+    from backports import zoneinfo
 
 from django.utils import timezone
 from django.http import HttpResponse
@@ -102,9 +106,9 @@ def post_session(session, *args, **kwargs):
 def schedule_notifications(session, *args, **kwargs):
     # Schedule our times. Note that these will be stored in 'UTC' and the notification will be sent at the scheduled time. So, calculate things in relation to the local time that this was completed in. These will then automatically be converted to UTC for storage in the database. Regardless of which timezone the server is running in, these will be dispatched in correctly for the user's timezone
     notification_list = []
+    notifications = []
 
-    # pdb.set_trace()
-    now = timezone.localtime()
+    session_end_dt = timezone.localtime(session.end_datetime, zoneinfo.ZoneInfo(session.timezone))
 
     # Create one notification to be sent in the next dispatch cycle
     notification_list.append({
@@ -112,11 +116,13 @@ def schedule_notifications(session, *args, **kwargs):
         'context': {
             'msg_subject': 'Thank you for participating!'
         },
-        'datetime': now,
+        'datetime': session_end_dt,
     })
 
-    # Create a notification to be sent tomorrow morning at 8:30 AM (localtime)
-    tomorrow = now.date()+timezone.timedelta(days=1)
+    # Create a notification to be sent the morning after the end of the session at 8:30 AM (localtime)
+    tomorrow = session_end_dt.date()+timezone.timedelta(days=1)
+
+    # Specify a notification time of 8:30 AM
     time = datetime.time(8,30)
     target_time = timezone.datetime.combine(tomorrow, time, tzinfo=now.tzinfo)
 
@@ -140,4 +146,8 @@ def schedule_notifications(session, *args, **kwargs):
             scheduled = n['datetime'],
         )
 
-    return True
+        # Append to our list of notification objects
+        notifications.append(nobj)
+
+    # Note: This returns a list, not a QuerySet
+    return notifications
