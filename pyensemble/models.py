@@ -334,7 +334,7 @@ class Ticket(models.Model):
 
     @property
     def expired(self):
-        if (self.used and self.type == 'user') or (self.expiration_datetime and self.expiration_datetime < timezone.now()):
+        if self.expiration_datetime and (self.expiration_datetime < timezone.now()):
             self._expired=True
         else:
             self._expired=False
