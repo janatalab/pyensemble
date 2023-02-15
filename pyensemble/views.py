@@ -921,6 +921,9 @@ def serve_form(request, experiment_id=None):
     # Determine our form template (based on the form_handler field)
     template = os.path.join('pyensemble/handlers/', f'{handler_name}.html')
 
+    # Update our context with our session
+    context.update({'session': session})
+
     # Make sure to save any changes to our session cache
     request.session.modified = True
     return render(request, template, context)

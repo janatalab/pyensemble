@@ -19,9 +19,14 @@ from django.utils import timezone
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+try:
+    import zoneinfo
+except ImportError:
+    from backports import zoneinfo
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 from pyensemble import tasks
+
 
 import pdb
 
@@ -200,6 +205,23 @@ class Session(models.Model):
                 self.age = None
 
         super(Session,self).save(*args, **kwargs)
+
+    def localtime(self, time):
+        tz = 'UTC'
+        if self.timezone:
+            tz = self.timezone
+
+        return timezone.localtime(time, zoneinfo.ZoneInfo(tz))
+
+    @property
+    def start(self):
+        self._start = self.localtime(self.date_time)
+        return self._start
+
+    @property
+    def end(self):
+        self._end = self.localtime(self.end_datetime)
+        return self._end
 
     def diagnostics(self, *args, **kwargs):
         if not self.experiment.session_diagnostic_script:
