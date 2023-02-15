@@ -27,11 +27,13 @@ from django.urls import reverse, reverse_lazy
 from django.conf import settings
 from django.views.generic.edit import CreateView, UpdateView, FormView
 
-from .models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
+from pyensemble.models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
 
-from .forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
+from pyensemble.forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
 
-from .tasks import get_expsess_key, fetch_subject_id, get_or_create_prolific_subject, create_tickets
+from pyensemble.tasks import get_expsess_key, fetch_subject_id, get_or_create_prolific_subject, create_tickets
+
+from pyensemble import errors
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 from pyensemble import experiments 
@@ -362,22 +364,26 @@ def run_experiment(request, experiment_id=None):
             if experiment.is_group:
                 return HttpResponseRedirect(reverse('attach_participant'))
 
-            return HttpResponseBadRequest('A ticket is required to start the experiment')
+            return errors.ticket_error(request, None, 'TICKET_MISSING')
 
         # Get our ticket entry
         try:
             ticket = Ticket.objects.get(ticket_code=ticket_code)
 
         except:
-            return HttpResponseBadRequest('A matching ticket was not found')
+            return errors.ticket_error(request, ticket_code, 'TICKET_NOT_FOUND')
 
         # Check to see that the experiment associated with this ticket code matches
         if ticket.experiment.id != experiment_id:
-            return HttpResponseBadRequest('This ticket is not valid for this experiment')
+            return errors.ticket_error(request, ticket, 'TICKET_EXPERIMENT_MISMATCH')
 
-        # Make sure ticket hasn't been used or expired
+        # Make sure ticket hasn't been used
+        if ticket.type == 'user' and ticket.used:
+            return errors.ticket_error(request, ticket, 'TICKET_ALREADY_USED')
+
+        # Make sure ticket hasn't expired
         if ticket.expired:
-            return HttpResponseBadRequest('This ticket has expired')
+            return errors.ticket_error(request, ticket, 'TICKET_EXPIRED')
 
         # Handle the situation where we have a pre-assigned subject via the ticket
         subject = subject_id = None
