@@ -20,7 +20,7 @@ django-sslserver==0.22
 fuzzywuzzy==0.18.0
 importlib-metadata==4.8.3
 importlib-resources==5.4.0
-ipython==7.16.3
+ipython==8.10.0
 ipython-genutils==0.2.0
 jedi==0.17.2
 kombu==5.1.0
