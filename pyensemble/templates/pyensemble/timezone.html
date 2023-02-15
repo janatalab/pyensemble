@@ -1,0 +1,17 @@
+
+<script>
+    $(document).ready(function (){
+        $.ajax({
+            url: "{% url 'record-timezone' %}",
+            type: 'POST',
+            dataType: "json",        
+            data: {
+                'timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+            },
+            success: function(data){
+            },
+            error: function(response,errorText){
+            },
+        })
+    })
+</script>

@@ -62,6 +62,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'pyensemble.middleware.TimezoneMiddleware',
 ]
 
 ROOT_URLCONF = 'pyensemble.urls'
@@ -156,14 +157,12 @@ except:
 
 LANGUAGE_CODE = 'en-us'
 
+USE_TZ = True
 TIME_ZONE = 'UTC'
 
 USE_I18N = True
 
 USE_L10N = True
-
-USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
@@ -185,6 +184,21 @@ LOGOUT_REDIRECT_URL = '/'
 
 # Various things pertaining to sessions
 SESSION_DURATION=60*60*24 # default session duration
+
+# Email related stuff
+# dict(config.items("email"))
+if 'email' in config.sections():
+    email_params = config['email']
+
+    EMAIL_HOST = email_params['host']
+    EMAIL_HOST_USER = email_params['host_user']
+    EMAIL_HOST_PASSWORD = email_params['host_password']
+    EMAIL_PORT = email_params['port']
+    EMAIL_USE_TLS = email_params['use_tls']
+    DEFAULT_FROM_EMAIL = email_params['default_from_email']
+    SERVER_EMAIL = EMAIL_HOST_USER
+
+# Logging
 
 LOG_DIR = config['django']['logdir']
 LOGGING = {

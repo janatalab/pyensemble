@@ -1,7 +1,15 @@
 # tasks.py
 import hashlib
 
-from pyensemble.models import Subject, Ticket, Experiment
+# from pyensemble.celery import app
+
+from django.conf import settings
+
+from django.template import loader
+from django.core.mail import EmailMultiAlternatives
+from django.utils.html import strip_tags
+
+from django.utils import timezone
 
 import pdb
 
@@ -38,6 +46,8 @@ def fetch_subject_id(subject, scheme='nhdl'):
         raise ValueError('unknown subject ID generator')
 
 def get_or_create_prolific_subject(request):
+    from pyensemble.models import Subject
+
     # Get the Prolific ID
     prolific_id = request.GET.get('PROLIFIC_PID', None)
 
@@ -49,6 +59,8 @@ def get_or_create_prolific_subject(request):
     return Subject.objects.get_or_create(subject_id=prolific_id, id_origin='PRLFC')
 
 def create_tickets(ticket_request_data):
+    from pyensemble.models import Ticket, Experiment
+
     # Get the number of existing tickets
     num_existing_tickets = Ticket.objects.all().count()
 
@@ -88,4 +100,61 @@ def create_tickets(ticket_request_data):
 
     return ticket_list
 
+def send_email(template, context):
+    # Get our template
+    template = loader.get_template(template)
 
+    # Render the content as HTML
+    html_content = template.render(context)
+    
+    # Create the text alternative
+    text_content = strip_tags(html_content)
+
+    # Get the from email address
+    from_email = settings.DEFAULT_FROM_EMAIL
+
+    # Get the message subject
+    msg_subject = context.get("msg_subject","No subject")
+
+    # Get the subject's email
+    to_email = [context['subject'].email]
+
+    # Construct the basic message
+    message = EmailMultiAlternatives(
+        msg_subject,
+        text_content,
+        from_email,
+        to_email
+    )
+
+    # Add the HTML-formatted version
+    message.attach_alternative(html_content, "text/html")
+
+    # Send the message
+    num_sent = message.send()
+
+    return num_sent
+
+# This should probably be implemented as a method on a Notification queryset manager
+# @app.task()
+def dispatch_notifications():
+    from pyensemble.models import Notification
+    
+    # Get a list of unsent notifications that were scheduled to be sent prior to the present time
+    notification_list = Notification.objects.filter(sent__isnull=True, scheduled__lte=timezone.now())
+
+    for notification in notification_list:
+        notification.dispatch()
+
+def execute_postsession_callbacks():
+    from pyensemble.models import Session 
+
+    # Get a list of completed Sessions for which the Experiment has a post_session_callback, and the callback has not been executed
+    sessions = Session.objects.exclude(
+            end_datetime__isnull = True,
+            experiment__post_session_callback__exact = "")
+
+    sessions = sessions.filter(executed_postsession_callback = False)
+
+    for session in sessions:
+        session.run_post_session()

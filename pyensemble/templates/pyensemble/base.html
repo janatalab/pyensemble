@@ -40,6 +40,10 @@
         <script type="text/javascript" src="{% static 'thirdparty/jq/jquery.cookie.js' %}"></script>
         <script type="text/javascript" src="{% static 'pyensemble/js/csrf.js' %}"></script>
 
+        {% if first_form %}
+            {% include "pyensemble/timezone.html" %}
+        {% endif %}
+
       {% block formscript %}{% endblock %}
       {% block appscript %}{% endblock %}
     </body>

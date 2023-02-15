@@ -8,7 +8,7 @@ from pyensemble.group.views import get_group_session, init_group_trial
 
 import pdb
 
-def create_experiment(request):
+def create_group_experiment(request):
     # Instantiates necessary response options, questions, forms, and experiment to test running a group experiment.
 
     # Create the experiment object
@@ -112,7 +112,7 @@ def create_experiment(request):
             )
 
 
-    return HttpResponse('create_experiment: success')
+    return HttpResponse('create_group_experiment: success')
 
 # Each participant's session calls this init_trial once the serve_form method has determined that everyone in the group is ready
 def init_trial(request, *args, **kwargs):

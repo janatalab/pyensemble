@@ -21,6 +21,7 @@ from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
+from pyensemble import tasks
 
 import pdb
 
@@ -131,6 +132,8 @@ class Experiment(models.Model):
 
     session_diagnostic_script = models.CharField(max_length=100, blank=True)
 
+    post_session_callback = models.CharField(max_length=100, blank=True)
+
     def __str__(self):
         return self.title
 
@@ -170,6 +173,8 @@ class Response(models.Model):
 class Session(models.Model):
     date_time = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     end_datetime = models.DateTimeField(blank=True, null=True)
+    timezone = models.CharField(max_length=64, blank=True)
+
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     ticket = models.ForeignKey('Ticket', db_constraint=True, on_delete=models.CASCADE, related_name='+')
     subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
@@ -185,10 +190,16 @@ class Session(models.Model):
 
     diagnostics_data = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
 
+    executed_postsession_callback = models.BooleanField(default=False)
+
     def save(self, *args, **kwargs):
-        if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
-            self.age = relativedelta(datetime.now(),self.subject.dob).years
-        super().save(*args, **kwargs)
+        if not self.age:
+            if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
+                self.age = relativedelta(datetime.now(),self.subject.dob).years
+            else:
+                self.age = None
+
+        super(Session,self).save(*args, **kwargs)
 
     def diagnostics(self, *args, **kwargs):
         if not self.experiment.session_diagnostic_script:
@@ -220,6 +231,28 @@ class Session(models.Model):
             self.save()
 
         return JsonResponse(data)
+
+    def run_post_session(self, *args, **kwargs):
+        # Get our callback
+        callback = self.experiment.post_session_callback
+
+        if not callback:
+            return
+
+        # Parse the function call specification
+        funcdict = parse_function_spec(callback)
+
+        # Get our method
+        method = fetch_experiment_method(funcdict['func_name'])
+
+        # Evaluate our method
+        response = method(self, *funcdict['args'],**funcdict['kwargs'])
+
+        # Indicate that we've executed the callback
+        self.executed_postsession_callback = True
+        self.save()
+
+        return response
 
 
 class Stimulus(models.Model):
@@ -637,6 +670,12 @@ class ExperimentXAttribute(models.Model):
     attribute_value_text = models.TextField(blank=True)
 
 
+#
+# Study models - studies are sets of experiments
+#
+
+# TODO: Create an Editor view, like the Experiment editor, that allows one to generate a study.
+
 class Study(models.Model):
     title = models.CharField(unique=True, max_length=50)
 
@@ -654,3 +693,58 @@ class StudyXExperiment(models.Model):
 
     def __str__(self):
         return self.experiment.title
+
+# One of the needs associated with studies is to send various notifications with reminders or links pertaining to their participation. It would be nice for this to be automated rather than managed manually. 
+# Necessary tasks include:
+# 1) Generating subject-specific tickets for each experiment
+# 2) Sending notifications (via email) before and/or after any given experiment
+#
+# Notifications can be scheduled by experiment-specific scheduling callbacks.
+# These callbacks are specified in an Experiment's post_session_callback field.
+
+# For now, we are making the assumption that if an experiment is part of a study it is part of only one study. This allows for some simplifying logic in terms of having only a single post_session_callback per experiment, as opposed to having the callback stored in a StudyXExperiment field.
+
+# Note that all times are stored in UTC. It is up to the scheduler in an experiment-specific callback to work out the appropriate timezone offset.
+
+class Notification(models.Model):
+    subject = models.ForeignKey('Subject', db_constraint=True, on_delete=models.CASCADE)
+    created = models.DateTimeField(
+        auto_now_add=True,
+        blank=False,
+        null=False,
+        editable=False,
+        help_text="Time at which the notification entry was created"
+    )
+    scheduled = models.DateTimeField(
+        null=False,
+        help_text="Time for which sending of the notification is scheduled"
+    )
+    sent = models.DateTimeField(
+        null=True,
+        help_text="Time at which the notification was sent"
+    )
+
+    label = models.CharField(max_length=100, blank=True, help_text="Optional label for type of notification")
+    template = models.CharField(max_length=100, blank=False)
+    context = models.JSONField(null=False)
+
+    # Experiment associated with this notification
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE, null=True)
+
+    # Session associated with this notification
+    session = models.ForeignKey('Session', db_constraint=True, on_delete=models.CASCADE, null=True)
+
+    def dispatch(self):
+        context = {}
+
+        # Create the context that we send to the template
+        context.update({'subject': self.subject})
+        context.update(self.context)
+
+        # Call the email-generating function
+        tasks.send_email(self.template, context)
+
+        # Log the time we sent the notification
+        # This should be made more robust in terms of verifying that the send_mail function actually sent the email
+        self.sent = timezone.now()
+        self.save()
