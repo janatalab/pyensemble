@@ -239,8 +239,6 @@ class Session(models.Model):
         if not callback:
             return
 
-        # We may want to set this up so that it runs asynchronously
-
         # Parse the function call specification
         funcdict = parse_function_spec(callback)
 
@@ -698,16 +696,15 @@ class StudyXExperiment(models.Model):
 
 # One of the needs associated with studies is to send various notifications with reminders or links pertaining to their participation. It would be nice for this to be automated rather than managed manually. 
 # Necessary tasks include:
-# 1) Generating subject specific tickets for each experiment
+# 1) Generating subject-specific tickets for each experiment
 # 2) Sending notifications (via email) before and/or after any given experiment
-#   Notifications should be scheduled by experiment-specific scheduling callbacks. These can be registered in a field in the StudyXExperiment model. These should probably kept separate from any ticket-generating callbacks. Actually, one can just specify a single experiment-specific post-session callback in the StudyXExperiment table and this callback can deal with generating any tickets and setting up notifications. Actually, just add this ability to the Experiment model. We then just need a celery process to scan the notifications table every few minutes to see whether any notifications need to go out.
-# The musmemfmri bioloop experiments are the test case of this
+#
+# Notifications can be scheduled by experiment-specific scheduling callbacks.
+# These callbacks are specified in an Experiment's post_session_callback field.
 
-# For now, we are making the assumption that if an experiment is part of a study it is part of only study. This allows for some simplifying logic.
+# For now, we are making the assumption that if an experiment is part of a study it is part of only one study. This allows for some simplifying logic in terms of having only a single post_session_callback per experiment, as opposed to having the callback stored in a StudyXExperiment field.
 
-# Rather than rendering a notification at time of sending, render it fully and store the full notification message in the table/database. Either that or specify template and a JSONField containing context. The latter option is a bit less costly.
-
-# One issue we have to deal with is the timezone in which the participant completes the study in so that the timing of the messages is appropriate. We should store all times in UTC and leave it up to the experiment-specific scheduler to work out the appropriate offset.
+# Note that all times are stored in UTC. It is up to the scheduler in an experiment-specific callback to work out the appropriate timezone offset.
 
 class Notification(models.Model):
     subject = models.ForeignKey('Subject', db_constraint=True, on_delete=models.CASCADE)
@@ -740,11 +737,14 @@ class Notification(models.Model):
     def dispatch(self):
         context = {}
 
+        # Create the context that we send to the template
         context.update({'subject': self.subject})
         context.update(self.context)
 
+        # Call the email-generating function
         tasks.send_email(self.template, context)
 
         # Log the time we sent the notification
+        # This should be made more robust in terms of verifying that the send_mail function actually sent the email
         self.sent = timezone.now()
         self.save()

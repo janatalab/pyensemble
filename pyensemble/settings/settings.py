@@ -187,15 +187,16 @@ SESSION_DURATION=60*60*24 # default session duration
 
 # Email related stuff
 # dict(config.items("email"))
-email_params = config['email']
+if 'email' in config.sections():
+    email_params = config['email']
 
-EMAIL_HOST = email_params['host']
-EMAIL_HOST_USER = email_params['host_user']
-EMAIL_HOST_PASSWORD = email_params['host_password']
-EMAIL_PORT = email_params['port']
-EMAIL_USE_TLS = email_params['use_tls']
-DEFAULT_FROM_EMAIL = email_params['default_from_email']
-SERVER_EMAIL = EMAIL_HOST_USER
+    EMAIL_HOST = email_params['host']
+    EMAIL_HOST_USER = email_params['host_user']
+    EMAIL_HOST_PASSWORD = email_params['host_password']
+    EMAIL_PORT = email_params['port']
+    EMAIL_USE_TLS = email_params['use_tls']
+    DEFAULT_FROM_EMAIL = email_params['default_from_email']
+    SERVER_EMAIL = EMAIL_HOST_USER
 
 # Logging
 
