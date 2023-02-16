@@ -305,9 +305,15 @@ class CaptchaForm(forms.Form):
 
 
 class StudySelectForm(forms.Form):
-
     study = forms.ModelChoiceField(queryset=Study.objects.all())
-    # widget=forms.Select(attrs={'class': 'form-control'})
+
+    helper = FormHelper()
+    helper.form_class = 'diagnostics-selector-form'
+    helper.add_input(Submit('submit', 'Submit'))
+
+
+class ExperimentSelectForm(forms.Form):
+    experiment = forms.ModelChoiceField(queryset=Experiment.objects.all())
 
     helper = FormHelper()
     helper.form_class = 'diagnostics-selector-form'
