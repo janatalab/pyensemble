@@ -313,7 +313,26 @@ class StudySelectForm(forms.Form):
 
 
 class ExperimentSelectForm(forms.Form):
-    experiment = forms.ModelChoiceField(queryset=Experiment.objects.all())
+    experiment = forms.ModelChoiceField(queryset=None)
+
+    def __init__(self, *args, **kwargs):
+        excludes = kwargs.pop('exclude', None)
+        filters = kwargs.pop('filter', None)
+
+        super(ExperimentSelectForm, self).__init__(*args, **kwargs)
+
+        # Get all experiment objects
+        queryset=Experiment.objects.all()
+
+        # Filter if we got filtering values
+        if excludes:
+            queryset = queryset.exclude(**excludes)
+
+        if filters:
+            queryset = queryset.filter(**filters)
+
+        # Create our field
+        self.fields['experiment'].queryset = queryset
 
     helper = FormHelper()
     helper.form_class = 'diagnostics-selector-form'
