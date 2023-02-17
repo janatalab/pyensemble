@@ -57,7 +57,7 @@ def session_detail(request):
 
     # We now want to rearrange the dataframe so that rows are indexed with response order and columns are a multi-level index corresponding to the subject at the top level and desired variables as the second level
 
-    pdb.set_trace()
+    # pdb.set_trace()
     # df.loc[df['form_question_num']==0].pivot(index=['response_order'],columns=['subject_id'],values=['trial_info'])
 
     context = {}
