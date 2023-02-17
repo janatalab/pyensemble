@@ -540,7 +540,7 @@ def serve_form(request, experiment_id=None):
 
         # Flag the fact that we've served the first form, irrespective of whether the POST was valid. Write the local timezone for the session to the session object
         if expsessinfo['first_form']:
-            session.timezone = request.session['timezone']
+            session.timezone = request.session.get('timezone',settings.TIME_ZONE)
             session.save()
 
         expsessinfo.update({'first_form': False})
