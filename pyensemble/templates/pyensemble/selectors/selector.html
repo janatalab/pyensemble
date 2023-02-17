@@ -1,0 +1,8 @@
+
+
+
+<select class="form-control selectpicker" name="{{level}}" data-live-search="true" required>
+    {% for option in options %}
+        <option value="{{option.id}}" data-tokens="{{option}}">{{option}}</option>
+    {% endfor %}
+</select>

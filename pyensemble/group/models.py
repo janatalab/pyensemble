@@ -3,6 +3,11 @@ from django.conf import settings
 
 from django.utils import timezone
 
+try:
+    import zoneinfo
+except ImportError:
+    from backports import zoneinfo
+
 import polling2
 
 import pdb
@@ -35,6 +40,9 @@ class GroupSession(models.Model):
     ticket = models.OneToOneField('pyensemble.Ticket', db_constraint=True, on_delete=models.CASCADE)
     start_datetime = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     end_datetime = models.DateTimeField(blank=True, null=True)
+
+    # timezone = models.CharField(max_length=64, blank=True)
+
     experimenter_attached = models.BooleanField(default=False)
 
     # Mechanism for saving overall session parameters
@@ -63,6 +71,28 @@ class GroupSession(models.Model):
 
     def __str__(self):
         return "Group: %s, Experiment: %s, Session %d"%(self.group.name, self.experiment.title, self.id)
+
+    def localtime(self, time):
+        tz = settings.TIME_ZONE
+        # if self.timezone:
+        #     tz = self.timezone
+
+        return timezone.localtime(time, zoneinfo.ZoneInfo(tz))
+
+    @property
+    def start(self):
+        self._start = self.localtime(self.start_datetime)
+        return self._start
+
+    @property
+    def end(self):
+        if self.end_datetime:
+            self._end = self.localtime(self.end_datetime)
+        else:
+            self._end = None
+
+        return self._end
+
 
     def get_cache_key(self):
         return f'groupsession_{self.id}'
