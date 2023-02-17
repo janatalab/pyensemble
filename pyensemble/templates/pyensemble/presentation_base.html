@@ -41,6 +41,16 @@
     {% endif %}
 {% endblock %}
 
+{% block formscript %}
+    <script>
+        $(document).ready(function () {
+            $("#questions .form-actions input").on("click", function(e){
+                this.attr({'disabled':true});
+            })
+        });
+    </script>
+{% endblock %}
+
 {% block appscript %}
     <script>
         $(document).ready(function () {
