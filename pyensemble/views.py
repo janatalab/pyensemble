@@ -518,6 +518,9 @@ def serve_form(request, experiment_id=None):
         # Process the submitted form
         #
 
+        # Get our PyEnsemble session
+        session = Session.objects.get(id=expsessinfo['session_id'])
+
         # By default we pass captcha test because we don't require it
         passes_captcha = True
 
@@ -537,7 +540,6 @@ def serve_form(request, experiment_id=None):
 
         # Flag the fact that we've served the first form, irrespective of whether the POST was valid. Write the local timezone for the session to the session object
         if expsessinfo['first_form']:
-            session = Session.objects.get(id=expsessinfo['session_id'])
             session.timezone = request.session['timezone']
             session.save()
 
@@ -591,7 +593,6 @@ def serve_form(request, experiment_id=None):
                 expsessinfo['subject_id'] = subject_id
 
                 # Replace the temporary subject with our actual subject in our session instance
-                session = Session.objects.get(pk=expsessinfo['session_id'])
 
                 # Get the temporary subject
                 tmp_subject = session.subject
@@ -686,7 +687,7 @@ def serve_form(request, experiment_id=None):
                     responses.append(Response(
                         experiment=currform.experiment,
                         subject=Subject.objects.get(subject_id=expsessinfo['subject_id']),
-                        session=Session.objects.get(id=expsessinfo['session_id']),
+                        session=session,
                         form=currform.form,
                         form_order=form_idx,
                         stimulus=stimulus,
