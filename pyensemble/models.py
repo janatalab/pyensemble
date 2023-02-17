@@ -207,7 +207,8 @@ class Session(models.Model):
         super(Session,self).save(*args, **kwargs)
 
     def localtime(self, time):
-        tz = 'UTC'
+        tz = settings.TIME_ZONE
+        
         if self.timezone:
             tz = self.timezone
 

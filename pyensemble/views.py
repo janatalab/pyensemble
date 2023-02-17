@@ -565,8 +565,6 @@ def serve_form(request, experiment_id=None):
         context.update({'stimulus': stimulus})
 
         if passes_captcha and formset.is_valid():
-            expsessinfo['response_order']+=1
-
             #
             # Write data to the database. With only a couple of exceptions, based on form_handler, this will be to the Response table
             #
@@ -646,6 +644,9 @@ def serve_form(request, experiment_id=None):
                 #
                 responses = []
 
+                # Increment our response_order variable if we are actually planning to write a response to the database. The same response_order value applies to all questions on this form.
+                expsessinfo['response_order']+=1
+
                 for idx,question in enumerate(formset.forms):
             
                     # Pre-process certain fields
@@ -675,9 +676,12 @@ def serve_form(request, experiment_id=None):
                         jspsych_data = ''
 
                     # If we are in group session trial, write group session context to trial info for the first response
-                    if not idx and handler_name in ['group_trial']:
-                        group_session = get_group_session(request)
-                        trial_info = group_session.context.get('params',{})
+                    if handler_name in ['group_trial']:
+                        if not idx:
+                            group_session = get_group_session(request)
+                            trial_info = group_session.context.get('params',{})
+                        else:
+                            trial_info = ""
 
                     # Create a Response object and append it to our list
                     responses.append(Response(
@@ -707,7 +711,7 @@ def serve_form(request, experiment_id=None):
             if handler_name == 'group_trial':
                 user_state = set_groupuser_state(request,'UNKNOWN')
 
-            # Update our visit count
+            # Update our visit count for this form
             num_visits = expsessinfo['visit_count'].get(form_idx,0)
             num_visits +=1
             expsessinfo['visit_count'][form_idx] = num_visits

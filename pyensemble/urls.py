@@ -76,6 +76,7 @@ diagnostics_patterns = [
     path('session/exclude/', diagnostics.exclude_session, name='session-exclude'),
 ]
 
+
 # Collect our final set of patterns in the expected urlpatterns
 
 urlpatterns = [

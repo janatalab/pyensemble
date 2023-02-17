@@ -1,0 +1,274 @@
+<script>
+    function parseColumnTuple(t){
+        return t.split(",").map(function(d){return d.match(/\b.*\b/)[0]})
+    }
+
+    function extractSessionIDs(subject_info){
+        let session_ids = Object.keys(subject_info)
+            .filter(function(d){
+                return (d.match(/session_id/) && subject_info[d]) ? true : false;
+            })
+            .map(function(d){return subject_info[d];});
+
+        return session_ids
+    }
+
+    function excludeSubject(){
+        if (!this.checked) {return};
+
+        let subject_id = this.id.match(/(\w*)-exclude/)[1];
+
+        let subject_info = d3.select(document.getElementById(subject_id)).datum();
+
+        var session_ids = extractSessionIDs(subject_info.value);
+
+        $.ajax({
+                url: "{% url 'session-exclude' %}",
+                type: 'POST',
+                dataType: "json",        
+                data: {
+                    'level': {{level}},
+                    'title': $("#item_title").text(),
+                    'session_ids': session_ids
+                },
+                success: function(data){
+                    updateResults(data);
+                },
+                error: function(response,errorText){
+                    alert(response.responseText);
+                },
+        });
+    }
+
+    function updateStatsHighlighting(){
+        // Get our total number of variables
+        var numVariables = d3.selectAll(".variable-label").size();
+        var stepSize = Math.floor(255/numVariables);
+
+        // Parse the ID
+        let parsed_id = this.id.split("-");
+
+        let stat_type = parsed_id.pop();
+
+        // Get the min and max values
+        var min = Number(d3.select(this.parentNode).select("input.min").property("value"))
+        var max = Number(d3.select(this.parentNode).select("input.max").property("value"));
+
+        // Select items matching this class' experiment and variable IDs
+        let select_str = "td."+parsed_id.reduce((o,s)=>o+"."+s)
+        d3.selectAll(select_str)
+            .classed("outlier", false)
+            .style("background-color", "#ffffff")
+            .filter(function(d){
+                return (d.value < min) || (d.value > max)
+            })
+            .classed("outlier", true)
+            .style("background-color", function(d){
+                
+                let colorVal = 255-stepSize;
+                return "#ff"+colorVal.toString(16)+colorVal.toString(16)
+            });
+
+        // Update subject aggregate colors
+        d3.selectAll(".participant-data").each(function(d){
+            let target = d3.select(this);
+            let numBad = target.selectAll(".outlier").size();
+            let colorVal = 255-stepSize*numBad;
+
+            target.select("td").style("background-color", "#ff"+colorVal.toString(16)+colorVal.toString(16));
+        });
+    }
+
+    function updateResults(data){
+        $("#item_title").text(data.title);
+
+        for (stat in data.stats){
+            data.stats[stat] = JSON.parse(data.stats[stat]);
+        }
+
+        data.experiment_data = JSON.parse(data.experiment_data);
+        bindData(data);
+    }
+
+    function bindData(data){
+        // Extract the column labels
+        let column_tuples = Object.keys(Object.values(data.experiment_data)[0]); 
+
+        // Build the header
+        let level_items = column_tuples.map(parseColumnTuple);
+
+        let num_levels = level_items[0].length;
+
+        // Initialize our levels array
+        let levels = [];
+
+        for (let l=0; l<num_levels; l++){
+            levels[l] = {}
+            
+            levels[l].key = num_levels > 1 ? l ? "variable" : "experiment" : "variable";
+            levels[l].value = level_items.map(function(d){return d[l]});
+        }
+
+        // Verify the number of levels
+        if (num_levels > 1) {
+            let counter = {};
+
+            for (item of levels[0].value){
+                if (counter[item]) {
+                    counter[item] += 1;
+                } else {
+                    counter[item] = 1;
+                }
+            };
+
+            // Replace levels[0] with the counter data
+            levels[0].value = [{"key": "index-label", "value": "Subject"}].concat(d3.entries(counter));
+        }
+
+        // Create our basic table
+        if (d3.select("#results_table").select("table").empty()){
+            var table = d3.select("#results_table").append("table").attr("class","diagnostics table table-bordered table-sm"),
+                thead = table.append("thead").attr("class","diagnostics"),
+                tbody = table.append("tbody").attr("class","diagnostics");            
+        };
+
+        // Add the column labels
+        d3.select("#results_table thead").selectAll("tr")
+            .data(levels, function(d){return d.key;})
+            .enter()
+            .append("tr")
+            .selectAll("th")
+                .data(function(d){return d.value;})
+                .enter()
+                .append("th")
+                    .attr("rowspan", function(d){
+                        return d.key=="index-label" ? levels.length : 1;
+                    })
+                    .attr("colspan", function(d){
+                        return d.key=="index-label" ? 1 : d.value;
+                    })
+                    .attr("class", function(d, i){
+                        if (d.key == "index-label"){
+                            return "freeze-pane index";
+                        } else {
+                            let type = d3.select(this.parentNode).datum().key;
+                            if (type == "experiment"){
+                                return d.key;
+                            } else {
+                                return level_items[i][0] + " " + d;
+                            }
+                        }
+                    })
+                    .html(function(d, i){
+                        if (d.key=="index-label"){
+                            return d.value;
+                        } else {
+                            let type = d3.select(this.parentNode).datum().key;
+                            if (type == "experiment"){
+                                return d.key;
+                            } else {
+                                let str = "";
+                                let experiment = level_items[i][0];
+                                let min_label = experiment+"-"+d+"-min";
+                                let max_label = experiment+"-"+d+"-max";
+
+                                str += "<div class='variable-label'>"+d+"</div>";
+
+                                str += "<div class='stats'>";
+
+                                str += "<label for='"+min_label+"'>";
+                                str += "Min";
+                                str += "</label>";
+                                str += "<input type='number' class='form-control variable-input min' id='" + min_label+ "'>";
+
+                                str += "<label for='"+max_label+"'>";
+                                str += "Max";
+                                str += "</label>";
+                                str += "<input type='number' class='form-control variable-input max' id='"+max_label+"'>";
+                                
+                                str += "</div";
+                                return str;
+                            }
+                        }
+                    })
+                    .each(function(d, i){
+                        if (!(d.key == 'index-label')){
+                            if (d3.select(this.parentNode).datum().key == 'variable'){
+                                let data_min = data.stats.min[column_tuples[i]];
+                                let data_max = data.stats.max[column_tuples[i]];
+
+                                d3.select(this).select("input.min").property("value",data_min);
+                                d3.select(this).select("input.max").property("value",data_max);
+                            }
+                        }
+                    });
+
+        let subjects = d3.select("#results_table tbody").selectAll("tr")
+            .data(d3.entries(data.experiment_data), function(d){return d.key;})
+
+        // Remove rows for excluded subjects
+        subjects.exit().remove();
+
+        // Create rows for any new subjects
+        subjects.enter()
+                .append("tr")
+                    .classed("participant-data", true)
+                    .attr("id", function(d){
+                        return d.key;
+                    })
+                .selectAll("td")
+                    .data(function(d) {
+                        return [{"key":"index-label","value":d.key}].concat(d3.entries(d.value));
+                    }).enter()
+                        .append("td")
+                            .html(function(d,i) {
+                                if (d.key.match(/exclude/)){
+                                    let val = "<input type='checkbox' class='exclude-checkbox'";
+                                    if (d.value=="true") {
+                                        val += " checked";
+                                    }
+                                    val += ">";
+                                    return val
+                                } else {
+                                    let val = d.value;
+                                    if (d.key == "index-label"){
+                                        val += "<div class='text-danger'>Exclude <input type='checkbox' class='subject exclude-checkbox' id='"+d.value+"-exclude' ></div>";
+                                    }
+                                    return val;
+                                }
+                            })
+                            .attr("class", function(d,i){
+                                if (i) {
+                                    return parseColumnTuple(d.key).reduce((outstr,d) => outstr+" "+d);
+                                } else {
+                                    return "text-primary freeze-pane index";
+                                }
+                            });
+
+        // Attach event handlers
+        d3.selectAll(".subject.exclude-checkbox").on("change", excludeSubject);
+        d3.selectAll(".variable-input").on("change", updateStatsHighlighting);
+    };
+
+    $(function (){
+        $(".diagnostics-selector-form").on('submit', function(ev){
+            ev.stopImmediatePropagation();
+            ev.preventDefault();
+
+            let target = $(".diagnostics-selector-form");
+
+            $.ajax({
+                type: target.attr('method'),
+                url: target.attr('action'),
+                data: target.serialize(),
+                success: function(data){
+                    updateResults(data);
+                    $("#item_selection").addClass("d-none");
+                },
+                error: function(response,errorText){
+                    alert(response.responseText);
+                },
+            });
+        })
+    });
+</script>

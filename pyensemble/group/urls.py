@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import views, reports
 
 app_name = 'pyensemble-group'
 
@@ -18,4 +18,9 @@ urlpatterns = [
     path('trial/start/', views.start_trial, name='start_trial'),
     path('trial/end/', views.end_trial, name='end_trial'),
     path('set/client/ready/', views.set_client_ready, name='set_client_ready'),
+
+    path('report/', reports.home, name='report'),
+    path('report/experiment/session/selector', reports.session_selector, name='experiment-session-selector'),
+    path('report/session/detail/', reports.session_detail, name='session-detail'),
+
 ]

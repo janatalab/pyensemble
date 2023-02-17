@@ -64,7 +64,7 @@ input[type=number] {
     width: 300px;
 }
 
-#study_selection {
+#item_selection {
     position: relative;
     top: 75px;
 }
@@ -77,7 +77,7 @@ input[type=number] {
 
 #results_table {
     position: relative;
-    min-height: 65vh;
+    min-height: 80vh;
 }
 
 table.diagnostics {
