@@ -886,6 +886,10 @@ def serve_form(request, experiment_id=None):
 
     helper.add_input(Submit("submit", continue_button_text))
 
+    # By default, disable our submit buttons during form submission
+    if not currform.use_clientside_validation:
+        helper.attrs = {'onsubmit': 'return disableSubmitButtons(this);'}
+
     # Add the helper to our context
     context.update({'helper': helper})
 
