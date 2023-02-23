@@ -4,6 +4,7 @@
 #
 import hashlib
 import json
+import urllib3
 
 from django.conf import settings
 
@@ -180,7 +181,7 @@ class Response(models.Model):
 class Session(models.Model):
     date_time = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     end_datetime = models.DateTimeField(blank=True, null=True)
-    timezone = models.CharField(max_length=64, blank=True)
+    timezone = models.CharField(max_length=64, blank=True, default=settings.TIME_ZONE)
 
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     ticket = models.ForeignKey('Ticket', db_constraint=True, on_delete=models.CASCADE, related_name='+')
@@ -380,15 +381,47 @@ class Ticket(models.Model):
     experimenter_code = models.CharField(max_length=4, blank=True, default='')
 
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+
     type = models.CharField(
         max_length=6,
         choices=TICKET_TYPE_CHOICES,
         default='master',
         )
+
     used = models.BooleanField(default=False)
+
+    validfrom_datetime = models.DateTimeField(blank=True, null=True)
     expiration_datetime = models.DateTimeField(blank=True, null=True)
+    timezone = models.CharField(max_length=64, blank=True, default=settings.TIME_ZONE)
 
     subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
+
+    @property
+    def url(self):
+        if not getattr(self,'_url', None):
+            url = reverse('run_experiment', args=(experiment.pk,))
+            url += '?' + urllib.urlencode('tc', self.ticket_code)
+            self._url = url
+
+        return self._url
+
+    def localtime(self, time):
+        tz = settings.TIME_ZONE
+
+        if self.timezone:
+            tz = self.timezone
+
+        return timezone.localtime(time, zoneinfo.ZoneInfo(tz))
+
+    @property
+    def start(self):
+        self._start = self.localtime(self.validfrom_datetime)
+        return self._start
+
+    @property
+    def end(self):
+        self._end = self.localtime(self.expiration_datetime)
+        return self._end
 
     @property
     def expired(self):

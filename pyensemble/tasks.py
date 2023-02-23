@@ -68,8 +68,11 @@ def create_tickets(ticket_request_data):
     ticket_list = []
 
     # Get our experiment
-    experiment_id = ticket_request_data['experiment_id']
-    experiment = Experiment.objects.get(id=experiment_id)
+    experiment = ticket_request_data.get('experiment', None)
+
+    if not experiment:
+        experiment_id = ticket_request_data['experiment_id']
+        experiment = Experiment.objects.get(id=experiment_id)
 
     # Get our ticket types
     ticket_types = [tt[0] for tt in Ticket.TICKET_TYPE_CHOICES]
@@ -81,6 +84,7 @@ def create_tickets(ticket_request_data):
         subject = ticket_request_data.get('subject', None)
 
         if num_tickets:
+            validfrom_datetime = ticket_request_data.get(f'{ticket_type}_validfrom', None)
             expiration_datetime = ticket_request_data.get(f'{ticket_type}_expiration',None)
 
             # Add the ticket(s)
@@ -90,10 +94,11 @@ def create_tickets(ticket_request_data):
 
                 # Add a new ticket to our list
                 ticket = Ticket.objects.create(
-                    ticket_code=encrypted_str, 
-                    experiment=experiment, 
-                    type=ticket_type, 
-                    expiration_datetime=expiration_datetime,
+                    ticket_code = encrypted_str,
+                    experiment = experiment,
+                    type = ticket_type,
+                    validfrom_datetime = validfrom_datetime,
+                    expiration_datetime = expiration_datetime,
                     subject = subject
                 )
                 ticket_list.append(ticket)
