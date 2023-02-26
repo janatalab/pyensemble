@@ -137,8 +137,10 @@ class Experiment(models.Model):
 
     forms = models.ManyToManyField('Form', through='ExperimentXForm')
 
-    session_diagnostic_script = models.CharField(max_length=100, blank=True)
+    # Method for generating diagnostics/reporting data
+    session_reporting_script = models.CharField(max_length=100, blank=True)
 
+    # Method to be called (asynchronously) if the session has been completed
     post_session_callback = models.CharField(max_length=100, blank=True)
 
     def __str__(self):
@@ -146,6 +148,7 @@ class Experiment(models.Model):
 
     def get_cache_key(self):
         return f'experiment_{self.id}'
+
 
 class Response(models.Model):
     date_time = models.DateTimeField(auto_now_add=True)
@@ -177,36 +180,37 @@ class Response(models.Model):
         else:
             return self.response_text
 
-class Session(models.Model):
-    date_time = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+
+class AbstractSession(models.Model):
+    class Meta:
+        abstract = True
+
+    # Which experiment is this session associated with
+    experiment = models.ForeignKey(Experiment, db_constraint=True, on_delete=models.CASCADE)
+
+    # When did this session start?
+    start_datetime = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+
+    # When did this session end?
     end_datetime = models.DateTimeField(blank=True, null=True)
+
+    # User's timezone
     timezone = models.CharField(max_length=64, blank=True)
-
-    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
-    ticket = models.ForeignKey('Ticket', db_constraint=True, on_delete=models.CASCADE, related_name='+')
-    subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
-    age = models.PositiveSmallIntegerField(null=True)
-
-    expired = models.BooleanField(default=False, blank=True)
 
     # Should this session be excluded from consideration in experiment-wide calculations
     exclude = models.BooleanField(default=False)
 
+    # Has the session been flagged as having expired
+    expired = models.BooleanField(default=False, blank=True)
+
     # If the participant is being referred from a source other than PyEnsemble, e.g. Prolific, have a field for storing the session identifier at the origin, if available and desired.
     origin_sessid = models.CharField(max_length=64, null=True, blank=True)
 
-    diagnostics_data = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
+    # Reporting/diagnostics data
+    reporting_data = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
 
+    # Has the post-session method associated with the experiment, if any, been executed
     executed_postsession_callback = models.BooleanField(default=False)
-
-    def save(self, *args, **kwargs):
-        if not self.age:
-            if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
-                self.age = relativedelta(datetime.now(),self.subject.dob).years
-            else:
-                self.age = None
-
-        super(Session,self).save(*args, **kwargs)
 
     def localtime(self, time):
         tz = settings.TIME_ZONE
@@ -218,7 +222,7 @@ class Session(models.Model):
 
     @property
     def start(self):
-        self._start = self.localtime(self.date_time)
+        self._start = self.localtime(self.start_datetime)
         return self._start
 
     @property
@@ -226,21 +230,21 @@ class Session(models.Model):
         self._end = self.localtime(self.end_datetime)
         return self._end
 
-    def diagnostics(self, *args, **kwargs):
-        if not self.experiment.session_diagnostic_script:
-            raise ValueError(f"No diagnostics script specified for {self.experiment.title}")
+    def reporting(self, *args, **kwargs):
+        if not self.experiment.session_reporting_script:
+            raise ValueError(f"No reporting script specified for {self.experiment.title}")
 
         # Check whether we have cached diagnostics data
         use_cached = kwargs.get('use_cached', False)
 
         data = {}
         if use_cached:
-            data = self.diagnostics_data
+            data = self.reporting_data
 
         # Run the diagnostics if none are currently available
         if not data:
             # Parse the specified diagnostics script call
-            funcdict = parse_function_spec(self.experiment.session_diagnostic_script)
+            funcdict = parse_function_spec(self.experiment.session_reporting_script)
 
             # Fetch the diagnostics method
             method = fetch_experiment_method(funcdict['func_name'])
@@ -252,7 +256,7 @@ class Session(models.Model):
             data = json.loads(response.content)
 
             # Cache the data
-            self.diagnostics_data = data
+            self.reporting_data = data
             self.save()
 
         return JsonResponse(data)
@@ -278,6 +282,31 @@ class Session(models.Model):
         self.save()
 
         return response
+
+
+class Session(AbstractSession):
+
+    # date_time = models.DateTimeField(blank=True, null=True, auto_now_add=True) # Now named start_datetime
+
+    ticket = models.ForeignKey('Ticket', db_constraint=True, on_delete=models.CASCADE, related_name='+')
+
+    # The participant associated with this session
+    subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
+
+    # Participant's age at the time of the session
+    age = models.PositiveSmallIntegerField(null=True)
+
+    # diagnostics_data = models.JSONField(default=dict, encoder=DjangoJSONEncoder) # now called reporting_data
+
+    def save(self, *args, **kwargs):
+        # Calculate the participant's age the first time the save method is called
+        if not self.age:
+            if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
+                self.age = relativedelta(datetime.now(),self.subject.dob).years
+            else:
+                self.age = None
+
+        super(Session,self).save(*args, **kwargs)
 
 
 class Stimulus(models.Model):

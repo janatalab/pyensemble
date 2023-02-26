@@ -8,6 +8,8 @@ try:
 except ImportError:
     from backports import zoneinfo
 
+from pyensemble.models import AbstractSession
+
 import polling2
 
 import pdb
@@ -34,12 +36,12 @@ class GroupSubject(models.Model):
 def init_session_context():
     return {'state': ''}
 
-class GroupSession(models.Model):
+class GroupSession(AbstractSession):
     group = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
-    experiment = models.ForeignKey('pyensemble.Experiment', db_constraint=True, on_delete=models.CASCADE)
+    # experiment = models.ForeignKey('pyensemble.Experiment', db_constraint=True, on_delete=models.CASCADE)
     ticket = models.OneToOneField('pyensemble.Ticket', db_constraint=True, on_delete=models.CASCADE)
-    start_datetime = models.DateTimeField(blank=True, null=True, auto_now_add=True)
-    end_datetime = models.DateTimeField(blank=True, null=True)
+    # start_datetime = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+    # end_datetime = models.DateTimeField(blank=True, null=True)
 
     # timezone = models.CharField(max_length=64, blank=True)
 
@@ -72,26 +74,26 @@ class GroupSession(models.Model):
     def __str__(self):
         return "Group: %s, Experiment: %s, Session %d"%(self.group.name, self.experiment.title, self.id)
 
-    def localtime(self, time):
-        tz = settings.TIME_ZONE
-        # if self.timezone:
-        #     tz = self.timezone
+    # def localtime(self, time):
+    #     tz = settings.TIME_ZONE
+    #     # if self.timezone:
+    #     #     tz = self.timezone
 
-        return timezone.localtime(time, zoneinfo.ZoneInfo(tz))
+    #     return timezone.localtime(time, zoneinfo.ZoneInfo(tz))
 
-    @property
-    def start(self):
-        self._start = self.localtime(self.start_datetime)
-        return self._start
+    # @property
+    # def start(self):
+    #     self._start = self.localtime(self.start_datetime)
+    #     return self._start
 
-    @property
-    def end(self):
-        if self.end_datetime:
-            self._end = self.localtime(self.end_datetime)
-        else:
-            self._end = None
+    # @property
+    # def end(self):
+    #     if self.end_datetime:
+    #         self._end = self.localtime(self.end_datetime)
+    #     else:
+    #         self._end = None
 
-        return self._end
+    #     return self._end
 
 
     def get_cache_key(self):
