@@ -66,7 +66,7 @@ def experiment(request, *args, **kwargs):
             return JsonResponse(data)
     else:
         filters = {
-            'exclude': {'session_diagnostic_script':''},
+            'exclude': {'session_reporting_script':''},
             'filter': {}
         }
         form = forms.ExperimentSelectForm(**filters)
@@ -100,8 +100,8 @@ def get_study_data(study, **kwargs):
 
         # Make sure we have an associated diagnostics script
         # May want to have this error-checking elsewhere
-        if not experiment.session_diagnostic_script:
-            return HttpResponseBadRequest(f"No diagnostics script associated with {experiment.title}")
+        if not experiment.session_reporting_script:
+            return HttpResponseBadRequest(f"No reporting script associated with {experiment.title}")
 
         # Call the experiment method to aggregate data for the experiment
         experiment_data = get_experiment_data(experiment)

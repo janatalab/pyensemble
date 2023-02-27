@@ -137,8 +137,10 @@ class Experiment(models.Model):
 
     forms = models.ManyToManyField('Form', through='ExperimentXForm')
 
-    session_diagnostic_script = models.CharField(max_length=100, blank=True)
+    # Method for generating diagnostics/reporting data
+    session_reporting_script = models.CharField(max_length=100, blank=True)
 
+    # Method to be called (asynchronously) if the session has been completed
     post_session_callback = models.CharField(max_length=100, blank=True)
 
     def __str__(self):
@@ -146,6 +148,7 @@ class Experiment(models.Model):
 
     def get_cache_key(self):
         return f'experiment_{self.id}'
+
 
 class Response(models.Model):
     date_time = models.DateTimeField(auto_now_add=True)
@@ -177,37 +180,39 @@ class Response(models.Model):
         else:
             return self.response_text
 
-class Session(models.Model):
-    date_time = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+
+class AbstractSession(models.Model):
+    class Meta:
+        abstract = True
+
+    # Which experiment is this session associated with
+    experiment = models.ForeignKey(Experiment, db_constraint=True, on_delete=models.CASCADE)
+
+    # When did this session start?
+    start_datetime = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+
+    # When did this session end?
     end_datetime = models.DateTimeField(blank=True, null=True)
+
+    # User's timezone
     timezone = models.CharField(max_length=64, blank=True)
-
-    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
-    ticket = models.ForeignKey('Ticket', db_constraint=True, on_delete=models.CASCADE, related_name='+')
-    subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
-    age = models.PositiveSmallIntegerField(null=True)
-
-    expired = models.BooleanField(default=False, blank=True)
 
     # Should this session be excluded from consideration in experiment-wide calculations
     exclude = models.BooleanField(default=False)
 
+    # Has the session been flagged as having expired
+    expired = models.BooleanField(default=False, blank=True)
+
     # If the participant is being referred from a source other than PyEnsemble, e.g. Prolific, have a field for storing the session identifier at the origin, if available and desired.
     origin_sessid = models.CharField(max_length=64, null=True, blank=True)
 
-    diagnostics_data = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
+    # Reporting/diagnostics data
+    reporting_data = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
 
+    # Has the post-session method associated with the experiment, if any, been executed
     executed_postsession_callback = models.BooleanField(default=False)
 
-    def save(self, *args, **kwargs):
-        if not self.age:
-            if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
-                self.age = relativedelta(datetime.now(),self.subject.dob).years
-            else:
-                self.age = None
-
-        super(Session,self).save(*args, **kwargs)
-
+    # Conversion to local time of session
     def localtime(self, time):
         tz = settings.TIME_ZONE
         
@@ -216,31 +221,39 @@ class Session(models.Model):
 
         return timezone.localtime(time, zoneinfo.ZoneInfo(tz))
 
+    # Access start of session in local time
     @property
     def start(self):
-        self._start = self.localtime(self.date_time)
+        self._start = self.localtime(self.start_datetime)
         return self._start
 
+    # Access end of session in local time
     @property
     def end(self):
         self._end = self.localtime(self.end_datetime)
         return self._end
 
-    def diagnostics(self, *args, **kwargs):
-        if not self.experiment.session_diagnostic_script:
-            raise ValueError(f"No diagnostics script specified for {self.experiment.title}")
+    '''
+    Method to run the reporting script, if any, that has been associated with the experiment. Note that this method does not return a view, but rather a data dictionary, encoded as JSON, that can be used in a view.
+
+    We may want to add a default reporting script that provides basic session statistics
+    '''
+
+    def reporting(self, *args, **kwargs):
+        if not self.experiment.session_reporting_script:
+            raise ValueError(f"No reporting script specified for {self.experiment.title}")
 
         # Check whether we have cached diagnostics data
         use_cached = kwargs.get('use_cached', False)
 
         data = {}
         if use_cached:
-            data = self.diagnostics_data
+            data = self.reporting_data
 
         # Run the diagnostics if none are currently available
         if not data:
             # Parse the specified diagnostics script call
-            funcdict = parse_function_spec(self.experiment.session_diagnostic_script)
+            funcdict = parse_function_spec(self.experiment.session_reporting_script)
 
             # Fetch the diagnostics method
             method = fetch_experiment_method(funcdict['func_name'])
@@ -252,11 +265,15 @@ class Session(models.Model):
             data = json.loads(response.content)
 
             # Cache the data
-            self.diagnostics_data = data
+            self.reporting_data = data
             self.save()
 
         return JsonResponse(data)
 
+    '''
+    Method to execute an optional method, specified in the experiment, that runs asynchronously on completed sessions.
+
+    '''
     def run_post_session(self, *args, **kwargs):
         # Get our callback
         callback = self.experiment.post_session_callback
@@ -278,6 +295,27 @@ class Session(models.Model):
         self.save()
 
         return response
+
+
+class Session(AbstractSession):
+    # The participant associated with this session
+    subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
+
+    # The ticket used to access this session
+    ticket = models.ForeignKey('Ticket', db_constraint=True, on_delete=models.CASCADE, related_name='+')
+
+    # Participant's age at the time of the session
+    age = models.PositiveSmallIntegerField(null=True)
+
+    def save(self, *args, **kwargs):
+        # Calculate the participant's age the first time the save method is called
+        if not self.age:
+            if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
+                self.age = relativedelta(datetime.now(),self.subject.dob).years
+            else:
+                self.age = None
+
+        super(Session,self).save(*args, **kwargs)
 
 
 class Stimulus(models.Model):
@@ -489,14 +527,35 @@ class ExperimentXForm(models.Model):
     ]
 
     form_handler = models.CharField(max_length=50, blank=True, choices=FORM_HANDLER_OPTIONS, default='form_generic')
+
     goto = models.IntegerField(blank=True, null=True)
     repeat = models.IntegerField(blank=True, null=True)
+
+    # Not-fully-debugged vestige of original Ensemble implementation of how conditional form execution was specified. 
     condition = models.TextField(blank=True)
+
+    '''
+    Path to an optional method within a module located under experiments that is evaluated to determine whether this form should be served to the participant
+    '''
     condition_script = models.CharField(max_length=100, blank=True)
+
+    '''
+    Path to an optional method with a module located under experiments that is evaluated in order to obtain a stimulus identifier, a JSPsych timeline, or any other data that is needed for running the trial associated with the form
+    '''
     stimulus_script = models.CharField(max_length=100, blank=True)
+
+    '''
+    Path to an optional method within a module located under experiments that is evaluated to determine whether the participant's response should be accepted and written to the Response table. This method can be used to trap inadvertent double submissions. The executed method should return True if the response is to be written.
+    '''
+    accept_response_script = models.CharField(max_length=100, blank=True)
+
     break_loop_button = models.BooleanField(default=False)
     break_loop_button_text = models.CharField(max_length=50, blank=True)
     continue_button_text = models.CharField(max_length=50, blank=True, default='Next')
+
+    '''
+    Should forms be validated in the client rather than with the Django form-validators. Client-side validation is currently used only to validate completion of required fields, not correct data types.
+    '''
     use_clientside_validation = models.BooleanField(default=False)
 
     class Meta:
@@ -620,8 +679,6 @@ class ExperimentXForm(models.Model):
         # Now check whether there is any condition-checking script that we need to run
         #
         if met_conditions and self.condition_script:
-            from pyensemble import experiments
-
             # Parse the function call specification
             funcdict = parse_function_spec(self.condition_script)
 
@@ -633,12 +690,32 @@ class ExperimentXForm(models.Model):
             # Pass along our session_id
             funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
 
+            # Fetch our callable method
             method = fetch_experiment_method(funcdict['func_name'])
 
             # Call the select function with the parameters to get the trial specification
-            met_conditions = method(request, *funcdict['args'],**funcdict['kwargs'])
+            met_conditions = method(request, *funcdict['args'], **funcdict['kwargs'])
 
         return met_conditions
+
+    @property
+    def response_acceptable(self, request):
+        self._response_acceptable = True
+
+        if self.accept_response_script:
+            # Parse the function call specification
+            funcdict = parse_function_spec(self.accept_response_script)
+
+            # Pass along our session_id
+            funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
+
+            # Fetch our callable method
+            method = fetch_experiment_method(funcdict['func_name'])
+
+            # Call the select function with the parameters to get the trial specification
+            self._response_acceptable = method(request, *funcdict['args'], **funcdict['kwargs'])
+
+        return self._response_acceptable
 
     def next_form_idx(self, request):
         next_form_idx = None
