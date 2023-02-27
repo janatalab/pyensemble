@@ -196,15 +196,30 @@ class ExperimentFormForm(forms.ModelForm):
             'form_handler': forms.Select(attrs={'placeholder':'Choose a form handler'}),
         }
 
-    field_order = ('form_handler','condition_script','stimulus_script','goto','repeat','break_loop_button','break_loop_button_text','continue_button_text')
+    field_order = (
+        'form_handler',
+        'goto',
+        'repeat',
+        'break_loop_button',
+        'break_loop_button_text',
+        'continue_button_text',
+        'condition_script',
+        'stimulus_script',
+        'accept_response_script'
+        )
 
     def __init__(self, *args, **kwargs):
-        super(ExperimentFormForm,self).__init__(*args,**kwargs)
+        super(ExperimentFormForm,self).__init__(*args, **kwargs)
 
-        for field in ['condition_script','stimulus_script']:
+        for field in ['condition_script', 'stimulus_script', 'accept_response_script']:
             script = getattr(self.instance,field,'')
             if script:
-                self.fields[field].widget.attrs.update({'class':'has-popover', 'data-content':script, 'data-placement':'right', 'data-container':'body'})
+                self.fields[field].widget.attrs.update({
+                    'class':'has-popover',
+                    'data-content':script,
+                    'data-placement':'right',
+                    'data-container':'body'
+                    })
 
 class ExperimentForm(forms.ModelForm):
     class Meta:
@@ -221,7 +236,19 @@ class ExperimentForm(forms.ModelForm):
 
 ExperimentFormFormset = forms.inlineformset_factory(Experiment, ExperimentXForm, 
     form=ExperimentFormForm, 
-    fields=('form_order', 'form_handler', 'goto','repeat','condition_script','stimulus_script', 'break_loop_button', 'break_loop_button_text', 'continue_button_text','use_clientside_validation'), 
+    fields= (
+        'form_order',
+        'form_handler',
+        'goto',
+        'repeat',
+        'condition_script',
+        'stimulus_script',
+        'break_loop_button',
+        'break_loop_button_text',
+        'continue_button_text',
+        'use_clientside_validation',
+        'accept_response_script'
+        ),
     can_order=True,
     can_delete=True,
     extra=0,
