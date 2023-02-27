@@ -1,4 +1,8 @@
-<p>Dear {{subject.name_first}} {{subject.name_last}},</p>
+{% load tz %}
+{% localtime off %}
 
-<p>Thank you for participating in our experiment!</p>
+<p>Dear {{session.subject.name_first}} {{session.subject.name_last}},</p>
 
+<p>Thank you for participating in our experiment on {{session.start|date}} from {{session.start|time}} to {{session.end|time}}!</p>
+
+{% endlocaltime %}

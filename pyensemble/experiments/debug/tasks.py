@@ -108,8 +108,6 @@ def schedule_notifications(session, *args, **kwargs):
     notification_list = []
     notifications = []
 
-    session.end = timezone.localtime(session.end_datetime, zoneinfo.ZoneInfo(session.timezone))
-
     # Create one notification to be sent in the next dispatch cycle
     notification_list.append({
         'template': 'debug/thank_you.html',
@@ -124,7 +122,8 @@ def schedule_notifications(session, *args, **kwargs):
 
     # Specify a notification time of 8:30 AM
     time = datetime.time(8,30)
-    target_time = timezone.datetime.combine(tomorrow, time, tzinfo=now.tzinfo)
+
+    target_time = timezone.datetime.combine(tomorrow, time, tzinfo=zoneinfo.ZoneInfo(session.timezone))
 
     notification_list.append({
         'template': 'debug/reminder.html',
