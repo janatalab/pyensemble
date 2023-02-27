@@ -840,7 +840,7 @@ class Notification(models.Model):
         context = {}
 
         # Create the context that we send to the template
-        context.update({'subject': self.subject})
+        context.update({'session': self.session})
         context.update(self.context)
 
         # Call the email-generating function

@@ -28,10 +28,22 @@ def main():
 
     # Execute our tasks
     print('Running postsession callbacks ...')
-    execute_postsession_callbacks()
+    try:
+        execute_postsession_callbacks()
+
+    except Exception as err:
+        print(f"Unexpected {err}, {type(err)}")
+        raise
+
 
     print('Dispatching notifications ...')
-    dispatch_notifications()
+    try:
+        dispatch_notifications()
+    except Exception as err:
+        print(f"Unexpected {err}, {type(err)}")
+        raise
+
+    print('Finished cron tasks ...')
 
     return
 

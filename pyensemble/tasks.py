@@ -100,9 +100,9 @@ def create_tickets(ticket_request_data):
 
     return ticket_list
 
-def send_email(template, context):
+def send_email(template_name, context):
     # Get our template
-    template = loader.get_template(template)
+    template = loader.get_template(template_name)
 
     # Render the content as HTML
     html_content = template.render(context)
