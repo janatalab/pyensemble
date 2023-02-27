@@ -108,7 +108,7 @@ def schedule_notifications(session, *args, **kwargs):
     notification_list = []
     notifications = []
 
-    session_end_dt = timezone.localtime(session.end_datetime, zoneinfo.ZoneInfo(session.timezone))
+    session.end = timezone.localtime(session.end_datetime, zoneinfo.ZoneInfo(session.timezone))
 
     # Create one notification to be sent in the next dispatch cycle
     notification_list.append({
@@ -116,11 +116,11 @@ def schedule_notifications(session, *args, **kwargs):
         'context': {
             'msg_subject': 'Thank you for participating!'
         },
-        'datetime': session_end_dt,
+        'datetime': session.end,
     })
 
     # Create a notification to be sent the morning after the end of the session at 8:30 AM (localtime)
-    tomorrow = session_end_dt.date()+timezone.timedelta(days=1)
+    tomorrow = session.end.date()+timezone.timedelta(days=1)
 
     # Specify a notification time of 8:30 AM
     time = datetime.time(8,30)
