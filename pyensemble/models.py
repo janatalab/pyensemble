@@ -146,7 +146,8 @@ class Experiment(models.Model):
     def __str__(self):
         return self.title
 
-    def get_cache_key(self):
+    @property
+    def cache_key(self):
         return f'experiment_{self.id}'
 
 
@@ -545,9 +546,9 @@ class ExperimentXForm(models.Model):
     stimulus_script = models.CharField(max_length=100, blank=True)
 
     '''
-    Path to an optional method within a module located under experiments that is evaluated to determine whether the participant's response should be accepted and written to the Response table. This method can be used to trap inadvertent double submissions. The executed method should return True if the response is to be written.
+    Path to an optional method within a module located under experiments that is evaluated to determine whether the participant's response should be accepted and recorded to the Response table. This method can be used to trap inadvertent double submissions. The executed method should return True if the response is to be recorded.
     '''
-    accept_response_script = models.CharField(max_length=100, blank=True)
+    record_response_script = models.CharField(max_length=100, blank=True)
 
     break_loop_button = models.BooleanField(default=False)
     break_loop_button_text = models.CharField(max_length=50, blank=True)
@@ -613,8 +614,7 @@ class ExperimentXForm(models.Model):
     def conditions_met(self, request):
         met_conditions = True
 
-        expsess_key = 'experiment_%d'%(self.experiment.id,)
-        expsessinfo = request.session.get(expsess_key,None)
+        expsessinfo = request.session.get(self.experiment.cache_key, None)
 
         #
         # First check for conditions specified within the database
@@ -698,13 +698,15 @@ class ExperimentXForm(models.Model):
 
         return met_conditions
 
-    @property
-    def response_acceptable(self, request):
-        self._response_acceptable = True
 
-        if self.accept_response_script:
+    def record_response(self, request):
+        self._record_response = True
+
+        if self.record_response_script:
+            expsessinfo = request.session.get(self.experiment.cache_key, None)
+
             # Parse the function call specification
-            funcdict = parse_function_spec(self.accept_response_script)
+            funcdict = parse_function_spec(self.record_response_script)
 
             # Pass along our session_id
             funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
@@ -713,16 +715,15 @@ class ExperimentXForm(models.Model):
             method = fetch_experiment_method(funcdict['func_name'])
 
             # Call the select function with the parameters to get the trial specification
-            self._response_acceptable = method(request, *funcdict['args'], **funcdict['kwargs'])
+            self._record_response = method(request, *funcdict['args'], **funcdict['kwargs'])
 
-        return self._response_acceptable
+        return self._record_response
 
     def next_form_idx(self, request):
         next_form_idx = None
         experiment_id = self.experiment.id
 
-        expsess_key = f'experiment_{experiment_id}'
-        expsessinfo = request.session[expsess_key]
+        expsessinfo = request.session.get(self.experiment.cache_key, None)
 
         # Get our form stack - should be a better way to do this relative to self
         exf = ExperimentXForm.objects.filter(experiment=experiment_id).order_by('form_order')

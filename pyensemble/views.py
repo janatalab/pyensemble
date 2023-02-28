@@ -30,7 +30,7 @@ from pyensemble.models import Ticket, Session, Experiment, Form, Question, Exper
 
 from pyensemble.forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
 
-from pyensemble.tasks import get_expsess_key, fetch_subject_id, get_or_create_prolific_subject, create_tickets
+from pyensemble.tasks import fetch_subject_id, get_or_create_prolific_subject, create_tickets
 
 from pyensemble import errors
 
@@ -329,15 +329,15 @@ class EnumCreateView(LoginRequiredMixin,CreateView):
 # Start experiment
 @require_http_methods(['GET'])
 def run_experiment(request, experiment_id=None):
+    # Get our experiment object
+    experiment = Experiment.objects.get(id=experiment_id)
+
     # Keep the general session alive
     request.session.set_expiry(settings.SESSION_DURATION)
 
     # Get cached information for this experiment and session, if we have it
-    expsess_key = get_expsess_key(experiment_id)
+    expsess_key = experiment.cache_key
     expsessinfo = request.session.get(expsess_key,{})
-
-    # Get our experiment object
-    experiment = Experiment.objects.get(id=experiment_id)
 
     # Check whether we have a running session, and initialize a new one if not.
     if not expsessinfo.get('running',False): 
@@ -474,8 +474,10 @@ def serve_form(request, experiment_id=None):
         # 'group': {},
     }
 
+    experiment = Experiment.objects.get(pk=experiment_id)
+
     # Get the key that we can use to retrieve experiment-specific session information for this user   
-    expsess_key = get_expsess_key(experiment_id)
+    expsess_key = experiment.cache_key
 
     # Make sure the experiment session info is cached in the session info
     # Otherwise restart the experiment
@@ -604,7 +606,6 @@ def serve_form(request, experiment_id=None):
                 # Now that we've saved our updated session it is safe to delete the temporary subject
                 tmp_subject.delete()
 
-
             elif handler_name == 'form_consent':
                 question = formset.forms[0]
                 response = int(question.cleaned_data.get('option',''))
@@ -639,6 +640,12 @@ def serve_form(request, experiment_id=None):
                 subject.save()
 
             else:
+                # Evaluate any further experiment-form-specific response validation callback. The primary intent is to check for submission of an identical response arising from an inadvertent double form submission.
+                if not currform.record_response(request):
+
+                    # If we were told to not record the response, progress on with the experiment without updating the form visit count or getting the next form index
+                    return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
+
                 #
                 # Save responses to the Response table
                 #
@@ -953,14 +960,15 @@ def create_ticket(request):
         args=(ticket_request.cleaned_data['experiment_id'],)))
 
 def reset_session(request, experiment_id):
-    expsess_key = get_expsess_key(experiment_id)
-    expsessinfo = request.session.get(expsess_key)
+    experiment = Experiment.objects.get(pk=experiment_id)
+
+    expsessinfo = request.session.get(experiment.cache_key)
 
     if not expsessinfo:
         msg = f'Experiment {experiment_id} session not initialized'
     else:
+        request.session.pop(experiment.cache_key, None)
         msg = f'Experiment {experiment_id} session reset'
-        request.session.pop(expsess_key,None)
 
     return render(request,'pyensemble/message.html',{'msg':msg})
 

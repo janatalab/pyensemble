@@ -205,13 +205,13 @@ class ExperimentFormForm(forms.ModelForm):
         'continue_button_text',
         'condition_script',
         'stimulus_script',
-        'accept_response_script'
+        'record_response_script'
         )
 
     def __init__(self, *args, **kwargs):
         super(ExperimentFormForm,self).__init__(*args, **kwargs)
 
-        for field in ['condition_script', 'stimulus_script', 'accept_response_script']:
+        for field in ['condition_script', 'stimulus_script', 'record_response_script']:
             script = getattr(self.instance,field,'')
             if script:
                 self.fields[field].widget.attrs.update({
@@ -247,7 +247,7 @@ ExperimentFormFormset = forms.inlineformset_factory(Experiment, ExperimentXForm,
         'break_loop_button_text',
         'continue_button_text',
         'use_clientside_validation',
-        'accept_response_script'
+        'record_response_script'
         ),
     can_order=True,
     can_delete=True,
