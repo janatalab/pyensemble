@@ -8,6 +8,8 @@ try:
 except ImportError:
     from backports import zoneinfo
 
+from pyensemble.models import AbstractSession
+
 import polling2
 
 import pdb
@@ -34,14 +36,10 @@ class GroupSubject(models.Model):
 def init_session_context():
     return {'state': ''}
 
-class GroupSession(models.Model):
+class GroupSession(AbstractSession):
     group = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
-    experiment = models.ForeignKey('pyensemble.Experiment', db_constraint=True, on_delete=models.CASCADE)
-    ticket = models.OneToOneField('pyensemble.Ticket', db_constraint=True, on_delete=models.CASCADE)
-    start_datetime = models.DateTimeField(blank=True, null=True, auto_now_add=True)
-    end_datetime = models.DateTimeField(blank=True, null=True)
 
-    # timezone = models.CharField(max_length=64, blank=True)
+    ticket = models.OneToOneField('pyensemble.Ticket', db_constraint=True, on_delete=models.CASCADE)
 
     experimenter_attached = models.BooleanField(default=False)
 
@@ -72,29 +70,8 @@ class GroupSession(models.Model):
     def __str__(self):
         return "Group: %s, Experiment: %s, Session %d"%(self.group.name, self.experiment.title, self.id)
 
-    def localtime(self, time):
-        tz = settings.TIME_ZONE
-        # if self.timezone:
-        #     tz = self.timezone
-
-        return timezone.localtime(time, zoneinfo.ZoneInfo(tz))
-
     @property
-    def start(self):
-        self._start = self.localtime(self.start_datetime)
-        return self._start
-
-    @property
-    def end(self):
-        if self.end_datetime:
-            self._end = self.localtime(self.end_datetime)
-        else:
-            self._end = None
-
-        return self._end
-
-
-    def get_cache_key(self):
+    def cache_key(self):
         return f'groupsession_{self.id}'
 
     @property
@@ -219,13 +196,22 @@ class GroupSessionSubjectSession(models.Model):
     # Mechanism for indicating subject session state
     #
 
-    # UNKNOWN - Users start out in an unknown state
-    # READY_SERVER - used to indicate that a subject's session is ready for the next form. Used to synchronize subjects prior to calling of a method specified in the stimulus_script field of an ExperimentXForm instance.
-    # READY_CLIENT - used to indicate that the subject's browser is ready for a trial to commence. This is used for experiments in which an experimenter process initiates a trial once all subjects are declared ready on the client. 
-    # BUSY - Can be set to indicate that the subject is in the middle of a trial
-    # RESPONSE_PENDING - Can be used to signal that a client-side trial has completed and that the subject's form submission is being awaited
+    '''
+    UNKNOWN - Users start out in an unknown state and return to this state when on a form that doesn't pertain to a group trial
 
-    # NOTE: By default, when a form uses a group_trial form handler, the READY_SERVER and READY_CLIENT states are automatically implemented, respectively, in pyensemble.views.serve_form and a JavaScript routine that is embedded in the group_trial.html template and automatically executes when the subject's browswer is ready. These states are the only states that are need for self-standing group experiments, i.e. those that don't require an experimenter to initiate trials or send state-setting signals. Experimenter-driven group sessions will likely utilize the READY_CLIENT states and may set BUSY and RESPONSE_PENDING states for added control and status reporting.
+    READY_SERVER - used to indicate that a subject's session is ready for the next form. Used to synchronize subjects prior to calling of a method specified in the stimulus_script field of an ExperimentXForm instance.
+
+    READY_CLIENT - used to indicate that the subject's browser is ready for a trial to commence. This is used for experiments in which an experimenter process initiates a trial once all subjects are declared ready on the client. 
+
+    BUSY - Can be set to indicate that the subject is in the middle of a trial
+
+    RESPONSE_PENDING - Can be used to signal that a experimenter or participant's client-side trial has completed and that the subject's form submission is being awaited
+
+    NOTE: By default, when a form uses a group_trial form handler, the READY_SERVER and READY_CLIENT states are automatically implemented, respectively, in pyensemble.views.serve_form and a JavaScript routine that is embedded in the group_trial.html template and automatically executes when the subject's browswer is ready. These states are the only states that are needed for self-standing group experiments, i.e. those that don't require an experimenter to initiate trials or send state-setting signals. 
+
+    Experimenter-driven group sessions will likely depend on the READY_CLIENT states of participants to initialize or start trials, and may optionally set BUSY and RESPONSE_PENDING states for added control and status reporting.
+
+    '''
 
     class States(models.IntegerChoices):
         UNKNOWN = 0
