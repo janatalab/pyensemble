@@ -181,7 +181,6 @@ class Response(models.Model):
 class Session(models.Model):
     date_time = models.DateTimeField(blank=True, null=True, auto_now_add=True)
     end_datetime = models.DateTimeField(blank=True, null=True)
-    timezone = models.CharField(max_length=64, blank=True, default=settings.TIME_ZONE)
 
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     ticket = models.ForeignKey('Ticket', db_constraint=True, on_delete=models.CASCADE, related_name='+')
