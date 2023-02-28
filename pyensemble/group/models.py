@@ -70,7 +70,8 @@ class GroupSession(AbstractSession):
     def __str__(self):
         return "Group: %s, Experiment: %s, Session %d"%(self.group.name, self.experiment.title, self.id)
 
-    def get_cache_key(self):
+    @property
+    def cache_key(self):
         return f'groupsession_{self.id}'
 
     @property

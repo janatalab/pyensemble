@@ -42,7 +42,13 @@ def get_session_id(request):
     return session_id
 
 def get_group_session(request):
-    return GroupSession.objects.get(pk=get_session_id(request))
+    session_id = get_session_id(request)
+
+    if session_id:
+        return GroupSession.objects.get(pk=session_id)
+
+    else:
+        return None
 
 @login_required
 def start_groupsession(request):
@@ -79,7 +85,7 @@ def start_groupsession(request):
                 )
 
             # Initialize a group session object in the session cache
-            cache_key = group_session.get_cache_key()
+            cache_key = group_session.cache_key
             request.session['group_session_key'] = cache_key
             request.session[cache_key] = {'id': group_session.id}
 
@@ -138,7 +144,7 @@ def attach_experimenter(request):
             session.save()
 
             # Initialize a session variables cache
-            cache_key = ticket.groupsession.get_cache_key()
+            cache_key = ticket.groupsession.cache_key
             request.session['group_session_key'] = cache_key
             request.session[cache_key] = {'id': ticket.groupsession.id}
 
@@ -164,7 +170,7 @@ def attach_participant(request):
             ticket = Ticket.objects.get(participant_code=form.cleaned_data['participant_code'])
 
             # Cache the group session key in the participant's cache
-            cache_key = ticket.groupsession.get_cache_key()
+            cache_key = ticket.groupsession.cache_key
             request.session['group_session_key'] = cache_key
             request.session[cache_key] = {'id': ticket.groupsession.id}
 
@@ -226,7 +232,7 @@ def get_groupuser_session(request):
     group_session = GroupSession.objects.get(pk=groupsession_id)
 
     # Get the experiment info from the user's session cache
-    expsessinfo = request.session[group_session.experiment.get_cache_key()]
+    expsessinfo = request.session[group_session.experiment.cache_key]
 
     # Get the user session
     user_session = Session.objects.get(pk=expsessinfo['session_id'])

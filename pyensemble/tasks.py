@@ -13,9 +13,6 @@ from django.utils import timezone
 
 import pdb
 
-def get_expsess_key(experiment_id):
-    return f'experiment_{experiment_id}'
-    
 
 def fetch_subject_id(subject, scheme='nhdl'):
     from pyensemble.models import Subject
