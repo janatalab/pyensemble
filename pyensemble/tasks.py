@@ -119,7 +119,7 @@ def send_email(template_name, context):
     msg_subject = context.get("msg_subject","No subject")
 
     # Get the subject's email
-    to_email = [context['subject'].email]
+    to_email = [context['session'].subject.email]
 
     # Construct the basic message
     message = EmailMultiAlternatives(

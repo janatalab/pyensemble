@@ -4,16 +4,19 @@
 #
 import hashlib
 import json
-import urllib3
+import urllib
 
 from django.conf import settings
 
 from django.db import models
-from django.urls import reverse
+
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 
+from django.contrib.sites.models import Site
+from django.urls import reverse
 from django.http import JsonResponse
+
 from django.core.serializers.json import DjangoJSONEncoder
 
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField, EncryptedDateField
@@ -274,7 +277,6 @@ class AbstractSession(models.Model):
 
     '''
     Method to execute an optional method, specified in the experiment, that runs asynchronously on completed sessions.
-
     '''
     def run_post_session(self, *args, **kwargs):
         # Get our callback
@@ -438,8 +440,12 @@ class Ticket(models.Model):
     @property
     def url(self):
         if not getattr(self,'_url', None):
-            url = reverse('run_experiment', args=(experiment.pk,))
-            url += '?' + urllib.urlencode('tc', self.ticket_code)
+            path = reverse('run_experiment', args=(self.experiment.pk,))
+            path += '?' + urllib.parse.urlencode({'tc':self.ticket_code})
+
+            domain = Site.objects.get_current().domain
+
+            url = f"{domain}{settings.PORT}/{settings.INSTANCE_LABEL}{path}"
             self._url = url
 
         return self._url
