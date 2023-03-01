@@ -267,7 +267,7 @@ class CopyExperimentForm(forms.ModelForm):
     helper.form_method = 'POST'
     helper.form_id = 'copyItemForm'
 
-
+# TODO: Refactor TicketCreationForm into a ModelForm and also make use of validfrom field
 class TicketCreationForm(forms.Form):
     input_format = '%d/%m/%Y %H:00'
     num_master = forms.IntegerField(label='Number of (multiple-use) master tickets', initial=0)
