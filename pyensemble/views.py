@@ -380,6 +380,10 @@ def run_experiment(request, experiment_id=None):
         if ticket.type == 'user' and ticket.used:
             return errors.ticket_error(request, ticket, 'TICKET_ALREADY_USED')
 
+        # Make sure the ticket's validity has commenced
+        if timezone.now() < ticket.start:
+            return errors.ticket_error(request, ticket, 'TICKET_NOT_YET_VALID')
+
         # Make sure ticket hasn't expired
         if ticket.expired:
             return errors.ticket_error(request, ticket, 'TICKET_EXPIRED')
