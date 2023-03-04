@@ -460,12 +460,16 @@ class Ticket(models.Model):
 
     @property
     def start(self):
-        self._start = self.localtime(self.validfrom_datetime)
+        self._start = None
+        if self.validfrom_datetime:
+            self._start = self.localtime(self.validfrom_datetime)
         return self._start
 
     @property
     def end(self):
-        self._end = self.localtime(self.expiration_datetime)
+        self._end = None
+        if self.expiration_datetime:
+            self._end = self.localtime(self.expiration_datetime)
         return self._end
 
     @property
