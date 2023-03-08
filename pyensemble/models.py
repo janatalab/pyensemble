@@ -445,7 +445,7 @@ class Ticket(models.Model):
 
             domain = Site.objects.get_current().domain
 
-            url = f"{domain}{settings.PORT}/{settings.INSTANCE_LABEL}{path}"
+            url = f"https://{domain}{settings.PORT}/{settings.INSTANCE_LABEL}{path}"
             self._url = url
 
         return self._url
