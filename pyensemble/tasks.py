@@ -86,7 +86,7 @@ def create_tickets(ticket_request_data):
 
             # Add the ticket(s)
             for iticket in range(num_tickets):
-                unencrypted_str = '%d_%d'%(num_existing_tickets+len(ticket_list), experiment_id)
+                unencrypted_str = '%d_%d'%(num_existing_tickets+len(ticket_list), experiment.id)
                 encrypted_str = hashlib.md5(unencrypted_str.encode('utf-8')).hexdigest()
 
                 # Add a new ticket to our list
@@ -151,12 +151,15 @@ def dispatch_notifications():
 def execute_postsession_callbacks():
     from pyensemble.models import Session 
 
-    # Get a list of completed Sessions for which the Experiment has a post_session_callback, and the callback has not been executed
+    # Get a list of completed Sessions for which the Experiment has a post_session_callback
     sessions = Session.objects.exclude(
             end_datetime__isnull = True,
             experiment__post_session_callback__exact = "")
 
+    # Get those that have not yet been executed
     sessions = sessions.filter(executed_postsession_callback = False)
+
+    # TODO: Get a list of the different post_session_callback values and iterate the list, isolating each call in a try-except block so that a buggy callback doesn't cause the whole stack to fail.
 
     for session in sessions:
         session.run_post_session()

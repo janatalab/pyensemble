@@ -828,6 +828,10 @@ class Study(models.Model):
     def __str__(self):
         return self.title
 
+    @property
+    def num_experiments(self):
+        return StudyXExperiment.objects.filter(study=self).count()
+
 
 class StudyXExperiment(models.Model):
     study = models.ForeignKey('Study', db_constraint=True, on_delete=models.CASCADE)
@@ -839,6 +843,30 @@ class StudyXExperiment(models.Model):
 
     def __str__(self):
         return self.experiment.title
+
+    # Method to return the previous experiment in the series
+    def prev(self):
+        experiment = None
+
+        if self.experiment_order > 1:
+            experiment = StudyXExperiment.objects.get(
+                study=self.study,
+                experiment_order=self.experiment_order-1
+                )
+
+        return experiment     
+
+    # Method to return the next experiment in the series
+    def next(self):
+        experiment = None
+
+        if self.experiment_order < self.study.num_experiments:
+            experiment = StudyXExperiment.objects.get(
+                study=self.study,
+                experiment_order=self.experiment_order+1
+                )
+
+        return experiment
 
 # One of the needs associated with studies is to send various notifications with reminders or links pertaining to their participation. It would be nice for this to be automated rather than managed manually. 
 # Necessary tasks include:
@@ -853,7 +881,6 @@ class StudyXExperiment(models.Model):
 # Note that all times are stored in UTC. It is up to the scheduler in an experiment-specific callback to work out the appropriate timezone offset.
 
 class Notification(models.Model):
-    subject = models.ForeignKey('Subject', db_constraint=True, on_delete=models.CASCADE)
     created = models.DateTimeField(
         auto_now_add=True,
         blank=False,
@@ -874,17 +901,31 @@ class Notification(models.Model):
     template = models.CharField(max_length=100, blank=False)
     context = models.JSONField(null=False)
 
-    # Experiment associated with this notification
+    # The participant associated with this notification
+    subject = models.ForeignKey('Subject', db_constraint=True, on_delete=models.CASCADE)
+
+    # Experiment that was the basis for this notification
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE, null=True)
 
-    # Session associated with this notification
+    # Session that was the basis this notification
     session = models.ForeignKey('Session', db_constraint=True, on_delete=models.CASCADE, null=True)
 
+    # Optional ticket that we want to associate with this notification
+    ticket = models.ForeignKey('Ticket', null=True, db_constraint=True, on_delete=models.CASCADE)
+
     def dispatch(self):
+        # Create the context that we send to the template
         context = {}
 
-        # Create the context that we send to the template
-        context.update({'session': self.session})
+        # First, add our desired model fields
+        context.update({
+            'subject': self.subject,
+            'experiment': self.experiment,
+            'session': self.session,
+            'ticket': self.ticket,
+        })
+
+        # Now add the context stored in a JSON field
         context.update(self.context)
 
         # Call the email-generating function
