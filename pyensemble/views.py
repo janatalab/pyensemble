@@ -340,7 +340,7 @@ def run_experiment(request, experiment_id=None):
     expsessinfo = request.session.get(expsess_key,{})
 
     # Check whether we have a running session, and initialize a new one if not.
-    if not expsessinfo.get('running',False): 
+    if not expsessinfo.get('running', False): 
         # Pull out our ticket code
         ticket_code = request.GET.get('tc', None)
 
@@ -399,6 +399,8 @@ def run_experiment(request, experiment_id=None):
             if subject.id_origin == 'PRLFC':
                 prolific_pid = subject_id
 
+            tmp_subject = False
+
         # If the participant has not yet registered, create a new temporary entry. The id needs to be a unique hash, otherwise we run into collisions.
         if not subject:
             if not request.session.session_key:
@@ -406,16 +408,23 @@ def run_experiment(request, experiment_id=None):
 
             subject, created = Subject.objects.get_or_create(subject_id=request.session.session_key)
 
+            tmp_subject = True
+
         # See whether we were passed in an explicit session_id as a URL parameter
         origin_sessid = request.GET.get('SESSION_ID', None)
 
         # Initialize a session in the PyEnsemble session table
         session = Session.objects.create(
             experiment = ticket.experiment, 
-            ticket = ticket, subject = subject, 
+            ticket = ticket, 
+            subject = subject, 
             origin_sessid = origin_sessid
-            )
+        )
 
+        # Calculate the age of the subject
+        if not tmp_subject:
+            session.calc_age()
+            
         # If this is a group experiment, attach the session to a group session
         if experiment.is_group:
             # Get the group session object associated with this ticket
@@ -491,6 +500,9 @@ def serve_form(request, experiment_id=None):
     # Get our experiment session info
     expsessinfo = request.session[expsess_key]
 
+    # Update our context with our session ID
+    context.update({'session_id': expsessinfo['session_id']})
+
     # Get the index of the form we're on
     form_idx = expsessinfo['curr_form_idx']
 
@@ -546,7 +558,7 @@ def serve_form(request, experiment_id=None):
 
         # Flag the fact that we've served the first form, irrespective of whether the POST was valid. Write the local timezone for the session to the session object
         if expsessinfo['first_form']:
-            session.timezone = request.session.get('timezone',settings.TIME_ZONE)
+            session.timezone = request.session.get('timezone', settings.TIME_ZONE)
             session.save()
 
         expsessinfo.update({'first_form': False})
@@ -605,6 +617,11 @@ def serve_form(request, experiment_id=None):
 
                 # Attach the registered subject and save the session
                 session.subject = subject
+
+                # Calculate the age of our subject
+                session.calc_age()
+
+                # Save the updated session
                 session.save()
 
                 # Now that we've saved our updated session it is safe to delete the temporary subject
@@ -997,6 +1014,17 @@ def flush_session_cache(request):
 
 def record_timezone(request):
     if request.method == 'POST':
-        request.session['timezone'] = request.POST['timezone']
+        # Extract our timezone
+        tzname = request.POST['timezone']
+
+        # Update our Django session cache
+        request.session['timezone'] = tzname
+
+        # Update our PyEnsemble subject session
+        session_id = request.POST.get('session_id', None)
+        if session_id:
+            session = Session.objects.get(pk=session_id)
+            session.timezone = tzname
+            session.save()
 
         return HttpResponse("ok")
