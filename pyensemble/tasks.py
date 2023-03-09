@@ -71,6 +71,9 @@ def create_tickets(ticket_request_data):
         experiment_id = ticket_request_data['experiment_id']
         experiment = Experiment.objects.get(id=experiment_id)
 
+    # Get our ticket timezone
+    timezone = ticket_request_data.get('timezone', settings.TIME_ZONE)
+
     # Get our ticket types
     ticket_types = [tt[0] for tt in Ticket.TICKET_TYPE_CHOICES]
 
@@ -96,6 +99,7 @@ def create_tickets(ticket_request_data):
                     type = ticket_type,
                     validfrom_datetime = validfrom_datetime,
                     expiration_datetime = expiration_datetime,
+                    timezone = timezone,
                     subject = subject
                 )
                 ticket_list.append(ticket)
@@ -152,9 +156,7 @@ def execute_postsession_callbacks():
     from pyensemble.models import Session 
 
     # Get a list of completed Sessions for which the Experiment has a post_session_callback
-    sessions = Session.objects.exclude(
-            end_datetime__isnull = True,
-            experiment__post_session_callback__exact = "")
+    sessions = Session.objects.exclude(experiment__post_session_callback__exact = "").exclude(end_datetime__isnull = True)
 
     # Get those that have not yet been executed
     sessions = sessions.filter(executed_postsession_callback = False)

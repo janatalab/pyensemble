@@ -200,7 +200,7 @@ class AbstractSession(models.Model):
     end_datetime = models.DateTimeField(blank=True, null=True)
 
     # User's timezone
-    timezone = models.CharField(max_length=64, blank=True)
+    timezone = models.CharField(max_length=64, blank=True, default=settings.TIME_ZONE)
 
     # Should this session be excluded from consideration in experiment-wide calculations
     exclude = models.BooleanField(default=False)
@@ -311,16 +311,14 @@ class Session(AbstractSession):
     # Participant's age at the time of the session
     age = models.PositiveSmallIntegerField(null=True)
 
-    def save(self, *args, **kwargs):
+    def calc_age(self, *args, **kwargs):
         # Calculate the participant's age the first time the save method is called
         if not self.age:
             if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
-                self.age = relativedelta(datetime.now(),self.subject.dob).years
-            else:
-                self.age = None
+                self.age = relativedelta(datetime.now(), self.subject.dob).years
+                self.save()
 
-        super(Session,self).save(*args, **kwargs)
-
+        return self.age
 
 class Stimulus(models.Model):
     name = models.CharField(max_length=200)
@@ -445,8 +443,17 @@ class Ticket(models.Model):
 
             domain = Site.objects.get_current().domain
 
-            url = f"https://{domain}{settings.PORT}/{settings.INSTANCE_LABEL}{path}"
-            self._url = url
+            if settings.PORT:
+                # Used in debugging using runsslserver
+                url = f"{domain}{settings.PORT}{path}"
+            else:
+                # Used in production
+                url = f"{domain}/{settings.INSTANCE_LABEL}{path}"
+
+            # Remove any double forward slash
+            url = url.replace('//','/')
+
+            self._url = f"https://{url}"
 
         return self._url
 
