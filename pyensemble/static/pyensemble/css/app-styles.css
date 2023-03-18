@@ -102,3 +102,15 @@ thead.diagnostics {
 td.session_id {
     border-left: 2px solid #aaaaff;
 }
+
+.nav-section {
+    position: absolute;
+    top: 0px;
+    height: 100px;
+}
+
+.analysis-nav {
+    position: absolute;
+    bottom: 0;
+    z-index: 40;
+}
