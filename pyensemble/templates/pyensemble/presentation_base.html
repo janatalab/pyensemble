@@ -43,10 +43,14 @@
 
 {% block formscript %}
     <script>
-        function disableSubmitButtons(form) {
-            form.querySelectorAll('.form-actions input[type="submit"]').forEach(b => b.disabled=true);
-            return true;
-        };
+        $('#question-form').on('submit', function(e) {
+            if (!$(this).data('submitted')) {
+                $(this).data('submitted', true).addClass('form-disabled');
+            }
+            else {
+                e.preventDefault();
+            }
+        });
     </script>
 {% endblock %}
 

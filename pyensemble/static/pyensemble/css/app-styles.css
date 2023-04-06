@@ -10,6 +10,11 @@ body > main {
     margin-left: 0;
 }
 
+.form-disabled {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
 .custom-control {
     padding-left: 0;
 }
