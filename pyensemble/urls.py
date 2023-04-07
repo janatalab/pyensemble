@@ -21,7 +21,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 from . import views
-from . import diagnostics
+from . import reporting
 
 import pyensemble.errors as error
 from pyensemble import importers
@@ -68,12 +68,12 @@ editor_patterns = [
     path('enums/create/', views.EnumCreateView.as_view(), name='enum_create'),
 ]
 
-diagnostics_patterns = [
-    path('', diagnostics.index, name='diagnostics'),
-    path('study/', diagnostics.study, name='study-diagnostics'),
-    path('experiment/', diagnostics.experiment, name='experiment-diagnostics'),
-    path('session/', diagnostics.session, name='session-diagnostics'),
-    path('session/exclude/', diagnostics.exclude_session, name='session-exclude'),
+reporting_patterns = [
+    path('', reporting.index, name='reporting'),
+    path('study/', reporting.study, name='study-reporting'),
+    path('experiment/', reporting.experiment, name='experiment-reporting'),
+    path('session/', reporting.session, name='session-reporting'),
+    path('session/exclude/', reporting.exclude_session, name='session-exclude'),
 ]
 
 
@@ -84,7 +84,7 @@ urlpatterns = [
     path('group/', include('pyensemble.group.urls', namespace='pyensemble-group')),
     path('editor/', include(editor_patterns)),
     path('experiments/', include(experiment_urls, namespace='experiments')),
-    path('diagnostics/', include(diagnostics_patterns)),
+    path('reporting/', include(reporting_patterns)),
     path('importers/', include(importer_urls, namespace='importers')),
 ]
 

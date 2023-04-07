@@ -1,0 +1,9 @@
+{% extends "pyensemble/reporting/base.html" %}
+
+{% block main %}
+    {% include "pyensemble/reporting/page_structure.html" with level="study" %}
+{% endblock %}
+
+{% block appscript %}
+    {% include "pyensemble/reporting/results_table.html" with level="study" %}
+{% endblock %}

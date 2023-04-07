@@ -127,9 +127,9 @@
 
         // Create our basic table
         if (d3.select("#results_table").select("table").empty()){
-            var table = d3.select("#results_table").append("table").attr("class","diagnostics table table-bordered table-sm"),
-                thead = table.append("thead").attr("class","diagnostics"),
-                tbody = table.append("tbody").attr("class","diagnostics");            
+            var table = d3.select("#results_table").append("table").attr("class","reporting table table-bordered table-sm"),
+                thead = table.append("thead").attr("class","reporting"),
+                tbody = table.append("tbody").attr("class","reporting");            
         };
 
         // Add the column labels
@@ -251,11 +251,11 @@
     };
 
     $(function (){
-        $(".diagnostics-selector-form").on('submit', function(ev){
+        $(".reporting-selector-form").on('submit', function(ev){
             ev.stopImmediatePropagation();
             ev.preventDefault();
 
-            let target = $(".diagnostics-selector-form");
+            let target = $(".reporting-selector-form");
 
             $.ajax({
                 type: target.attr('method'),

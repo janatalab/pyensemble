@@ -141,7 +141,7 @@ class Experiment(models.Model):
 
     forms = models.ManyToManyField('Form', through='ExperimentXForm')
 
-    # Method for generating diagnostics/reporting data
+    # Method for generating reporting data
     session_reporting_script = models.CharField(max_length=100, blank=True)
 
     # Method to be called (asynchronously) if the session has been completed
@@ -211,7 +211,7 @@ class AbstractSession(models.Model):
     # If the participant is being referred from a source other than PyEnsemble, e.g. Prolific, have a field for storing the session identifier at the origin, if available and desired.
     origin_sessid = models.CharField(max_length=64, null=True, blank=True)
 
-    # Reporting/diagnostics data
+    # Reporting data
     reporting_data = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
 
     # Has the post-session method associated with the experiment, if any, been executed
@@ -248,19 +248,19 @@ class AbstractSession(models.Model):
         if not self.experiment.session_reporting_script:
             raise ValueError(f"No reporting script specified for {self.experiment.title}")
 
-        # Check whether we have cached diagnostics data
+        # Check whether we have cached reporting data
         use_cached = kwargs.get('use_cached', False)
 
         data = {}
         if use_cached:
             data = self.reporting_data
 
-        # Run the diagnostics if none are currently available
+        # Run the reporting if none are currently available
         if not data:
-            # Parse the specified diagnostics script call
+            # Parse the specified reporting script call
             funcdict = parse_function_spec(self.experiment.session_reporting_script)
 
-            # Fetch the diagnostics method
+            # Fetch the reporting method
             method = fetch_experiment_method(funcdict['func_name'])
 
             # Execute the method

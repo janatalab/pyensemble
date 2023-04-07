@@ -1,4 +1,5 @@
-# diagnostics.py
+# reporting.py
+import os
 import json
 import pandas as pd
 import numpy as np
@@ -16,9 +17,11 @@ import pdb
 # Diagnostics views
 #
 
+template_base = "pyensemble/reporting"
+
 @login_required
 def index(request, *args, **kwargs):
-    template = "pyensemble/diagnostics/base.html"
+    template = os.path.join(template_base, "base.html")
     context = {}
     return render(request,template,context)
 
@@ -44,7 +47,7 @@ def study(request, *args, **kwargs):
         'form': form,
     }
 
-    template = "pyensemble/diagnostics/study.html"
+    template = os.path.join(template_base, "study.html")
     return render(request, template, context)
 
 
@@ -75,7 +78,7 @@ def experiment(request, *args, **kwargs):
         'form': form,
     }
 
-    template = "pyensemble/diagnostics/experiment.html"
+    template = os.path.join(template_base, "experiment.html")
     return render(request, template, context)
 
 
@@ -98,7 +101,7 @@ def get_study_data(study, **kwargs):
         # Get our experiment object
         experiment = sxe_item.experiment
 
-        # Make sure we have an associated diagnostics script
+        # Make sure we have an associated reporting script
         # May want to have this error-checking elsewhere
         if not experiment.session_reporting_script:
             return HttpResponseBadRequest(f"No reporting script associated with {experiment.title}")
@@ -157,7 +160,7 @@ def get_experiment_data(experiment, **kwargs):
         data.update({'session_data': []})
 
         for session in sessions:
-            response = session.diagnostics(**kwargs)
+            response = session.reporting(**kwargs)
 
             data['session_data'].append(json.loads(response.content))
 
@@ -181,8 +184,8 @@ def get_experiment_data(experiment, **kwargs):
             # Only use the last session (this assumes previous sessions were failed attempts which may not always be a valid assumption)
             session = subject_sessions.last()
 
-            # Run the diagnostics
-            response = session.diagnostics(**kwargs)
+            # Run the reporting
+            response = session.reporting(**kwargs)
 
             data['session_data'].append(json.loads(response.content))
 
