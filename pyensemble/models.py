@@ -229,13 +229,21 @@ class AbstractSession(models.Model):
     # Access start of session in local time
     @property
     def start(self):
-        self._start = self.localtime(self.start_datetime)
+        self._start = None
+
+        if self.start_datetime:
+            self._start = self.localtime(self.start_datetime)
+
         return self._start
 
     # Access end of session in local time
     @property
     def end(self):
-        self._end = self.localtime(self.end_datetime)
+        self._end = None
+
+        if self.end_datetime:
+            self._end = self.localtime(self.end_datetime)
+            
         return self._end
 
     '''
