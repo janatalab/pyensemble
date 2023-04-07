@@ -8,32 +8,29 @@
 {% block title %}{% trans "PyEnsemble Group Reports" %}{% endblock %}
 
 {% block header %}
-<nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light">
-    <a class="navbar-brand" href="{% url 'pyensemble-group:report' %}">PyEnsemble Group Reports</a>
-    <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#editor-navbar" aria-expanded="false" aria-controls="primary-navbar">
-        <span class="navbar-toggler-icon"></span>
-    </button>
+<div class="nav-section">
+    <nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light" id="primary-navbar">
+        <a class="navbar-brand" href="{% url 'pyensemble-group:report' %}">PyEnsemble Group Reports</a>
+        <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#editor-navbar" aria-expanded="false" aria-controls="primary-navbar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
 
-    <div class="collapse navbar-collapse" id="primary-navbar">
-        <ul class="navbar-nav mr-auto">
-            <li class="nav-item d-none">
-                {% include "pyensemble/selectors/selector.html" with level="Study" options=studies%}
-            </li>
-            <li class="nav-item">
-                {% include "pyensemble/selectors/selector.html" with level="Experiment" options=experiments%}
-            </li>
-            <li id="session-list" class="nav-item">
-            </li>
-        </ul>
-    </div>
-</nav>
-<nav class="navbar">
-    <div class="d-none" id="secondary-navbar">
-        <ul class="navbar-nav mr-auto">
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item d-none">
+                    {% include "pyensemble/selectors/selector.html" with level="Study" options=studies%}
+                </li>
+                <li class="nav-item">
+                    {% include "pyensemble/selectors/selector.html" with level="Experiment" options=experiments%}
+                </li>
+                <li id="session-list" class="nav-item">
+                </li>
+            </ul>
+        </div>
+    </nav>
+    <nav class="navbar navbar-expand-sm navbar-light bg-light analysis-nav" id="secondary-navbar"></nav>
+</div>
 
-        </ul>
-    </div>
-</nav>
 {% endblock %}
 
 
@@ -55,38 +52,48 @@
                 var url = "";
 
                 if (level == 'experiment'){
-                    url = "{% url 'pyensemble-group:experiment-session-selector' %}";
-                }
-                else if (level == "session"){
-                    url = "{% url 'pyensemble-group:session-detail' %}";
-                }
-
-                $.ajax({
-                    url: url,
-                    type: 'GET',
-                    data: {
-                        'id': item_id,
-                    },
-                    dataType: 'html',
-                    success: function(response){
-                        if (level == "experiment"){
+                    // Update menu items for session dropdown
+                    $.ajax({
+                        url: "{% url 'pyensemble-group:experiment-session-selector' %}",
+                        type: 'GET',
+                        data: {'id': item_id,},
+                        dataType: 'html',
+                        success: function(response){
                             $("#session-list").html(response);
                             $(".selectpicker[name='session']")
                                 .selectpicker('show')
                                 .on('changed.bs.select', onChangedSelection);
-                        } 
-                        else if (level == "session"){
-                            $("#results_table").html(response);
-                        }
-                    },
+                        },
+                    });
 
-                });
+                    // Get ourselves an experiment analysis nav               
+                    $.ajax({
+                        url: "{% url 'pyensemble-group:experiment-analysis-nav' %}",
+                        type: 'GET',
+                        data: {'id': item_id,},
+                        dataType: 'html',
+                        success: function(response){
+                            $("#secondary-navbar").html(response);
+                        },
+                    });
+
+                }
+                else if (level == "session"){
+                    $.ajax({
+                        url: "{% url 'pyensemble-group:session-detail' %}",
+                        type: 'GET',
+                        data: {'id': item_id},
+                        dataType: 'html',
+                        success: function(response){
+                            $("#results_table").html(response);
+                        },
+                    });
+                }
             }
 
-            $('.selectpicker').selectpicker().on('changed.bs.select', onChangedSelection);
-
+            $('.selectpicker').selectpicker()
+                .on('changed.bs.select', onChangedSelection);
 
         });
     </script>
 {% endblock %}
-

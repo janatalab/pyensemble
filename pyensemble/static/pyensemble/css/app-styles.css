@@ -85,12 +85,12 @@ input[type=number] {
     min-height: 80vh;
 }
 
-table.diagnostics {
+table.reporting {
     position: absolute; 
     top: 0px;
 }
 
-thead.diagnostics {
+thead.reporting {
     position: sticky; 
     top: 0; 
     z-index: 50; 
@@ -106,4 +106,16 @@ thead.diagnostics {
         
 td.session_id {
     border-left: 2px solid #aaaaff;
+}
+
+.nav-section {
+    position: absolute;
+    top: 0px;
+    height: 100px;
+}
+
+.analysis-nav {
+    position: absolute;
+    bottom: 0;
+    z-index: 40;
 }

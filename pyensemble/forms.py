@@ -335,7 +335,7 @@ class StudySelectForm(forms.Form):
     study = forms.ModelChoiceField(queryset=Study.objects.all())
 
     helper = FormHelper()
-    helper.form_class = 'diagnostics-selector-form'
+    helper.form_class = 'reporting-selector-form'
     helper.add_input(Submit('submit', 'Submit'))
 
 
@@ -362,5 +362,5 @@ class ExperimentSelectForm(forms.Form):
         self.fields['experiment'].queryset = queryset
 
     helper = FormHelper()
-    helper.form_class = 'diagnostics-selector-form'
+    helper.form_class = 'reporting-selector-form'
     helper.add_input(Submit('submit', 'Submit'))
