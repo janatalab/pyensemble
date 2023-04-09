@@ -186,7 +186,7 @@ PORT = ''  # use '' for default http(s) ports
 
 # Login and logout stuff
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'editor'
+LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = '/'
 
 # Various things pertaining to sessions

@@ -44,6 +44,9 @@ from crispy_forms.layout import Submit
 
 import pdb
 
+class PyEnsembleHomeView(LoginRequiredMixin,TemplateView):
+    template_name = 'pyensemble/pyensemble_home.html'
+
 class EditorView(LoginRequiredMixin,TemplateView):
     template_name = 'editor_base.html'
 
