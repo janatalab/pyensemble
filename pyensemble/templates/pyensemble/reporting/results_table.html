@@ -16,6 +16,8 @@
     function excludeSubject(){
         if (!this.checked) {return};
 
+        $(".exclude-checkbox").attr("disabled", true);
+
         let subject_id = this.id.match(/(\w*)-exclude/)[1];
 
         let subject_info = d3.select(document.getElementById(subject_id)).datum();
@@ -27,7 +29,7 @@
                 type: 'POST',
                 dataType: "json",        
                 data: {
-                    'level': {{level}},
+                    'level': '{{level}}',
                     'title': $("#item_title").text(),
                     'session_ids': session_ids
                 },
@@ -37,6 +39,9 @@
                 error: function(response,errorText){
                     alert(response.responseText);
                 },
+                complete: function(){
+                    $(".exclude-checkbox").attr("disabled", false);
+                }
         });
     }
 

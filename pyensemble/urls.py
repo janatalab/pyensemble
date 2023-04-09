@@ -34,8 +34,10 @@ from .importers import urls as importer_urls
 app_name = 'pyensemble'
 
 app_patterns = [
-    path('', RedirectView.as_view(pattern_name='login',permanent=False)),
+    # path('', RedirectView.as_view(pattern_name='login',permanent=False)),
+    path('', views.PyEnsembleHomeView.as_view(), name='home'),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
+    path('accounts/logout/', views.logout_view, name='logout'),
     path('admin/', admin.site.urls),
     path('editor/', views.EditorView.as_view(template_name='pyensemble/editor_base.html'),name='editor'),
     path('ticket/create/', views.create_ticket, name='create_ticket'),
