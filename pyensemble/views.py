@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from django.core.cache import cache
 
+from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 
@@ -43,6 +44,11 @@ from pyensemble.group.views import get_group_session, set_groupuser_state, init_
 from crispy_forms.layout import Submit
 
 import pdb
+
+def logout_view(request):
+    logout(request)
+
+    return HttpResponseRedirect(reverse('home'))
 
 class PyEnsembleHomeView(LoginRequiredMixin,TemplateView):
     template_name = 'pyensemble/pyensemble_home.html'

@@ -12,7 +12,22 @@
             <li><a class="nav-link content-link" href="{% url 'editor' %}">Editors</a></li>
             <li><a class="nav-link content-link" href="{% url 'reporting' %}">Reports</a></li>
         </ul>
+        <ul class="navbar-nav ml-auto">
+            <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+        </ul>
     </div>
   </div>
 </nav>
+{% endblock %}
+
+{% block main %}
+    <main>
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col align-self-center">
+                    <h1>Welcome to PyEnsemble!</h1>
+                </div>
+            </div>
+        </div>
+    </main>
 {% endblock %}
