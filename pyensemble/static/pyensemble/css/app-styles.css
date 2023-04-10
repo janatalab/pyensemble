@@ -76,7 +76,7 @@ input[type=number] {
 
 #results_section {
     position: relative;
-    top: 75px;
+    top: 130px;
 }
 
 
@@ -111,11 +111,17 @@ td.session_id {
 .nav-section {
     position: absolute;
     top: 0px;
+    left: 0px;
+    right: 0px;
     height: 100px;
 }
 
+#primary-navbar {
+    z-index: 5000;
+}
+
 .analysis-nav {
-    position: absolute;
-    bottom: 0;
-    z-index: 40;
+/*    position: absolute;*/
+/*    top: 65px;*/
+/*    z-index: 40;*/
 }

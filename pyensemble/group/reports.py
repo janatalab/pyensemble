@@ -7,6 +7,7 @@ from pyensemble.models import Experiment, Response
 
 from django.urls import reverse
 from django.shortcuts import render
+from django.http import JsonResponse
 
 import pandas as pd
 
@@ -63,3 +64,9 @@ def session_detail(request):
     context = {}
 
     return render(request, template, context)
+
+@login_required
+def experiment_summary(request):
+    experiment_data = {}
+
+    return JsonResponse(experiment_data)

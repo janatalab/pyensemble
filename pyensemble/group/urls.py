@@ -22,6 +22,7 @@ urlpatterns = [
     path('set/client/ready/', views.set_client_ready, name='set_client_ready'),
 
     path('report/', reports.home, name='report'),
+    path('report/experiment/summary/', reports.experiment_summary, name='experiment-summary'),
     path('report/experiment/session/selector/', reports.session_selector, name='experiment-session-selector'),
     path('report/experiment/analysis/nav/', TemplateView.as_view(template_name="group/report/experiment_analysis_nav.html"), name='experiment-analysis-nav'),
     path('report/session/detail/', reports.session_detail, name='session-detail'),

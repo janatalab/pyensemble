@@ -69,7 +69,8 @@ def experiment(request, *args, **kwargs):
             return JsonResponse(data)
     else:
         filters = {
-            'exclude': {'session_reporting_script':''},
+            # 'exclude': {'session_reporting_script':''},
+            'exclude': {},
             'filter': {}
         }
         form = forms.ExperimentSelectForm(**filters)

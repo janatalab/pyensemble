@@ -9,8 +9,8 @@
 
 {% block header %}
 <div class="nav-section">
-    <nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light" id="primary-navbar">
-        <a class="navbar-brand" href="{% url 'pyensemble-group:report' %}">PyEnsemble Group Reports</a>
+    <nav class="navbar navbar-expand-sm navbar-light bg-light" id="primary-navbar">
+        <a class="navbar-brand" href="{% url 'home' %}">PyEnsemble - Group Reports</a>
         <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#editor-navbar" aria-expanded="false" aria-controls="primary-navbar">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -25,6 +25,9 @@
                 </li>
                 <li id="session-list" class="nav-item">
                 </li>
+            </ul>
+            <ul class="navbar-nav ml-auto">
+                <li><a class="nav-link" href="{% url 'logout' %}">Logout</a></li>
             </ul>
         </div>
     </nav>
