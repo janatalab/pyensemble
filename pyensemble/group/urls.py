@@ -23,6 +23,8 @@ urlpatterns = [
 
     path('report/', reports.home, name='report'),
     path('report/experiment/summary/', reports.experiment_summary, name='experiment-summary'),
+    path('report/experiment/sessions/', reports.experiment_sessions, name='experiment-sessions'),
+    path('eport/experiment/responses/', reports.experiment_responses, name='experiment-responses'),
     path('report/experiment/session/selector/', reports.session_selector, name='experiment-session-selector'),
     path('report/experiment/analysis/nav/', TemplateView.as_view(template_name="group/report/experiment_analysis_nav.html"), name='experiment-analysis-nav'),
     path('report/session/detail/', reports.session_detail, name='session-detail'),

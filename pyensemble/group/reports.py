@@ -20,6 +20,11 @@ def home(request):
     context = {
         'studies': [], # deal with this later
         'experiments': Experiment.objects.filter(is_group=True),
+        'group_urls': {
+            'experiment-session-selector': reverse('pyensemble-group:experiment-session-selector'),
+            'experiment-analysis-nav': reverse('pyensemble-group:experiment-analysis-nav'),
+            'session-detail': reverse('pyensemble-group:session-detail'),
+        }
     }
 
     return render(request, template, context)
@@ -39,7 +44,6 @@ def session_selector(request):
     }
 
     return render(request, template, context)
-
 
 @login_required
 def session_detail(request):
@@ -67,6 +71,30 @@ def session_detail(request):
 
 @login_required
 def experiment_summary(request):
+    experiment_data = {}
+
+    return JsonResponse(experiment_data)
+
+@login_required
+def experiment_sessions(request):
+    # Get the sessions for our experiment 
+    sessions = GroupSession.objects.filter(experiment__id=request.GET['experiment_id'])
+
+    # Extract our values into a list
+    session_values = sessions.values('id','start_datetime','notes')
+
+    # Loop over our session values list and insert subjects and sort our dicts
+    for sess in session_values:
+        sess['subjects'] = [s for s in GroupSession.objects.get(id=sess['id']).groupsessionsubjectsession_set.values_list('user_session__subject_id',flat=True)]
+
+    outdict = {
+        'sessions': [s for s in session_values],
+    }
+
+    return JsonResponse(outdict)
+
+@login_required
+def experiment_responses(request):
     experiment_data = {}
 
     return JsonResponse(experiment_data)
