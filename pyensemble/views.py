@@ -39,7 +39,7 @@ from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_metho
 from pyensemble import experiments 
 
 from pyensemble.group.models import GroupSession, GroupSessionSubjectSession
-from pyensemble.group.views import get_group_session, set_groupuser_state, init_group_trial
+from pyensemble.group.views import get_group_session, set_groupuser_state, get_groupuser_state, init_group_trial
 
 from crispy_forms.layout import Submit
 
@@ -463,7 +463,6 @@ def run_experiment(request, experiment_id=None):
             'response_order': 0,
             'stimulus_id': None,
             'break_loop': False,
-            'last_in_loop': {},
             'visit_count': {},
             'running': True,
             'sona': sona_code,
@@ -493,7 +492,6 @@ def serve_form(request, experiment_id=None):
         'stimulus': None,
         'skip_trial': False,
         'feedback': '',
-        # 'group': {},
     }
 
     experiment = Experiment.objects.get(pk=experiment_id)
@@ -505,6 +503,7 @@ def serve_form(request, experiment_id=None):
     # Otherwise restart the experiment
     if expsess_key not in request.session.keys() or not request.session[expsess_key]:
         return render(request,'pyensemble/error.html',{'msg':'Invalid attempt to start or resume the experiment','next':'/'})
+
 
     # Get our experiment session info
     expsessinfo = request.session[expsess_key]
@@ -746,7 +745,8 @@ def serve_form(request, experiment_id=None):
 
             # Now that the responses have been saved, the user's state, in a group experiment is again unknown
             if handler_name == 'group_trial':
-                user_state = set_groupuser_state(request,'UNKNOWN')
+                if get_groupuser_state(request) != 'EXIT_LOOP':
+                    set_groupuser_state(request,'UNKNOWN')
 
             # Update our visit count for this form
             num_visits = expsessinfo['visit_count'].get(form_idx,0)
@@ -773,6 +773,18 @@ def serve_form(request, experiment_id=None):
 
         if session.expired:
             reset_session(request, experiment_id)
+
+        # If we are part of a group session, check whether we are being asked to exit a loop
+        if hasattr(session, 'groupsessionsubjectsession'):
+            gsss = session.groupsessionsubjectsession
+
+            if gsss.state == gsss.States.EXIT_LOOP:
+                expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
+                request.session.modified=True
+
+                # Move to the next form by calling ourselves
+                return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
+
 
         # Determine whether any conditions on this form have been met
         if not currform.conditions_met(request):
@@ -866,8 +878,8 @@ def serve_form(request, experiment_id=None):
 
         if presents_stimulus and not timeline:
             # If we are at the start of a loop, then any forms within the loop should not be presented, so skip to the form after the end of the loop
-            if form_idx in expsessinfo['last_in_loop'].keys():
-                expsessinfo['curr_form_idx']=expsessinfo['last_in_loop'][form_idx]+1
+            if form_idx in session.experiment.get_loop_info().keys():
+                expsessinfo['curr_form_idx'] = session.experiment._loop_info[form_idx]+1
             else:
                 expsessinfo['curr_form_idx']+=1
 
