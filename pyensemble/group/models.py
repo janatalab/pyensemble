@@ -232,3 +232,25 @@ class GroupSessionSubjectSession(models.Model):
 
     class Meta:
         unique_together = (('group_session','user_session'),)
+
+    def in_state(self, *args, **kwargs):
+        # Have to refresh our state from the db
+        self.refresh_from_db()
+
+        for state in kwargs['state']:
+            if self.state == self.States[state]:
+                return True
+
+        return False
+
+
+    def wait_state(self, state, timeout=45):
+        try:
+            if not isinstance(state, list):
+                state = [state]
+
+            polling2.poll(self.in_state, kwargs={'state': state}, step=0.5, timeout=timeout)
+            return True
+
+        except polling2.TimeoutException:
+            return False

@@ -265,6 +265,18 @@ def set_groupuser_state(request, state):
     
     return gsus.state
 
+
+def wait_groupuser_state(request):
+    gsus = get_groupuser_session(request)
+
+    if request.method == 'GET':
+        target_state = request.GET.getlist('state')
+
+        state = gsus.wait_state(target_state)
+
+        return HttpResponseRedirect(reverse('pyensemble-group:groupuser_state'))
+
+
 def set_client_ready(request):
     status = set_groupuser_state(request, 'READY_CLIENT')
 
