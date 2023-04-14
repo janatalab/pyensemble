@@ -314,9 +314,24 @@ def trial_status(request):
 
     return JsonResponse(data)
 
+
+# Signal that we want to exit the loop we are in
+def exit_loop(request):
+    get_group_session(request).set_group_exit_loop()
+
+    return HttpResponseRedirect(reverse('pyensemble-group:groupsession_status'))
+
+
 def groupuser_state(request):
     state = {}
     if request.method == 'GET':
         state = get_groupuser_state(request)
 
     return JsonResponse(state, safe=False)
+
+
+def groupuser_exitloop(request):
+    # Get our experiment info
+    group_session = get_group_session(request)
+
+    return HttpResponseRedirect(reverse('serve_form', args=(group_session.experiment.id,)))
