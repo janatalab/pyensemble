@@ -69,26 +69,85 @@ def session_detail(request):
 
     return render(request, template, context)
 
+
 @login_required
 def experiment_summary(request):
+    # Only provide information about groups with attached participants
+    # We ultimately want to add a "populated" attribute to the GroupSession model that returns objects that have populated sessions
+    # We can also get our list of sessions from the GroupSessionSubjectSession
+    gsss_set = GroupSessionSubjectSession.objects.filter(group_session__experiment__id=request.GET['experiment_id'])
+
+    # Extract the unique group_sessions
+    group_sessions = gsss_set.values_list('group_session', flat=True).distinct()
+
+    # pdb.set_trace()
+
     experiment_data = {}
 
     return JsonResponse(experiment_data)
 
 @login_required
 def experiment_sessions(request):
-    # Get the sessions for our experiment 
-    sessions = GroupSession.objects.filter(experiment__id=request.GET['experiment_id'])
+    # Only provide information about groups with attached participants
+    # We ultimately want to add a "populated" manager to the GroupSession model that returns objects that have populated sessions
+
+    # We can also get our list of sessions from the GroupSessionSubjectSession
+    gsss_set = GroupSessionSubjectSession.objects.filter(group_session__experiment__id=request.GET['experiment_id'])
+
+    # Extract the unique group_sessions
+    group_sessions = gsss_set.values_list('group_session', flat=True).distinct()
+
+    # Get the sessions for our experiment. Only include those for which the exclude flag is not set
+    sessions = GroupSession.objects.filter(pk__in=group_sessions, exclude=False)
 
     # Extract our values into a list
-    session_values = sessions.values('id','start_datetime','notes')
+    # session_values = sessions.values('id','start_datetime','notes')
 
-    # Loop over our session values list and insert subjects and sort our dicts
-    for sess in session_values:
-        sess['subjects'] = [s for s in GroupSession.objects.get(id=sess['id']).groupsessionsubjectsession_set.values_list('user_session__subject_id',flat=True)]
+    # Loop over our session values list and insert session subjects
+    # TODO: sort our dicts
+    session_list = []
 
+    for session in sessions:
+        session_info = {}
+
+        session_info['id'] = session.id
+        session_info['start_datetime'] = session.start_datetime
+        session_info['notes'] = session.notes
+        session_info['subjects'] = []
+
+        # Associate the subject sessions
+        for gsss in gsss_set.filter(group_session=session.id):
+            subject_session = gsss.user_session
+
+            subject_info = {
+                'subject_id': subject_session.subject.subject_id,
+                'session_id': subject_session.id,
+                'responses': [r for r in subject_session.response_set.values()]
+            }
+
+            session_info['subjects'].append(subject_info)
+
+        session_list.append(session_info)
+
+        # # sess['subjects'] = [s for s in GroupSession.objects.get(id=sess['id']).groupsessionsubjectsession_set.values_list('user_session__subject_id',flat=True)]
+
+        # # We should also pull the subject session ID
+        # sess['subject_sessions'] = [s for s in GroupSession.objects.get(id=sess['id']).groupsessionsubjectsession_set.values_list('user_session__id',flat=True)]
+
+        # subject_session_qs = Session.objects.filter(pk__in=sess['subject_sessions'])
+
+
+        # # Get some information about each participant
+        # for subject_session in sess['subject_sessions']:
+        #     # Get the subject responses
+        #     subject_responses = Response.objects.filter(session__in=subject_session)
+
+        #     # Extract their last response
+        #     last_response = subject_responses.last()
+
+    pdb.set_trace()
     outdict = {
-        'sessions': [s for s in session_values],
+        'sessions': session_list,
     }
 
     return JsonResponse(outdict)
