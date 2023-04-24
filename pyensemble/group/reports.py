@@ -24,6 +24,7 @@ def home(request):
             'experiment-session-selector': reverse('pyensemble-group:experiment-session-selector'),
             'experiment-analysis-nav': reverse('pyensemble-group:experiment-analysis-nav'),
             'session-detail': reverse('pyensemble-group:session-detail'),
+            'exclude-groupsession': reverse('pyensemble-group:exclude_groupsession'),
         }
     }
 
@@ -111,7 +112,7 @@ def experiment_sessions(request):
         session_info = {}
 
         session_info['id'] = session.id
-        session_info['start_datetime'] = session.start_datetime
+        session_info['start'] = session.start
         session_info['notes'] = session.notes
         session_info['subjects'] = []
 
@@ -122,8 +123,21 @@ def experiment_sessions(request):
             subject_info = {
                 'subject_id': subject_session.subject.subject_id,
                 'session_id': subject_session.id,
-                'responses': [r for r in subject_session.response_set.values()]
+                # 'responses': [r for r in subject_session.response_set.values()]
             }
+
+            # Evaluate the post-session callback
+            if subject_session.response_set.count():
+                last_response = subject_session.response_set.last()
+                subject_info['last_response'] = {
+                    'response_order': last_response.response_order,
+                    'form_name': last_response.form.name,
+                    'question': last_response.question.text,
+                }
+            else:
+                subject_info['last_response'] = None
+
+
 
             session_info['subjects'].append(subject_info)
 
@@ -145,7 +159,6 @@ def experiment_sessions(request):
         #     # Extract their last response
         #     last_response = subject_responses.last()
 
-    pdb.set_trace()
     outdict = {
         'sessions': session_list,
     }

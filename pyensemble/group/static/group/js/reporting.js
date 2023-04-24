@@ -85,6 +85,10 @@ $(function() {
         // Create rows for any new sessions        
         sessions.enter()
             .append("tr")
+                .classed("groupsession-data", true)
+                .attr("id", function(d){
+                    return "#groupsession-"+d.id;
+                })
             .selectAll("td")
                 .data(function(d){
                     return d3.entries(d);
@@ -92,13 +96,85 @@ $(function() {
                 .enter()
                 .append("td")
                     .html(function(d){
-                        return d.value
+                        if (d.key == 'subjects'){
+                        //     let subject_info = d3.select(this).append("table").selectAll("tr")
+                        //         .data(d.value, function(s){return s.subject_id})
+                        //         .enter()
+                        //         .append("tr")
+                        //             .html(function(s){
+                        //                 return s.subject_id
+                        //             })
+
+                            return "<table class='subject-info'>"
+                        } else if (d.key == 'id'){
+                            let val = d.value;
+
+                            val += "<div class='text-danger'>Exclude <input type='checkbox' class='session exclude-checkbox' id='"+d.value+"-exclude' ></div>";
+                            return val
+                        } else {
+                           return d.value
+                        }
                     })
                     .attr("class", function(d){
                         if (d.key == 'id'){
                             return "freeze-pane index";
                         }
                     });
+
+        sessions.select("table.subject-info").selectAll('tr')
+            .data(function(d){
+                return d.subjects
+            }, function(s){
+                return s.subject_id
+            })
+            .enter()
+            .append("tr")
+                .selectAll("td")
+                .data(function(d){
+                    return d3.entries(d)
+                })
+                .enter()
+                .append("td")
+                    .html(function(s){
+                        if (s.key == "last_response"){
+                            if (s.value){
+                                return Object.values(s.value).join(', ')
+                            } else {
+                                return "No responses"
+                            }
+                        } else {    
+                            return s.value
+                        }
+                    })
+
+        d3.selectAll(".session.exclude-checkbox").on("change", excludeGroupSession);
+    }
+
+    function excludeGroupSession(){
+        if (!this.checked) {return};
+
+        $(".exclude-checkbox").attr("disabled", true);
+
+        let session_id = this.id.match(/(\w*)-exclude/)[1];
+
+        $.ajax({
+                url: urls['exclude-groupsession'],
+                type: 'POST',
+                dataType: "json",        
+                data: {
+                    'session': session_id
+                },
+                success: function(data){
+                    let row_id = "groupsession-"+session_id;
+                    d3.select(row_id).remove();
+                },
+                error: function(response,errorText){
+                    alert(response.responseText);
+                },
+                complete: function(){
+                    $(".exclude-checkbox").attr("disabled", false);
+                }
+        });
     }
 
     function onAnalysisRequest(ev){

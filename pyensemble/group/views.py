@@ -320,3 +320,12 @@ def groupuser_state(request):
         state = get_groupuser_state(request)
 
     return JsonResponse(state, safe=False)
+
+def exclude_groupsession(request):
+    session_id = request.POST['session']
+
+    session = GroupSession.objects.get(pk=session_id)
+    session.exclude = True
+    session.save()
+
+    return JsonResponse({})
