@@ -22,6 +22,9 @@ $(function() {
                         .selectpicker('show')
                         .on('changed.bs.select', onChangedSelection);
                 },
+                complete: function(){
+                    $("#results_table").html("");
+                }
             });
 
             // Get ourselves an experiment analysis nav               
@@ -77,7 +80,7 @@ $(function() {
                         return "freeze-pane index";
                     }
                 });
-                
+
         column_labels.exit().remove()
 
         // Add rows
@@ -104,15 +107,8 @@ $(function() {
                 .append("td")
                     .html(function(d){
                         if (d.key == 'subjects'){
-                        //     let subject_info = d3.select(this).append("table").selectAll("tr")
-                        //         .data(d.value, function(s){return s.subject_id})
-                        //         .enter()
-                        //         .append("tr")
-                        //             .html(function(s){
-                        //                 return s.subject_id
-                        //             })
-
                             return "<table class='subject-info'>"
+
                         } else if (d.key == 'id'){
                             let val = d.value;
 
