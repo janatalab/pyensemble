@@ -159,6 +159,9 @@ class GroupSession(AbstractSession):
     def set_group_busy(self):
         self.groupsessionsubjectsession_set.all().set_state('BUSY')
 
+    def set_group_exit_loop(self):
+        self.groupsessionsubjectsession_set.all().set_state('EXIT_LOOP')
+
 
 class GroupSessionSubjectSessionQuerySet(models.QuerySet):
     def ready_server(self):
@@ -190,7 +193,7 @@ class GroupSessionSubjectSessionManager(models.Manager):
 
 class GroupSessionSubjectSession(models.Model):
     group_session = models.ForeignKey('GroupSession', db_constraint=True, on_delete=models.CASCADE)
-    user_session = models.ForeignKey('pyensemble.Session', db_constraint=True, on_delete=models.CASCADE)
+    user_session = models.OneToOneField('pyensemble.Session', db_constraint=True, on_delete=models.CASCADE)
 
     #
     # Mechanism for indicating subject session state
@@ -207,6 +210,8 @@ class GroupSessionSubjectSession(models.Model):
 
     RESPONSE_PENDING - Can be used to signal that a experimenter or participant's client-side trial has completed and that the subject's form submission is being awaited
 
+    EXIT_LOOP - This flag is used to signal that a loop should be exited. It is checked on the GET branch in pyensemble.views.serve_form()
+
     NOTE: By default, when a form uses a group_trial form handler, the READY_SERVER and READY_CLIENT states are automatically implemented, respectively, in pyensemble.views.serve_form and a JavaScript routine that is embedded in the group_trial.html template and automatically executes when the subject's browswer is ready. These states are the only states that are needed for self-standing group experiments, i.e. those that don't require an experimenter to initiate trials or send state-setting signals. 
 
     Experimenter-driven group sessions will likely depend on the READY_CLIENT states of participants to initialize or start trials, and may optionally set BUSY and RESPONSE_PENDING states for added control and status reporting.
@@ -219,6 +224,7 @@ class GroupSessionSubjectSession(models.Model):
         READY_CLIENT = 2
         BUSY = 3
         RESPONSE_PENDING = 4
+        EXIT_LOOP = 5
     
     state = models.PositiveSmallIntegerField(choices=States.choices, default=States.UNKNOWN)
 
@@ -226,3 +232,25 @@ class GroupSessionSubjectSession(models.Model):
 
     class Meta:
         unique_together = (('group_session','user_session'),)
+
+    def in_state(self, *args, **kwargs):
+        # Have to refresh our state from the db
+        self.refresh_from_db()
+
+        for state in kwargs['state']:
+            if self.state == self.States[state]:
+                return True
+
+        return False
+
+
+    def wait_state(self, state, timeout=45):
+        try:
+            if not isinstance(state, list):
+                state = [state]
+
+            polling2.poll(self.in_state, kwargs={'state': state}, step=0.5, timeout=timeout)
+            return True
+
+        except polling2.TimeoutException:
+            return False

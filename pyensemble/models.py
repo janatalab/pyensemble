@@ -154,6 +154,19 @@ class Experiment(models.Model):
     def cache_key(self):
         return f'experiment_{self.id}'
 
+    # Method for determining loops in the experiment
+    def get_loop_info(self):
+        self._loop_info = []
+
+        # Get the forms that are the ends of loops
+        endloop_forms = self.experimentxform_set.exclude(goto__isnull=True)
+
+        # Extract start and stop values
+        start_stop_list = endloop_forms.values('goto','form_order')
+
+        self._loop_info = {d['goto']:d['form_order'] for d in start_stop_list}
+
+        return self._loop_info
 
 class Response(models.Model):
     date_time = models.DateTimeField(auto_now_add=True)
@@ -782,14 +795,57 @@ class ExperimentXForm(models.Model):
 
         return self._record_response
 
+    # Method to determine whether we are in a loop
+    def in_loop(self, request):
+        self._in_loop = False
+
+        if self.last_in_loop(request):
+            self._in_loop = True
+
+        return self._in_loop
+
+    # Method to return the last form in the loop we are in, if in a loop
+    def last_in_loop(self, request):
+        self._last_in_loop = None
+
+        expsessinfo = request.session.get(self.experiment.cache_key, None)
+
+        # Get the form we are on 
+        currform_idx = expsessinfo['curr_form_idx']
+
+        # Get all loops that begin on a form with a lesser form index
+        possible_loop_starts = []
+
+        first_last_in_loop = self.experiment.get_loop_info()
+        for start_idx in first_last_in_loop.keys():
+            if start_idx <= currform_idx+1:
+                possible_loop_starts.append(start_idx)
+
+        if possible_loop_starts:
+            # Get the start of the loop we are in. Nested loops are not supported!
+            loop_start = max(possible_loop_starts)
+
+            # Get the last form index of our loop
+            last_in_loop = first_last_in_loop[loop_start]
+
+            # If our form index is less than or equal to the last one, we are in the loop
+            if currform_idx+1 <= last_in_loop:
+                self._last_in_loop = last_in_loop
+
+        return self._last_in_loop
+
     def next_form_idx(self, request):
         next_form_idx = None
         experiment_id = self.experiment.id
 
+        # Get our experiment session info
         expsessinfo = request.session.get(self.experiment.cache_key, None)
 
+        # Get our session object
+        session = Session.objects.get(pk=expsessinfo['session_id'])
+
         # Get our form stack - should be a better way to do this relative to self
-        exf = ExperimentXForm.objects.filter(experiment=experiment_id).order_by('form_order')
+        exf = self.experiment.experimentxform_set.order_by('form_order')
 
         # Get our current form
         form_idx = expsessinfo['curr_form_idx']
@@ -800,10 +856,31 @@ class ExperimentXForm(models.Model):
         # Fetch our variables that control looping
         num_repeats = self.repeat
         goto_form_idx = self.goto 
-        num_visits = expsessinfo['visit_count'][form_idx]
+        if form_idx in expsessinfo['visit_count'].keys():
+            num_visits = expsessinfo['visit_count'][form_idx]
+        else:
+            num_visits = 0
+
+        # Check whether an EXIT_LOOP flag has been set in a group session
+        if hasattr(session, 'groupsessionsubjectsession'):
+            gsss = session.groupsessionsubjectsession
+
+            if gsss.state == gsss.States.EXIT_LOOP:
+                # Clear our state
+                gsss.state = gsss.States.UNKNOWN
+                gsss.save()
+
+                # Check whether we are in a loop and get the idx of the last form if we are
+                last_in_loop = self.last_in_loop(request)
+
+                if last_in_loop:
+                    # Move to form after end of loop. Remember that curr_form_idx is the actual 1-indexed form_idx-1
+                    expsessinfo['curr_form_idx'] = last_in_loop
+                    return expsessinfo['curr_form_idx']
 
         # See whether a break loop flag was set
         if currform.break_loop_button and currform.break_loop_button_text == request.POST['submit']:
+
             # If the user chose to exit the loop
             expsessinfo['curr_form_idx'] += 1
 
@@ -817,7 +894,7 @@ class ExperimentXForm(models.Model):
             expsessinfo['curr_form_idx'] = goto_form_idx-1
 
             # Set our looping info
-            expsessinfo['last_in_loop'][goto_form_idx-1] = form_idx
+            # expsessinfo['first_last_in_loop'][goto_form_idx-1] = form_idx
 
         elif form_idx == exf.count():
             expsessinfo['finished'] = True

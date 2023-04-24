@@ -70,7 +70,11 @@ def get_group_code_form(code_type='participant'):
                 ticket = Ticket.objects.get(**ticket_info)
 
             except:
-                raise ValidationError('Failed to retrieve ticket matching this code')
+                if Ticket.objects.filter(**ticket_info).count():
+                    ticket = Ticket.objects.filter(**ticket_info).last()
+
+                else:
+                    raise ValidationError('Failed to retrieve ticket matching this code')
 
             # Check for ticket expiration
             if ticket.expired:

@@ -136,7 +136,8 @@ def attach_experimenter(request):
 
         if form.is_valid():
             # Get the ticket object
-            ticket = Ticket.objects.get(experimenter_code=form.cleaned_data['experimenter_code'])
+            # See note in attach_participant
+            ticket = Ticket.objects.filter(experimenter_code=form.cleaned_data['experimenter_code']).last()
 
             # Get the session
             session = GroupSession.objects.get(ticket=ticket)
@@ -167,7 +168,8 @@ def attach_participant(request):
 
         if form.is_valid():
             # Get the ticket object
-            ticket = Ticket.objects.get(participant_code=form.cleaned_data['participant_code'])
+            # NOTE: Their is a small chance of colliding 4-character strings at the start and end of otherwise unique tickets, so always filter and grab the last ticket. This is still error prone without more robust validation, but unlikely for such an error to occur in a low-volume setting.
+            ticket = Ticket.objects.filter(participant_code=form.cleaned_data['participant_code']).last()
 
             # Cache the group session key in the participant's cache
             cache_key = ticket.groupsession.cache_key
@@ -265,6 +267,18 @@ def set_groupuser_state(request, state):
     
     return gsus.state
 
+
+def wait_groupuser_state(request):
+    gsus = get_groupuser_session(request)
+
+    if request.method == 'GET':
+        target_state = request.GET.getlist('state')
+
+        state = gsus.wait_state(target_state)
+
+        return HttpResponseRedirect(reverse('pyensemble-group:groupuser_state'))
+
+
 def set_client_ready(request):
     status = set_groupuser_state(request, 'READY_CLIENT')
 
@@ -314,12 +328,21 @@ def trial_status(request):
 
     return JsonResponse(data)
 
+
+# Signal that we want to exit the loop we are in
+def exit_loop(request):
+    get_group_session(request).set_group_exit_loop()
+
+    return HttpResponseRedirect(reverse('pyensemble-group:groupsession_status'))
+
+
 def groupuser_state(request):
     state = {}
     if request.method == 'GET':
         state = get_groupuser_state(request)
 
     return JsonResponse(state, safe=False)
+
 
 def exclude_groupsession(request):
     session_id = request.POST['session']
@@ -329,3 +352,11 @@ def exclude_groupsession(request):
     session.save()
 
     return JsonResponse({})
+
+  
+def groupuser_exitloop(request):
+    # Get our experiment info
+    group_session = get_group_session(request)
+
+    return HttpResponseRedirect(reverse('serve_form', args=(group_session.experiment.id,)))
+
