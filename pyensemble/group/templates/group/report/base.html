@@ -1,4 +1,5 @@
 {% extends "pyensemble/base.html" %}
+{% load static %}
 {% load i18n %}
 
 {% block head %}
@@ -9,8 +10,8 @@
 
 {% block header %}
 <div class="nav-section">
-    <nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light" id="primary-navbar">
-        <a class="navbar-brand" href="{% url 'pyensemble-group:report' %}">PyEnsemble Group Reports</a>
+    <nav class="navbar navbar-expand-sm navbar-light bg-light" id="primary-navbar">
+        <a class="navbar-brand" href="{% url 'home' %}">PyEnsemble - Group Reports</a>
         <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#editor-navbar" aria-expanded="false" aria-controls="primary-navbar">
             <span class="navbar-toggler-icon"></span>
         </button>
@@ -26,6 +27,9 @@
                 <li id="session-list" class="nav-item">
                 </li>
             </ul>
+            <ul class="navbar-nav ml-auto">
+                <li><a class="nav-link" href="{% url 'logout' %}">Logout</a></li>
+            </ul>
         </div>
     </nav>
     <nav class="navbar navbar-expand-sm navbar-light bg-light analysis-nav" id="secondary-navbar"></nav>
@@ -35,65 +39,14 @@
 
 
 {% block main %}
-<div class="container" id="results_section">    
+<div class="px-3" id="results_section">    
         <div id="item_title" class="m-3 h4"></div>
         <div id="results_table" class="mt-2 overflow-auto sticky-top"></div>
 </div>
 {% endblock %}
 
-
 {% block appscript %}
-    <script>
-        $(function() {
-            function onChangedSelection (e, clickedIndex, isSelected, previousValue) {
+    {{ group_urls|json_script:"group-urls" }}
 
-                var level = e.target.name.toLowerCase();
-                var item_id = e.target.options[clickedIndex].value;
-                var url = "";
-
-                if (level == 'experiment'){
-                    // Update menu items for session dropdown
-                    $.ajax({
-                        url: "{% url 'pyensemble-group:experiment-session-selector' %}",
-                        type: 'GET',
-                        data: {'id': item_id,},
-                        dataType: 'html',
-                        success: function(response){
-                            $("#session-list").html(response);
-                            $(".selectpicker[name='session']")
-                                .selectpicker('show')
-                                .on('changed.bs.select', onChangedSelection);
-                        },
-                    });
-
-                    // Get ourselves an experiment analysis nav               
-                    $.ajax({
-                        url: "{% url 'pyensemble-group:experiment-analysis-nav' %}",
-                        type: 'GET',
-                        data: {'id': item_id,},
-                        dataType: 'html',
-                        success: function(response){
-                            $("#secondary-navbar").html(response);
-                        },
-                    });
-
-                }
-                else if (level == "session"){
-                    $.ajax({
-                        url: "{% url 'pyensemble-group:session-detail' %}",
-                        type: 'GET',
-                        data: {'id': item_id},
-                        dataType: 'html',
-                        success: function(response){
-                            $("#results_table").html(response);
-                        },
-                    });
-                }
-            }
-
-            $('.selectpicker').selectpicker()
-                .on('changed.bs.select', onChangedSelection);
-
-        });
-    </script>
+    <script type="text/javascript" src="{% static 'group/js/reporting.js' %}"></script>
 {% endblock %}

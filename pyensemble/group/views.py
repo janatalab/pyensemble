@@ -344,8 +344,19 @@ def groupuser_state(request):
     return JsonResponse(state, safe=False)
 
 
+def exclude_groupsession(request):
+    session_id = request.POST['session']
+
+    session = GroupSession.objects.get(pk=session_id)
+    session.exclude = True
+    session.save()
+
+    return JsonResponse({})
+
+  
 def groupuser_exitloop(request):
     # Get our experiment info
     group_session = get_group_session(request)
 
     return HttpResponseRedirect(reverse('serve_form', args=(group_session.experiment.id,)))
+

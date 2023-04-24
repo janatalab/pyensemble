@@ -1,8 +1,10 @@
 
 <!-- <nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light analysis-nav" id="secondary-navbar"> -->
-    <div class="" >
-        <ul class="navbar-nav mr-auto">
-            Hello
+    <div class="collapse navbar-collapse border-top">
+        <ul class="navbar-nav nav-tabs mr-auto">
+            <li class="nav-item analysis-item"><a class="nav-link" href="{% url 'pyensemble-group:experiment-summary' %}">Summary</a></li>
+            <li class="nav-item analysis-item"><a class="nav-link" href="{% url 'pyensemble-group:experiment-sessions' %}">Sessions</a></li>
+            <li class="nav-item analysis-item"><a class="nav-link" href="{% url 'pyensemble-group:experiment-responses' %}">Responses</a></li>
         </ul>
     </div>
 <!-- </nav> -->

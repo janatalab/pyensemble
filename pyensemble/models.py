@@ -266,12 +266,17 @@ class AbstractSession(models.Model):
     '''
 
     def reporting(self, *args, **kwargs):
-        if not self.experiment.session_reporting_script:
-            raise ValueError(f"No reporting script specified for {self.experiment.title}")
+        # Get our reporting script
+        session_reporting_script = self.experiment.session_reporting_script
 
-        # Check whether we have cached reporting data
+        if not session_reporting_script:
+            # raise ValueError(f"No reporting script specified for {self.experiment.title}")
+            session_reporting_script = 'debug.reporting.default()'
+
+        # Check whether we want to use cached reporting data
         use_cached = kwargs.get('use_cached', False)
 
+        # Check whether we have cached reporting data
         data = {}
         if use_cached:
             data = self.reporting_data
@@ -279,7 +284,7 @@ class AbstractSession(models.Model):
         # Run the reporting if none are currently available
         if not data:
             # Parse the specified reporting script call
-            funcdict = parse_function_spec(self.experiment.session_reporting_script)
+            funcdict = parse_function_spec(session_reporting_script)
 
             # Fetch the reporting method
             method = fetch_experiment_method(funcdict['func_name'])
