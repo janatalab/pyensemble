@@ -136,7 +136,8 @@ def attach_experimenter(request):
 
         if form.is_valid():
             # Get the ticket object
-            ticket = Ticket.objects.get(experimenter_code=form.cleaned_data['experimenter_code'])
+            # See note in attach_participant
+            ticket = Ticket.objects.filter(experimenter_code=form.cleaned_data['experimenter_code']).last()
 
             # Get the session
             session = GroupSession.objects.get(ticket=ticket)
@@ -167,7 +168,8 @@ def attach_participant(request):
 
         if form.is_valid():
             # Get the ticket object
-            ticket = Ticket.objects.get(participant_code=form.cleaned_data['participant_code'])
+            # NOTE: Their is a small chance of colliding 4-character strings at the start and end of otherwise unique tickets, so always filter and grab the last ticket. This is still error prone without more robust validation, but unlikely for such an error to occur in a low-volume setting.
+            ticket = Ticket.objects.filter(participant_code=form.cleaned_data['participant_code']).last()
 
             # Cache the group session key in the participant's cache
             cache_key = ticket.groupsession.cache_key
