@@ -62,16 +62,23 @@ $(function() {
         };
 
         // Add column labels
-        d3.select("#results_table thead").selectAll("tr")
-            .data(Object.keys(data[0]))
-            .enter()
+        if (thead.select("tr").empty()){
+            var header_row = thead.append("tr");
+        }
+        
+        column_labels = header_row.selectAll("th")
+            .data(Object.keys(data[0]));
+
+        column_labels.enter()
             .append("th")
                 .html(function(d){return d;})
                 .attr("class", function(d){
                     if (d=='id'){
                         return "freeze-pane index";
                     }
-                })
+                });
+                
+        column_labels.exit().remove()
 
         // Add rows
         let sessions = d3.select("#results_table tbody").selectAll("tr")
@@ -87,7 +94,7 @@ $(function() {
             .append("tr")
                 .classed("groupsession-data", true)
                 .attr("id", function(d){
-                    return "#groupsession-"+d.id;
+                    return "groupsession-"+d.id;
                 })
             .selectAll("td")
                 .data(function(d){
@@ -165,7 +172,7 @@ $(function() {
                     'session': session_id
                 },
                 success: function(data){
-                    let row_id = "groupsession-"+session_id;
+                    let row_id = "#groupsession-"+session_id;
                     d3.select(row_id).remove();
                 },
                 error: function(response,errorText){
