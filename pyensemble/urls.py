@@ -39,7 +39,11 @@ app_patterns = [
     path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
     path('accounts/logout/', views.logout_view, name='logout'),
     path('admin/', admin.site.urls),
-    path('editor/', views.EditorView.as_view(template_name='pyensemble/editor_base.html'),name='editor'),
+    path('editor/', views.EditorView.as_view(template_name='pyensemble/editor_base.html'), name='editor'),
+
+    path('stimulus/', views.StimulusView.as_view(template_name='pyensemble/stimulus_base.html'), name='stimulus'),
+    path('stimulus/list/', views.StimulusListView.as_view(template_name='pyensemble/stimulus_list.html'), name='stimulus-list'),
+
     path('ticket/create/', views.create_ticket, name='create_ticket'),
 
     path('run/<int:experiment_id>/start/', views.run_experiment, name='run_experiment'),
@@ -47,7 +51,6 @@ app_patterns = [
     path('session/reset/<int:experiment_id>/', views.reset_session, name='reset_session'),
     path('session/flush/', views.flush_session_cache, name='flush_session_cache'),
     path('error/<slug:feature_string>/', error.feature_not_enabled, name='feature_not_enabled'),
-    path('stimuli/upload/', importers.import_stimuli.import_file),
     path('record/timezone', views.record_timezone, name='record-timezone'),    
 ]
 
@@ -87,7 +90,7 @@ urlpatterns = [
     path('editor/', include(editor_patterns)),
     path('experiments/', include(experiment_urls, namespace='experiments')),
     path('reporting/', include(reporting_patterns)),
-    path('importers/', include(importer_urls, namespace='importers')),
+    path('import/', include(importer_urls, namespace='importers')),
 ]
 
 if settings.DEBUG:

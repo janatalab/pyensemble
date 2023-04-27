@@ -54,7 +54,14 @@ class PyEnsembleHomeView(LoginRequiredMixin,TemplateView):
     template_name = 'pyensemble/pyensemble_home.html'
 
 class EditorView(LoginRequiredMixin,TemplateView):
-    template_name = 'editor_base.html'
+    template_name = 'pyensemble/editor_base.html'
+
+class StimulusView(LoginRequiredMixin, TemplateView):
+    template_name = 'pyensemble/stimulus_base.html'
+
+class StimulusListView(LoginRequiredMixin,ListView):
+    model = Stimulus
+    context_object_name = 'stimulus_list'
 
 #
 # Experiment editing views
