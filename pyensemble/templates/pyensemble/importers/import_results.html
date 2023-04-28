@@ -3,11 +3,9 @@
 {% block main %}
     <main>
         <div class="container">
-            <ul>
-                <li>Processed {{result.num_submitted}} stimuli ...</li>
-                <li>{{result.num_existing}} had existing entries</li>
-                <li>{{result.num_written}} new entries</li>
-            </ul>
+            Processed {{result.num_submitted}} stimuli ...
+            {{result.num_existing}} had existing entries
+            {{result.num_written}} new entries
         </div>
     </main>
 {% endblock %}

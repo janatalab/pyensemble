@@ -1,7 +1,9 @@
 /*app-styles.css*/
 
 body > main { 
-    padding-top: 120px; 
+    margin-top: 100px; 
+    margin-left: 10px;
+    margin-right: 10px;
 }
 
 .form-check-input {
@@ -70,13 +72,15 @@ input[type=number] {
 }
 
 #item_selection {
-    position: relative;
-    top: 75px;
+/*    position: relative;*/
+/*    top: 75px;*/
+    z-index: 9000;
 }
 
 #results_section {
-    position: relative;
-    top: 130px;
+    padding-top: 10px;
+/*    position: absolute;
+    top: 100px;*/
 }
 
 
@@ -97,6 +101,10 @@ thead.reporting {
     background-color: #fafafa
 }
 
+table.reporting thead th {
+    vertical-align: top;
+}
+
 .freeze-pane.index {
     position: sticky;
     left: 0; 
@@ -113,7 +121,7 @@ td.session_id {
     top: 0px;
     left: 0px;
     right: 0px;
-    height: 100px;
+    height: 110px;
 }
 
 #primary-navbar {

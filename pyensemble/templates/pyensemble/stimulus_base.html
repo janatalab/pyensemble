@@ -1,22 +1,23 @@
 {% extends "pyensemble/base.html" %}
 
 {% block header %}
-<nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light">
-    <a class="navbar-brand" href="{% url 'home' %}">PyEnsemble - Stimuli</a>
-    <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#stimulus-navbar" aria-expanded="false" aria-controls="stimulus-navbar">
-        <span class="navbar-toggler-icon"></span>
-    </button>
+    <nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light">
+        <a class="navbar-brand" href="{% url 'home' %}">PyEnsemble - Stimuli</a>
+        <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#stimulus-navbar" aria-expanded="false" aria-controls="stimulus-navbar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
 
-    <div class="collapse navbar-collapse" id="stimulus-navbar">
-        <ul class="navbar-nav mr-auto">
-            <li><a class="nav-link content-link" href="{% url 'stimulus-list' %}">List</a></li>
-            <li><a class="nav-link content-link" href="{% url 'pyensemble-importers:import-stimulus-table' %}">Import Table</a></li>
-        </ul>
-        <ul class="navbar-nav ml-auto">
-            <a class="nav-link" href="{% url 'logout' %}">Logout</a>
-        </ul>
-    </div>
-  </div>
-</nav>
+        <div class="collapse navbar-collapse" id="stimulus-navbar">
+            <ul class="navbar-nav mr-auto">
+                <li><a class="nav-link content-link" href="{% url 'stimulus-list' %}">List</a></li>
+                <li><a class="nav-link content-link" href="{% url 'pyensemble-importers:import-stimulus-table' %}">Import Table</a></li>
+            </ul>
+            <ul class="navbar-nav ml-auto">
+                <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+            </ul>
+        </div>
+      </div>
+    </nav>
+    <nav class="navbar navbar-expand-sm navbar-light bg-light filter-nav" id="secondary-navbar">Filters</nav>
 {% endblock %}
 

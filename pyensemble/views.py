@@ -59,9 +59,19 @@ class EditorView(LoginRequiredMixin,TemplateView):
 class StimulusView(LoginRequiredMixin, TemplateView):
     template_name = 'pyensemble/stimulus_base.html'
 
-class StimulusListView(LoginRequiredMixin,ListView):
+class StimulusListView(LoginRequiredMixin, ListView):
     model = Stimulus
     context_object_name = 'stimulus_list'
+    paginate_by = 25
+
+    def get_context_data(self, **kwargs):
+        context = super(StimulusListView, self).get_context_data(**kwargs)
+
+        option_fields = ['playlist', 'genre', 'artist', 'file_format']
+        for option in option_fields:
+            context[option] = Stimulus.objects.order_by(option).values_list(option, flat=True).distinct()
+
+        return context
 
 #
 # Experiment editing views

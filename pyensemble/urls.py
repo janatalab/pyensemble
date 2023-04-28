@@ -42,7 +42,7 @@ app_patterns = [
     path('editor/', views.EditorView.as_view(template_name='pyensemble/editor_base.html'), name='editor'),
 
     path('stimulus/', views.StimulusView.as_view(template_name='pyensemble/stimulus_base.html'), name='stimulus'),
-    path('stimulus/list/', views.StimulusListView.as_view(template_name='pyensemble/stimulus_list.html'), name='stimulus-list'),
+    path('stimulus/list/', views.StimulusListView.as_view(template_name='pyensemble/stimulus_list_paginated.html'), name='stimulus-list'),
 
     path('ticket/create/', views.create_ticket, name='create_ticket'),
 

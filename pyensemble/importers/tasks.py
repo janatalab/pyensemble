@@ -3,6 +3,8 @@
 import os, io
 import csv, json
 
+from django.conf import settings
+
 from pyensemble.models import Stimulus
 
 import pdb
@@ -108,6 +110,7 @@ def write_entries_to_db(entries):
         'num_submitted': len(entries),
         'num_existing': 0,
         'num_written': 0,
+        'failed': [],
     }
 
     for entry in entries:
@@ -115,25 +118,32 @@ def write_entries_to_db(entries):
         for key in ["id", "stimulus_id"]:
             entry.pop(key, None)
 
-        stimulus, created = Stimulus.objects.get_or_create(
-            name = clean_string(entry['name']),
-            artist = clean_string(entry['artist']),
-            album = clean_string(entry['album']),
-            description = clean_string(entry['description']),
-            playlist = clean_string(entry['playlist']),
-            genre = clean_string(entry['genre']),
-            file_format = clean_string(entry['file_format']),
-            size = entry['size'],
-            duration = entry['duration'],
-            year = entry['year'], 
-            compression_bit_rate = entry['compression_bit_rate'],
-            sample_rate = entry['sample_rate'],
-            sample_size = entry['sample_size'],
-            channels = entry['channels'],
-            width = entry['width'],
-            height = entry['height'],
-            location = clean_string(entry['file_format']),
-        )
+        try:
+            stimulus, created = Stimulus.objects.get_or_create(
+                name = clean_string(entry['name']),
+                artist = clean_string(entry['artist']),
+                album = clean_string(entry['album']),
+                description = clean_string(entry['description']),
+                playlist = clean_string(entry['playlist']),
+                genre = clean_string(entry['genre']),
+                file_format = clean_string(entry['file_format']),
+                size = entry['size'],
+                duration = entry['duration'],
+                year = entry['year'], 
+                compression_bit_rate = entry['compression_bit_rate'],
+                sample_rate = entry['sample_rate'],
+                sample_size = entry['sample_size'],
+                channels = entry['channels'],
+                width = entry['width'],
+                height = entry['height'],
+                location = clean_string(entry['location']),
+            )
+        except:
+            result['failed'].append(entry)
+
+            if settings.DEBUG:
+                pdb.set_trace()
+
 
         if created:
             result['num_written'] += 1

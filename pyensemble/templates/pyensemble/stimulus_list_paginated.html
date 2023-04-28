@@ -1,0 +1,106 @@
+{% extends "pyensemble/stimulus_base.html" %}
+
+{% block main %}
+<main>
+    <div id="results_section">
+        <div id="results_table" class="mt-2 overflow-auto sticky-top">
+            <table class="reporting table table-striped table-bordered table-sm">
+                <thead class="reporting">
+                    <tr>
+                        <th class="freeze-pane index">ID</th>
+                        <th class="freeze-pane index">Name</th>
+                        <th>Artist<hr>                     
+                            {% include "pyensemble/selectors/selector.html" with level="Artist" options=artist multiple=True data_width="300px" %}
+                        </th>
+                        <th>Album</th>
+                        <th>Year</th>
+                        <th>Genre<hr>                     
+                            {% include "pyensemble/selectors/selector.html" with level="Genre" options=genre multiple=True data_width="100px" %}
+                        </th>
+                        <th>Playlist<hr>                     
+                            {% include "pyensemble/selectors/selector.html" with level="Playlist" options=playlist multiple=True data_width="200px" %}
+                        </th>
+                        <th>Description</th>
+                        <th>Format<hr>                     
+                            {% include "pyensemble/selectors/selector.html" with level="Format" options=file_format multiple=True data_width="40px" %}
+                        </th>
+                        <th>Duration</th>
+                        <th>Location</th>
+                        <th>Attributes</th>
+                    </tr>
+                </thead>
+                <tbody class="reporting">
+                    {% for stimulus in page_obj %}
+                    <tr>
+                        <td class="freeze-pane index">{{stimulus.id}}</td>
+                        <td class="freeze-pane index text-left">{{stimulus.name}}</td>
+                        <td>{{stimulus.artist}}</td>
+                        <td>{{stimulus.album}}</td>
+                        <td>{{stimulus.year}}</td>
+                        <td>{{stimulus.genre}}</td>
+                        <td>{{stimulus.playlist}}</td>
+                        <td>{{stimulus.description}}</td>
+                        <td>{{stimulus.format}}</td>
+                        <td>{{stimulus.duration}}</td>
+                        <td class="text-left">{{stimulus.location}}</td>
+                        <td>
+                            {% for sxa in stimulus.stimulusxattribute_set.all %}
+                                <div>{{sxa.attribute.name}}: 
+                                    {% if sxa.attribute_value_double %} 
+                                        {{sxa.attribute_value_double}}, 
+                                    {% endif %}
+                                    {{sxa.attribute_value_text}}
+                                </div>
+                            {% endfor %}
+                        </td>
+
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="100%">
+                            <div class="">
+                                <span class="step-links">
+                                    {% if page_obj.has_previous %}
+                                        <a href="?page=1">&laquo; first</a>
+                                        <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+                                    {% endif %}
+
+                                    <span class="current">
+                                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+                                    </span>
+
+                                    {% if page_obj.has_next %}
+                                        <a href="?page={{ page_obj.next_page_number }}">next</a>
+                                        <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
+                                    {% endif %}
+                                </span>
+                            </div>                        
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+
+    description = models.CharField(max_length=30)
+    playlist = models.CharField(max_length=50, blank=True)
+    artist = models.CharField(max_length=200, blank=True)
+    album = models.TextField(blank=True)
+    genre = models.TextField(blank=True)
+    file_format = models.CharField(max_length=6, blank=True)
+    size = models.IntegerField(blank=True, null=True)
+    duration = models.TimeField(blank=True, null=True)
+    year = models.IntegerField(blank=True, null=True)  
+    compression_bit_rate = models.IntegerField(blank=True, null=True)
+    sample_rate = models.IntegerField(blank=True, null=True)
+    sample_size = models.IntegerField(blank=True, null=True)
+    channels = models.IntegerField(blank=True, null=True)
+    width = models.IntegerField(blank=True, null=True)
+    height = models.IntegerField(blank=True, null=True)
+    location = models.FileField(max_length=512)

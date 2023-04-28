@@ -1,7 +1,14 @@
 
 
 
-<select class="form-control selectpicker" name="{{level}}" data-live-search="true" required>
+<select 
+    class="form-control selectpicker" 
+    name="{{level}}" 
+    data-live-search="true" 
+    required
+    {% if multiple %} multiple data-actions-box="true" {% endif %}
+    {% if data_width %} data-width="{{data_width}}" {% endif %}
+>
     {% for option in options %}
         <option value="{{option.id}}" data-tokens="{{option}}">{{option}}</option>
     {% endfor %}
