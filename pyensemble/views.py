@@ -59,18 +59,45 @@ class EditorView(LoginRequiredMixin,TemplateView):
 class StimulusView(LoginRequiredMixin, TemplateView):
     template_name = 'pyensemble/stimulus_base.html'
 
+def get_stimulus_search_options(queryset):
+    options = {}
+
+    fields = ['playlist', 'genre', 'artist', 'year', 'file_format']
+    for field in fields:
+        options[field] = Stimulus.objects.order_by(field).values_list(field, flat=True).distinct()
+
+    return options
+
+class StimulusSearchView(LoginRequiredMixin, TemplateView):
+    template_name = 'pyensemble/stimulus_search.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(StimulusSearchView, self).get_context_data(**kwargs)
+
+        queryset = Stimulus.objects.all()
+
+        context.update(get_stimulus_search_options(queryset))
+
+        return context
+
+
 class StimulusListView(LoginRequiredMixin, ListView):
     model = Stimulus
     context_object_name = 'stimulus_list'
     paginate_by = 25
 
+    def get_queryset(self):
+        queryset = super(StimulusListView, self).get_queryset()
+        pdb.set_trace()
+
+        return queryset
+
     def get_context_data(self, **kwargs):
         context = super(StimulusListView, self).get_context_data(**kwargs)
 
-        option_fields = ['playlist', 'genre', 'artist', 'file_format']
-        for option in option_fields:
-            context[option] = Stimulus.objects.order_by(option).values_list(option, flat=True).distinct()
+        context.update(get_stimulus_search_options(self.queryset))
 
+        pdb.set_trace()
         return context
 
 #

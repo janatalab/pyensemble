@@ -77,6 +77,18 @@ input[type=number] {
     z-index: 9000;
 }
 
+#search_section {
+    z-index: 1000;
+}
+
+#search_section .input-group-prepend{
+    flex: 0 0 80px;
+}
+
+#search_section .input-group-text{
+    width: 100%;
+}
+
 #results_section {
     padding-top: 10px;
 /*    position: absolute;
