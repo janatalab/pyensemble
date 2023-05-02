@@ -154,7 +154,7 @@ def get_experiment_data(experiment, **kwargs):
 
     organize_by = kwargs.get('organize_by', 'subject')
 
-    sessions = experiment.session_set.filter(exclude=False)
+    sessions = experiment.session_set.exclude(exclude=True)
 
     if organize_by == 'session':
         # Iterate over sessions
@@ -180,11 +180,21 @@ def get_experiment_data(experiment, **kwargs):
             subject_sessions = sessions.filter(subject__subject_id=subject)
 
             # Note the number of sessions for this subject
-            data['num_sessions_per_subject'].append((subject, subject_sessions.count()))
+            num_subject_sessions = subject_sessions.count()
+            data['num_sessions_per_subject'].append((subject, num_subject_sessions))
 
             # Only use the last session (this assumes previous sessions were failed attempts which may not always be a valid assumption)
             # It turns out that this is a poor assumption. We should look for complete sessions instead
-            session = subject_sessions.last()
+            session = None
+            if num_subject_sessions > 1:
+                # Find the first complete session
+                for session in subject_sessions:
+                    if session.end:
+                        break
+
+            # If we did not find a session that ended cleanly, grab the last one
+            if not session or not session.end:
+                session = subject_sessions.last()
 
             # Run the reporting
             response = session.reporting(**kwargs)

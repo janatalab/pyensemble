@@ -6,6 +6,14 @@ body > main {
     margin-right: 10px;
 }
 
+#presentation {
+    margin: 15px;
+}
+
+.form-header {
+    margin: 15px;
+}
+
 .form-check-input {
     position: relative;
     margin-top: 0.4rem;
@@ -66,6 +74,7 @@ input[type=number] {
 .experiment-info select {
     width: 200px;
 }
+
 
 #form_table .textinput {
     width: 300px;
