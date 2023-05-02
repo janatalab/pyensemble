@@ -363,7 +363,7 @@ class Stimulus(models.Model):
     channels = models.IntegerField(blank=True, null=True)
     width = models.IntegerField(blank=True, null=True)
     height = models.IntegerField(blank=True, null=True)
-    location = models.FileField()
+    location = models.FileField(max_length=512)
 
     attributes = models.ManyToManyField('Attribute', through='StimulusXAttribute')
 

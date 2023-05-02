@@ -1,0 +1,11 @@
+{% extends "pyensemble/stimulus_base.html" %}
+
+{% block main %}
+    <main>
+        <div class="container">
+            Processed {{result.num_submitted}} stimuli ...
+            {{result.num_existing}} had existing entries
+            {{result.num_written}} new entries
+        </div>
+    </main>
+{% endblock %}

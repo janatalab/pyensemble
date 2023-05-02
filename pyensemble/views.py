@@ -54,7 +54,51 @@ class PyEnsembleHomeView(LoginRequiredMixin,TemplateView):
     template_name = 'pyensemble/pyensemble_home.html'
 
 class EditorView(LoginRequiredMixin,TemplateView):
-    template_name = 'editor_base.html'
+    template_name = 'pyensemble/editor_base.html'
+
+class StimulusView(LoginRequiredMixin, TemplateView):
+    template_name = 'pyensemble/stimulus_base.html'
+
+def get_stimulus_search_options(queryset):
+    options = {}
+
+    fields = ['playlist', 'genre', 'artist', 'year', 'file_format']
+    for field in fields:
+        options[field] = Stimulus.objects.order_by(field).values_list(field, flat=True).distinct()
+
+    return options
+
+class StimulusSearchView(LoginRequiredMixin, TemplateView):
+    template_name = 'pyensemble/stimulus_search.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(StimulusSearchView, self).get_context_data(**kwargs)
+
+        queryset = Stimulus.objects.all()
+
+        context.update(get_stimulus_search_options(queryset))
+
+        return context
+
+
+class StimulusListView(LoginRequiredMixin, ListView):
+    model = Stimulus
+    context_object_name = 'stimulus_list'
+    paginate_by = 25
+
+    def get_queryset(self):
+        queryset = super(StimulusListView, self).get_queryset()
+        pdb.set_trace()
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super(StimulusListView, self).get_context_data(**kwargs)
+
+        context.update(get_stimulus_search_options(self.queryset))
+
+        pdb.set_trace()
+        return context
 
 #
 # Experiment editing views

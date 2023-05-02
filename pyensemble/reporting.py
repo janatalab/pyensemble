@@ -183,6 +183,7 @@ def get_experiment_data(experiment, **kwargs):
             data['num_sessions_per_subject'].append((subject, subject_sessions.count()))
 
             # Only use the last session (this assumes previous sessions were failed attempts which may not always be a valid assumption)
+            # It turns out that this is a poor assumption. We should look for complete sessions instead
             session = subject_sessions.last()
 
             # Run the reporting

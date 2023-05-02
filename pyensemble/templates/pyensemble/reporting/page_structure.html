@@ -1,16 +1,18 @@
 {% load crispy_forms_tags %}
 
-<div class="" id="item_selection">
-    <div class="row justify-content-center">
-        <div class="h5 col-12">Select the {{level}} on which to run reporting</div>
+<main>
+    <div class="" id="item_selection">
+        <div class="row justify-content-center">
+            <div class="h5 col-12">Select the {{level}} on which to run reporting</div>
 
-        <div class="col-4">
-            {% crispy form %}
+            <div class="col-4">
+                {% crispy form %}
+            </div>
         </div>
     </div>
-</div>
 
-<div class="" id="results_section">    
-        <div id="item_title" class="m-3 h4"></div>
-        <div id="results_table" class="mt-2 overflow-auto sticky-top"></div>
-</div>
+    <div class="" id="results_section">    
+            <div id="item_title" class="p-2 h4"></div>
+            <div id="results_table" class="mt-2 overflow-auto sticky-top"></div>
+    </div>
+</main>

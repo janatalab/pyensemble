@@ -1,0 +1,53 @@
+    <div id="search_section" class="border-bottom">
+        <h3>Search</h3>
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="song_search">Song</span>
+            </div>
+            <input type="text" name="song" class="form-control search-input" placeholder="Search for existing song" aria-label="Song" aria-describedby="song_search">
+        </div>
+ 
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="artist_search">Artist</span>
+            </div>
+            {% include "pyensemble/selectors/selector.html" with level="Artist" options=artist multiple=True search=True %}
+        </div>
+
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="album_search">Album</span>
+            </div>
+            <input type="text" name="album" class="form-control search-input" placeholder="Search for existing album" aria-label="Album" aria-describedby="album_search">
+        </div>
+
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="genre_search">Genre</span>
+            </div>
+            {% include "pyensemble/selectors/selector.html" with level="Genre" options=genre multiple=True search=True %}
+        </div>
+
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="playlist_search">Playlist</span>
+            </div>
+            {% include "pyensemble/selectors/selector.html" with level="Playlist" options=playlist multiple=True search=True %}
+        </div>
+
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="year_search">Year</span>
+            </div>
+            {% include "pyensemble/selectors/selector.html" with level="Year" options=year multiple=True search=True %}
+        </div>
+
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="file_format_search">Format</span>
+            </div>
+            {% include "pyensemble/selectors/selector.html" with level="Format" options=file_format multiple=True search=True %}
+        </div>
+
+        <button type="button" id="searchButton" class="btn btn-primary mb-3">Search</button>
+    </div>
