@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'crispy_forms',
     'pyensemble',
     'pyensemble.group',
+    'pyensemble.integrations',
 ]
 
 MIDDLEWARE = [
@@ -152,6 +153,13 @@ try:
     NOCAPTCHA = True
     RECAPTCHA_PUBLIC_KEY = config['google']['recaptcha_key']
     RECAPTCHA_PRIVATE_KEY = config['google']['recaptcha_secret']
+except:
+    pass
+
+# Spotify
+try:
+    SPOTIFY_CLIENT_ID = config['spotify']['client_id']
+    SPOTIFY_CLIENT_SECRET = config['spotify']['client_secret']
 except:
     pass
 

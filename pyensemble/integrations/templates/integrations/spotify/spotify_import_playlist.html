@@ -1,0 +1,24 @@
+{% extends "integrations/spotify/spotify_base.html"%}
+
+{% block main %}
+    <main>
+        <h3>Imported playlist: {{playlist.name}}</h3>
+        <div>Created stimulus entries with attributes {{attributes}} for:</div>
+        <table class="table table-striped">
+            <thead>
+                <th>Name</th>
+                <th>Artist</th>
+                <th>Album</th>
+                <th>Preview</th>
+            </thead>
+            {% for track in playlist.tracks.items %}
+                <tr>
+                    <td>{{track.track.name}}</td>
+                    <td>{{track.track.artists.0.name}}</td>
+                    <td>{{track.track.album.name}}</td>
+                    <td><a href="{{track.track.preview_url}}">{{track.track.preview_url}}</a></td>
+                </tr>
+            {% endfor %}
+        </table>
+    </main>
+{% endblock %}
