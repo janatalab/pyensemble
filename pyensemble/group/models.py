@@ -36,6 +36,7 @@ class GroupSubject(models.Model):
 def init_session_context():
     return {'state': ''}
 
+
 class GroupSession(AbstractSession):
     group = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
 
@@ -161,6 +162,14 @@ class GroupSession(AbstractSession):
 
     def set_group_exit_loop(self):
         self.groupsessionsubjectsession_set.all().set_state('EXIT_LOOP')
+
+
+def group_filename(instance, filename):
+    return "{0}/{1}/{2}".format(instance.group_session.experiment.title, instance.group_session.id, filename)
+
+class GroupSessionFile(models.Model):
+    group_session = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
+    file = models.FileField(upload_to=group_filename)
 
 
 class GroupSessionSubjectSessionQuerySet(models.QuerySet):
