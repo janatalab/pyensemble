@@ -7,7 +7,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit
 
 class SpotifyImportForm(forms.Form):
-    playlist_uri = forms.CharField(label='Specify a Spotify playlist URI')
+    playlist_endpoint = forms.CharField(label='Specify a link or URI for the Spotify playlist', required=True)
     attributes = forms.CharField(
         label='(optional) Attributes', 
         widget=TextInput(attrs={'placeholder':'Enter one or more attribute labels (comma-separated)'}),
