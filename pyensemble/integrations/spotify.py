@@ -57,10 +57,10 @@ def spotify_import(request):
             ss = SpotifySession()
 
             # Get the playlist URI
-            playlist_uri = form.cleaned_data['playlist_uri']
+            playlist_endpoint = form.cleaned_data['playlist_endpoint']
 
-            # Fetch the playlist
-            playlist = ss.client_session.playlist(playlist_uri)
+            # Fetch the playlist. Can either be a URL or a URI
+            playlist = ss.client_session.playlist(playlist_endpoint)
 
             # Get our attributes
             attributes = [s.strip() for s in form.cleaned_data['attributes'].split(',')]
@@ -73,6 +73,16 @@ def spotify_import(request):
 
             # Create our database entries
             for track in playlist['tracks']['items']:
+                # Make sure we have a preview URL
+                preview_url = track['track']['preview_url']
+
+                if not preview_url:
+                    if settings.DEBUG:
+                        pdb.set_trace()
+
+                    # Skip this stimulus
+                    continue
+
 
                 # Create the stimulus entry
                 stimulus, created = Stimulus.objects.get_or_create(
@@ -80,7 +90,7 @@ def spotify_import(request):
                     name = track['track']['name'],
                     artist = track['track']['artists'][0]['name'],
                     album = track['track']['album']['name'],
-                    url = track['track']['preview_url'],
+                    url = preview_url,
                 )
 
                 # Associate any attributes
