@@ -17,6 +17,7 @@ urlpatterns = [
 
     path('session/attach/participant/', views.attach_participant, name='attach_participant'),
     path('session/attach/experimenter/', views.attach_experimenter, name='attach_experimenter'),
+    path('session/attach/file/', views.attach_file, name="attach_file"),
 
     path('session/participants/get/', views.get_groupsession_participants, name='get_groupsession_participants'),
 
