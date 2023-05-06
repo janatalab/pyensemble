@@ -172,6 +172,25 @@ class GroupSessionFile(models.Model):
     file = models.FileField(upload_to=group_filename)
 
 
+class GroupSessionFileAttribute(models.Model):
+    unique_hash = models.CharField(max_length=32, unique=True)
+
+    file = models.ForeignKey('GroupSessionFile', db_constraint=True, on_delete=models.CASCADE)
+    attribute = models.ForeignKey('pyensemble.Attribute', db_constraint=True, on_delete=models.CASCADE)
+
+    attribute_value_double = models.FloatField(blank=True, null=True)
+    attribute_value_text = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        m = hashlib.md5()
+        m.update(self.file.encode('utf-8'))
+        m.update(self.attribute.name.encode('utf-8'))
+        m.update(str(self.attribute_value_double).encode('utf-8'))
+        m.update(self.attribute_value_text.encode('utf-8'))
+        self.unique_hash = m.hexdigest()
+        super(GroupSessionFileAttribute, self).save(*args, **kwargs)
+
+
 class GroupSessionSubjectSessionQuerySet(models.QuerySet):
     def ready_server(self):
         return self.count() == self.filter(state=self.model.States.READY_SERVER).count()
