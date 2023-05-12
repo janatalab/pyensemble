@@ -6,7 +6,11 @@ DEBUG=True
 
 INSTALLED_APPS += ['sslserver']
 
-LOG_DIR = os.path.join(os.environ['HOME'],'log')
+home = os.environ.get('HOME', None)
+if not home:
+    home = os.environ.get('HOMEPATH', None)
+
+LOG_DIR = os.path.join(home,'log')
 if not os.path.exists(LOG_DIR):
     os.mkdir(LOG_DIR)
 
