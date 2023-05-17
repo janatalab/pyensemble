@@ -1,12 +1,21 @@
-<input type="{{ widget.type }}" name="{{ widget.name }}"
-    {% if widget.value != None %} value="{{ widget.value|stringformat:'s' }}"{% endif %}
-    {% if widget.attrs.anchors %}list="anchors"{%endif%}{% include "django/forms/widgets/attrs.html" %}
->
+<div class="range">
+    <input type="{{ widget.type }}" name="{{ widget.name }}" class="slider" 
+        {% if widget.value != None %} value="{{ widget.value|stringformat:'s' }}"{% endif %}
+        {% if widget.attrs.anchors %}list="anchors"{%endif%}{% include "django/forms/widgets/attrs.html" %}
+    >
 
-{% if widget.attrs.anchors %}
-    <datalist id="anchors">
-        {% for key, value in widget.attrs.anchors.items %}
-            <option value="{{key}}" label="{{value}}">{{value}}</option>
-        {% endfor %}
-    </datalist>
-{% endif %}
+    {% if widget.attrs.anchors %}
+        <div class="sliderticks">
+            {% for anchor in widget.attrs.anchors %}
+                <p>{{anchor}}</p>
+            {% endfor %}
+        </div>
+
+        <datalist id="anchors">
+            {% for anchor in widget.attrs.anchors %}
+                <option value="{{anchor}}" label="{{anchor}}">{{anchor}}</option>
+            {% endfor %}
+        </datalist>
+    {% endif %}
+
+</div>

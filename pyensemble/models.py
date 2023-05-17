@@ -57,7 +57,7 @@ class DataFormat(models.Model):
     range_data = models.JSONField(null=True)
 
     class Meta:
-        unique_together = (("df_type", "enum_values"), ("df_type", "_range_hash"),)
+        unique_together = (("df_type", "enum_values"),)
 
     def choice(self):
         if self.df_type == 'enum':

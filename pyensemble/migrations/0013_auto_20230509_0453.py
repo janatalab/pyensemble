@@ -30,8 +30,4 @@ class Migration(migrations.Migration):
             name='html_field_type',
             field=models.CharField(choices=[('radiogroup', 'radiogroup'), ('checkbox', 'checkbox'), ('textarea', 'textarea'), ('text', 'text'), ('menu', 'menu'), ('numeric', 'numeric'), ('slider', 'slider')], default='radiogroup', max_length=10),
         ),
-        migrations.AlterUniqueTogether(
-            name='dataformat',
-            unique_together={('df_type', 'enum_values')},
-        ),
     ]
