@@ -15,6 +15,8 @@ from captcha.fields import ReCaptchaField
 
 from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket, Study
 
+from pyensemble.widgets import RangeInput
+
 import pdb
 
 class EnumCreateForm(forms.ModelForm):
@@ -33,6 +35,7 @@ class EnumCreateForm(forms.ModelForm):
         self.helper.form_method = 'post'
         self.helper.form_action = 'enum_create'
         self.helper.form_class = 'editor-form'
+
 
 class QuestionEditHelper(FormHelper):
     form_method = 'POST'
@@ -104,6 +107,7 @@ class QuestionPresentForm(forms.ModelForm):
             'required': True,
             }
 
+
         # Set up the input field as a function of the HTML type
         html_field_type = self.instance.html_field_type
 
@@ -141,6 +145,9 @@ class QuestionPresentForm(forms.ModelForm):
         elif html_field_type == 'textarea':
             widget = forms.Textarea(attrs={'autocomplete':'off'})
 
+        elif html_field_type == 'slider':
+            widget = RangeInput(attrs=df.range_data)
+
         field_params['widget'] = widget
 
         if html_field_type in ['radiogroup','menu']:
@@ -149,6 +156,8 @@ class QuestionPresentForm(forms.ModelForm):
             self.fields['option'] = forms.MultipleChoiceField(**field_params)
         elif html_field_type == 'numeric':
             self.fields['option'] = forms.IntegerField(**field_params)
+        elif html_field_type == 'slider':
+            self.fields['option'] = forms.FloatField(**field_params)
         else:
             self.fields['option'] = forms.CharField(**field_params)
 

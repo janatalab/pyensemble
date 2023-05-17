@@ -43,7 +43,7 @@
                     {% endif %}
 
                     {% if not field|is_checkboxselectmultiple and not field|is_radioselect %}
-                        <div class="controls">
+                        <div class="controls col-6">
                             {% if field|is_checkbox and form_show_labels %}
                                 <label for="{{ field.id_for_label }}" class="checkbox">
                                     {% crispy_field field %}

@@ -47,6 +47,15 @@ class DataFormat(models.Model):
     df_type = models.CharField(max_length=15,default='enum')
     enum_values = models.CharField(max_length=512, blank=True)
 
+    # Mechanism for saving range information to be associated with a slider.
+    # The dictionary stored in the JSON field is expected to have the following key, value pairs:
+    # min: <float> - the minimum value of the range
+    # max: <float> - the maximum value of the range
+    # step: <float> - the step size for the slider
+    # anchors: {} - a dictionary in which the key specifies the numeric value at which a label should be centered, and the value is the text value to be displayed at that location
+    _range_hash = models.CharField(null=True, max_length=128, db_column='range_hash')
+    range_data = models.JSONField(null=True)
+
     class Meta:
         unique_together = (("df_type", "enum_values"),)
 
@@ -57,6 +66,23 @@ class DataFormat(models.Model):
             self._choice = self.df_type
 
         return self._choice
+
+    @property
+    def range_hash(self):
+        if self.range_data:
+            m = hashlib.md5()
+            range_data_str = json.dumps(self.range_data)
+            m.update(range_data_str.encode('utf-8'))
+            self._range_hash = m.hexdigest()
+        else:
+            self._range_hash = ''
+
+        return self._range_hash
+
+@receiver(pre_save, sender=DataFormat)
+def generate_range_hash(sender, instance, **kwargs):
+    instance.range_hash
+
 
 class Question(models.Model):
     _unique_hash = models.CharField(max_length=128, unique=True, db_column='unique_hash')
@@ -74,6 +100,7 @@ class Question(models.Model):
         ('text','text'),
         ('menu','menu'),
         ('numeric','numeric'),
+        ('slider','slider'),
     ]
 
     html_field_type = models.CharField(max_length=10, blank=False, choices=HTML_FIELD_TYPE_OPTIONS, default='radiogroup')
@@ -186,6 +213,7 @@ class Response(models.Model):
     response_order = models.PositiveSmallIntegerField(null=False,default=None)
     response_text = models.TextField(blank=True)
     response_enum = models.IntegerField(blank=True, null=True)
+    response_float = models.FloatField(null=True, blank=True)
     jspsych_data = models.TextField(blank=True) # field for storing data returned by jsPsych
     decline = models.BooleanField(default=False)
     misc_info = models.TextField(blank=True)
