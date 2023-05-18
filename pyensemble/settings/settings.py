@@ -221,10 +221,19 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'timestamped': {
-            'format': '%(levelname)s %(asctime)s %(module)s %(message)s',
+            'format': '%(levelname)s: %(asctime)s %(module)s %(message)s',
         },
+        'experiment': {
+            'format': '%(levelname)s: %(asctime)s %(pathname)s (%(funcName)s): %(message)s',
+        }
     },
     'handlers': {
+        'experiment-debug-file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOG_DIR,'experiment-debug.txt'),
+            'formatter': 'experiment',
+        },
         'debug-file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
@@ -258,6 +267,11 @@ LOGGING = {
         'django.template': {
             'handlers': ['template-file'],
             'level': 'ERROR',
+            'propagate': True,
+        },
+        'experiments': {
+            'handlers': ['experiment-debug-file'],
+            'level': 'DEBUG',
             'propagate': True,
         }
     },
