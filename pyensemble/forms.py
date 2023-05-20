@@ -22,7 +22,7 @@ import pdb
 class EnumCreateForm(forms.ModelForm):
     class Meta:
         model = DataFormat
-        exclude = ('df_type',)
+        exclude = ('df_type','_range_hash','range_data')
 
         widgets = {
             'enum_values': forms.TextInput(attrs={'placeholder':'e.g. "Yes","No"'})
