@@ -1,6 +1,6 @@
 <div class="range">
     <input type="{{ widget.type }}" name="{{ widget.name }}" class="slider" 
-        {% if widget.value != None %} value="{{ widget.value|stringformat:'s' }}"{% endif %}
+        {% if widget.value != None %} value="{{ widget.value|stringformat:'s' }}"{% else %}value="{{ widget.attrs.min|stringformat:'s' }}"{% endif %}
         {% if widget.attrs.anchors %}list="anchors"{%endif%}{% include "django/forms/widgets/attrs.html" %}
     >
 

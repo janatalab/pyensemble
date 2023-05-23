@@ -148,6 +148,7 @@ class QuestionPresentForm(forms.ModelForm):
 
         elif html_field_type == 'slider':
             widget = RangeInput(attrs=df.range_data)
+            widget.value = df.range_data['min']
 
         field_params['widget'] = widget
 
