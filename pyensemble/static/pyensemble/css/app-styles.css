@@ -180,14 +180,15 @@ table.reporting thead th {
     position: sticky;
     left: 0; 
     z-index: 20;
-    background-color: #fafafa
+    background-color: #fafafa;
+    vertical-align: bottom;
 }
         
 td.session_id {
     border-left: 2px solid #aaaaff;
 }
 
-.nav-section {
+#nav-section {
     position: absolute;
     top: 0px;
     left: 0px;
@@ -197,6 +198,14 @@ td.session_id {
 
 #primary-navbar {
     z-index: 5000;
+}
+
+#secondary-navbar {
+    top: 50px;
+}
+
+.reporting-selector-form select[name='question']{
+    height: 50vh;
 }
 
 .analysis-nav {

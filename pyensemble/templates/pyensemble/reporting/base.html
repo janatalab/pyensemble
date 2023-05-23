@@ -8,31 +8,34 @@
 {% block title %}{% trans "PyEnsemble Reporting" %}{% endblock %}
 
 {% block header %}
-<nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light">
-    <a class="navbar-brand" href="{% url 'home' %}">PyEnsemble - Reports</a>
-    <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#editor-navbar" aria-expanded="false" aria-controls="editor-navbar">
-        <span class="navbar-toggler-icon"></span>
-    </button>
+<div id="nav-section">
+    <nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light" id="primary-navbar">
+        <a class="navbar-brand" href="{% url 'home' %}">PyEnsemble - Reports</a>
+        <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#editor-navbar" aria-expanded="false" aria-controls="editor-navbar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
 
-    <div class="collapse navbar-collapse" id="editor-navbar">
-        <ul class="navbar-nav mr-auto">
-            <li class="nav-item content-link">
-                <a class="nav-link" href="{% url 'study-reporting' %}">Study</a>
-            </li>
-            <li>
-                <a class="nav-link content-link" href="{% url 'experiment-reporting' %}">Experiment</a>
-            </li>
-            <li>
-                <a class="nav-link content-link" href="{% url 'session-reporting' %}">Session</a>
-            </li>
-            <li>
-                <a class="nav-link content-link" href="{% url 'pyensemble-group:report' %}">Group</a>
-            </li>
-        </ul>
-        <ul class="navbar-nav ml-auto">
-            <a class="nav-link" href="{% url 'logout' %}">Logout</a>
-        </ul>
-    </div>
-  </div>
-</nav>
+        <div class="collapse navbar-collapse" id="editor-navbar">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item content-link">
+                    <a class="nav-link" href="{% url 'study-reporting' %}">Study</a>
+                </li>
+                <li>
+                    <a class="nav-link content-link" href="{% url 'experiment-reporting' %}">Experiment</a>
+                </li>
+                <li>
+                    <a class="nav-link content-link" href="{% url 'session-reporting' %}">Session</a>
+                </li>
+                <li>
+                    <a class="nav-link content-link" href="{% url 'pyensemble-group:report' %}">Group</a>
+                </li>
+            </ul>
+            <ul class="navbar-nav ml-auto">
+                <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+            </ul>
+        </div>
+    </nav>
+    <nav class="navbar navbar-expand-sm navbar-light bg-light analysis-nav" id="secondary-navbar">
+    </nav>
+</div>
 {% endblock %}

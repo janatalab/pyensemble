@@ -6,6 +6,7 @@ from django.conf import settings
 import django.forms as forms
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.urls import reverse
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import LayoutObject, Layout, Field, Submit, Row, Div, Fieldset
@@ -13,7 +14,7 @@ from crispy_forms.bootstrap import InlineRadios, InlineCheckboxes, UneditableFie
 
 from captcha.fields import ReCaptchaField
 
-from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket, Study
+from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket, Study, Response
 
 from pyensemble.widgets import RangeInput
 
@@ -373,3 +374,38 @@ class ExperimentSelectForm(forms.Form):
     helper = FormHelper()
     helper.form_class = 'reporting-selector-form'
     helper.add_input(Submit('submit', 'Submit'))
+
+
+
+class ExperimentResponsesForm(forms.Form):
+    experiment = forms.IntegerField(widget=forms.HiddenInput())
+    question = forms.MultipleChoiceField(choices=[])
+    filter_excluded = forms.BooleanField(required=False, label='Remove sessions marked as excluded')
+    filter_unfinished = forms.BooleanField(required=False, label='Remove incomplete sessions')
+
+    def __init__(self, *args, **kwargs):
+        super(ExperimentResponsesForm, self).__init__(*args, **kwargs)
+
+        # Extract our experiment ID
+        if 'initial' in kwargs.keys():
+            experiment_id = kwargs['initial']['experiment']
+        elif args:
+            experiment_id = args[0]['experiment']
+
+
+        # Since we are focused on ultimately gettings responses, make queries against the Response table
+        experiment_responses = Response.objects.filter(experiment=experiment_id)
+
+        # Get our list of questions that were asked in this experiment
+        self.fields['question'].choices = experiment_responses.values_list('question', 'question__text').distinct()
+
+
+        self.helper = FormHelper()
+        self.helper.form_action = reverse('experiment-responses')
+        self.helper.form_class = 'reporting-selector-form'
+        self.helper.add_input(Submit('submit', 'Submit'))
+
+
+
+
+        

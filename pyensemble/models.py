@@ -114,6 +114,9 @@ class Question(models.Model):
     # class Meta:
     #     unique_together = (("_unique_hash", "data_format"),)
 
+    def __str__(self):
+        return self.text
+
     def __unicode__(self):
         return self.text
 

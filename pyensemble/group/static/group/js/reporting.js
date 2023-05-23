@@ -191,7 +191,6 @@ $(function() {
             dataType: 'json',
             success: function(data){
                 populateTable(data['sessions']);
-                // $("#results_table").html(response);
             },
         });
     };

@@ -1,0 +1,16 @@
+{% extends "pyensemble/reporting/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block main %}
+<main>
+    <div class="" id="parameter_selection">
+        <div class="row justify-content-center">
+            <div class="h5 col-12">Select the items to include</div>
+
+            <div class="col-lg-10 100vh">
+                {% crispy form %}
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
