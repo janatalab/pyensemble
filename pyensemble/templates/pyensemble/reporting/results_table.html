@@ -267,7 +267,13 @@
                 url: target.attr('action'),
                 data: target.serialize(),
                 success: function(data){
+                    // Fetch the appropriate secondary actions nav
+                    fetchExperimentAnalysisNav();
+
+                    // Update the results table
                     updateResults(data);
+
+                    // Hide our selector
                     $("#item_selection").addClass("d-none");
                 },
                 error: function(response,errorText){
@@ -276,4 +282,46 @@
             });
         })
     });
+
+    function fetchExperimentAnalysisNav(){
+        $.ajax({
+            type: "GET",
+            url: "{% url 'experiment-analysis-nav' %}",
+            success: function(response){
+                $("#secondary-navbar").html(response);
+                $(".analysis-item").on('click', onAnalysisRequest)
+            },
+            error: function(response,errorText){
+                alert(response.responseText);
+            },
+        });
+    }
+
+    function onAnalysisRequest(ev){
+        ev.stopImmediatePropagation();
+        ev.preventDefault();
+
+        var dataType = "json";
+
+        if (ev.target.text == 'Responses'){
+            dataType = "html";
+        }
+
+        $.ajax({
+            url: ev.target.href,
+            type: 'GET',
+            data: {'experiment_id': $(".reporting-selector-form select").val()},
+            dataType: dataType,
+            success: function(data){
+                if (dataType == "json"){
+                    bindData(data);
+                } else {
+                    document.open();
+                    document.write(data);
+                    document.close();
+                }
+            },
+        });
+    };
+
 </script>

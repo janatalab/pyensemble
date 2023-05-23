@@ -45,7 +45,7 @@ class Attribute(models.Model):
 
 class DataFormat(models.Model):
     df_type = models.CharField(max_length=15,default='enum')
-    enum_values = models.CharField(max_length=512, blank=True)
+    enum_values = models.CharField(max_length=512, null=True, blank=True, default=None)
 
     # Mechanism for saving range information to be associated with a slider.
     # The dictionary stored in the JSON field is expected to have the following key, value pairs:
@@ -113,6 +113,9 @@ class Question(models.Model):
 
     # class Meta:
     #     unique_together = (("_unique_hash", "data_format"),)
+
+    def __str__(self):
+        return self.text
 
     def __unicode__(self):
         return self.text

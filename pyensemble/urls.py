@@ -13,12 +13,13 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
-from django.urls import path, include, reverse
-from django.contrib.auth import views as auth_views
-from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
+
+from django.contrib import admin
+from django.contrib.auth import views as auth_views
+from django.urls import path, include, reverse
+from django.views.generic import RedirectView, TemplateView
 
 from . import views
 from . import reporting
@@ -79,6 +80,9 @@ reporting_patterns = [
     path('', reporting.index, name='reporting'),
     path('study/', reporting.study, name='study-reporting'),
     path('experiment/', reporting.experiment, name='experiment-reporting'),
+    path('experiment/summary/', reporting.experiment_summary, name='experiment-summary'),
+    path('experiment/responses/', reporting.experiment_responses, name='experiment-responses'),
+    path('experiment/analysis/nav/', TemplateView.as_view(template_name="pyensemble/reporting/experiment_analysis_nav.html"), name='experiment-analysis-nav'),
     path('session/', reporting.session, name='session-reporting'),
     path('session/exclude/', reporting.exclude_session, name='session-exclude'),
 ]

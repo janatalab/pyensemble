@@ -34,6 +34,7 @@ def select_audio(request,*args,**kwargs):
             'choices': 'none',
             'click_to_start': True,
             'trial_ends_after_audio': True,
+            'trial_duration': 3000,
         }
 
         if trial['click_to_start']:

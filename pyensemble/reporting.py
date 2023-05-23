@@ -6,6 +6,8 @@ import numpy as np
 
 from django.contrib.auth.decorators import login_required
 
+from django.db.models import Max
+
 from django.shortcuts import render
 from django.http import JsonResponse, HttpResponseBadRequest
 
@@ -14,7 +16,8 @@ from pyensemble import forms
 
 import pdb
 
-# Diagnostics views
+#
+# Reporting views
 #
 
 template_base = "pyensemble/reporting"
@@ -80,6 +83,53 @@ def experiment(request, *args, **kwargs):
     }
 
     template = os.path.join(template_base, "experiment.html")
+    return render(request, template, context)
+
+
+@login_required
+def experiment_summary(request, *args, **kwargs):
+    pass
+
+
+@login_required
+def experiment_responses(request, *args, **kwargs):
+
+    if request.method == 'POST':
+        form = forms.ExperimentResponsesForm(request.POST)
+
+        if form.is_valid():
+            # Fetch our responses according to the specified criteria
+            pdb.set_trace()
+            experiment_responses = Response.objects.filter(
+                experiment=form.cleaned_data['experiment'],
+                question__in=form.cleaned_data['question'],
+            )
+
+            if form.cleaned_data['filter_excluded']:
+                experiment_responses.exclude(exclude=True)
+
+            if form.cleaned_data['filter_unfinished']:
+                experiment_responses.exclude(session__end_datetime__isnull=True)
+
+            # Perform any further ordering of the responses
+
+            # Generate our list of columns
+
+            return render(request, "pyensemble/reporting/experiment_responses.html", context)
+
+    else:
+        experiment_id = request.GET['experiment_id']
+
+        # Get our response selection form
+        form = forms.ExperimentResponsesForm(initial={'experiment': experiment_id})
+
+        context = {
+            'experiment': Experiment.objects.get(pk=experiment_id),
+            'form': form,
+        }
+
+
+    template = "pyensemble/reporting/select_reporting_parameters.html"
     return render(request, template, context)
 
 
@@ -187,10 +237,22 @@ def get_experiment_data(experiment, **kwargs):
             # It turns out that this is a poor assumption. We should look for complete sessions instead
             session = None
             if num_subject_sessions > 1:
-                # Find the first complete session
-                for session in subject_sessions:
-                    if session.end:
-                        break
+                # Get a list of complete sessions
+                complete_sessions = subject_sessions.filter(end_datetime__isnull=False)
+                num_complete_sessions = complete_sessions.count()
+
+                if num_complete_sessions == 1:
+                    session = complete_sessions[0]
+
+                elif num_complete_sessions > 1:
+                    # Annotate each session with the maximum response_order value for that session
+                    complete_sessions = complete_sessions.annotate(max_response_order=Max('response__response_order'))
+
+                    # Get the max response_order value across sessions
+                    max_value_obj = complete_sessions.aggregate(max_field=Max('max_response_order'))
+
+                    # Select the object with the greatest value
+                    session = complete_sessions.get(max_response_order=max_value_obj['max_field'])
 
             # If we did not find a session that ended cleanly, grab the last one
             if not session or not session.end:
