@@ -20,6 +20,8 @@
                     $('#questions').removeClass('d-none');
                 {% elif autorun %}
                     $('#questions').removeClass('d-none');
+                {% elif delay %}
+                    setTimeout(function(){$('#questions').removeClass('d-none');},{{delay}})
                 {% else %}
                     $('#questions').addClass('d-none');
                     {% include "group/js/get_participant_state.js" %}
