@@ -56,6 +56,8 @@ INSTALLED_APPS = [
     'pyensemble',
     'pyensemble.group',
     'pyensemble.integrations',
+    'pyensemble.importers',
+    'pyensemble.io',
 ]
 
 MIDDLEWARE = [

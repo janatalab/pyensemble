@@ -14,33 +14,28 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include, reverse
+from django.urls import path, include
 from django.contrib.auth import views as auth_views
-from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
 from . import views
 from . import reporting
 
-import pyensemble.errors as error
-from pyensemble import importers
+from . import errors as error
 
 from .experiments import urls as experiment_urls
 from .importers import urls as importer_urls
 from .integrations import urls as integrations_urls
-
-# from django.contrib.auth.decorators import login_required
+from .io import urls as io_urls
 
 app_name = 'pyensemble'
 
 app_patterns = [
-    # path('', RedirectView.as_view(pattern_name='login',permanent=False)),
     path('', views.PyEnsembleHomeView.as_view(), name='home'),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
     path('accounts/logout/', views.logout_view, name='logout'),
     path('admin/', admin.site.urls),
-    path('editor/', views.EditorView.as_view(template_name='pyensemble/editor_base.html'), name='editor'),
 
     path('stimulus/', views.StimulusView.as_view(template_name='pyensemble/stimulus_base.html'), name='stimulus'),
     path('stimulus/search/', views.StimulusSearchView.as_view(template_name='pyensemble/stimulus_search.html'), name='stimulus-search'),
@@ -57,6 +52,7 @@ app_patterns = [
 ]
 
 editor_patterns = [
+    path('', views.EditorView.as_view(template_name='pyensemble/editor_base.html'), name='editor'),
     path('experiments/', views.ExperimentListView.as_view(), name='experiment_list'),
     path('experiments/create/', views.ExperimentCreateView.as_view(), name='experiment_create'),
     path('experiments/copy/<int:experiment_id>/', views.copy_experiment, name='experiment_copy'),
@@ -92,10 +88,10 @@ urlpatterns = [
     path('editor/', include(editor_patterns)),
     path('experiments/', include(experiment_urls, namespace='experiments')),
     path('reporting/', include(reporting_patterns)),
-    path('import/', include(importer_urls, namespace='importers')),
+    path('import/', include(importer_urls)),
     path('integrations/', include(integrations_urls, namespace='integrations')),
+    path('io/', include(io_urls, namespace='pyensemble-io')),
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL,
-                          document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

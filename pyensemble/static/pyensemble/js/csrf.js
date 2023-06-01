@@ -1,5 +1,3 @@
-// csrf.js
-
 var csrftoken = $.cookie('csrftoken');
 
 function csrfSafeMethod(method) {

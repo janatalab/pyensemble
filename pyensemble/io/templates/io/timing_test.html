@@ -1,0 +1,63 @@
+{% extends "pyensemble/base.html" %}
+{% load crispy_forms_tags %}
+
+{% block main %}
+<main>
+    <div class="h1 m-3">Send Stimulus Code Repeatedly</div>
+    <div class="row justify-content-center">
+        <div class="md-col-6 border p-3">
+            {% crispy form %}
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block appscript %}
+    <script>
+        var send_code = false;
+
+        //$("input[type='submit'").on('click', function(ev) {
+        $("form").on('submit', function(ev) {
+            ev.preventDefault();
+            let button = ev.originalEvent.submitter.name;
+
+            if (button == 'end'){
+                $.ajax({
+                    method: 'POST',
+                    dataType: 'html',
+                    url: "{% url 'pyensemble-io:end-test' %}",
+
+                });
+            } else {
+                if (button == 'start'){
+                    send_code = true;
+                } else {
+                    send_code = false;
+                }
+                sendCode();
+            }
+        });
+
+        function sendCode(){
+            if (send_code == true){
+                var timeout = setTimeout(sendCode, $("input[name='interval']").val()*1000);
+                $.ajax({
+                    method: 'POST',
+                    dataType: 'html',
+                    url: "{% url 'pyensemble-io:send-code' %}",
+                    data: {
+                        code: $("input[name='code']").val(),
+                        timestamp: Date.now(),
+                    },
+                    success: function(response){
+                    },
+                    error: function(response){
+                        clearTimeout(timeout);
+                        alert("Problem when sending code");
+                    }
+                });
+            }
+        }
+
+    </script>
+{% endblock %}

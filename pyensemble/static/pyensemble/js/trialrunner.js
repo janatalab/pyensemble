@@ -1,8 +1,3 @@
-// trialrunner.js
-//
-// Sets things up to run a trial in jsPsych
-// Assumes jsPsych setup from scratch
-
 function post_trial(data){
     // Write any responses that were obtained to a hidden field in our Django form
     $('input[name="jspsych_data"]').val(JSON.stringify(data.values()));

@@ -1,5 +1,3 @@
-// editor.js
-
 $(document).ready(function () {
     // Bind navigation functions functions
     bindFunctions();
