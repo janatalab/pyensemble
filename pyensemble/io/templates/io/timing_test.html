@@ -26,7 +26,11 @@
                     method: 'POST',
                     dataType: 'html',
                     url: "{% url 'pyensemble-io:end-test' %}",
-
+                    success: function(response){
+                        document.open();
+                        document.write(response);
+                        document.close();
+                    },
                 });
             } else {
                 if (button == 'start'){

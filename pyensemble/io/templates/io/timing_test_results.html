@@ -1,0 +1,138 @@
+{% extends "pyensemble/base.html" %}
+
+{% block main %}
+<body>
+    <div class="p-3"><a class="btn btn-primary" href="{% url 'pyensemble-io:test-timing' %}">Run again</a></div>
+    <div class="col">
+        <h3>Summary statistics</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    {% for col in diffdata.columns %}
+                    <th>{{col}}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Min</td>
+                    <td>{{min.client_request_sent_ms|floatformat:1}}</td>
+                    <td>{{min.server_request_received_ms|floatformat:1}}</td>
+                    <td>{{min.set_code_ms|floatformat:1}}</td>
+                    <td>{{min.cleared_code_ms|floatformat:1}}</td>
+                </tr>
+                <tr>
+                    <td>Max</td>
+                    <td>{{max.client_request_sent_ms|floatformat:1}}</td>
+                    <td>{{max.server_request_received_ms|floatformat:1}}</td>
+                    <td>{{max.set_code_ms|floatformat:1}}</td>
+                    <td>{{max.cleared_code_ms|floatformat:1}}</td>
+                </tr>
+                <tr>
+                    <td>Median</td>
+                    <td>{{median.client_request_sent_ms|floatformat:1}}</td>
+                    <td>{{median.server_request_received_ms|floatformat:1}}</td>
+                    <td>{{median.set_code_ms|floatformat:1}}</td>
+                    <td>{{median.cleared_code_ms|floatformat:1}}</td>
+                </tr>
+                <tr>
+                    <td>Mean</td>
+                    <td>{{mean.client_request_sent_ms|floatformat:1}}</td>
+                    <td>{{mean.server_request_received_ms|floatformat:1}}</td>
+                    <td>{{mean.set_code_ms|floatformat:1}}</td>
+                    <td>{{mean.cleared_code_ms|floatformat:1}}</td>
+                </tr>
+                <tr>
+                    <td>Std</td>
+                    <td>{{std.client_request_sent_ms|floatformat:1}}</td>
+                    <td>{{std.server_request_received_ms|floatformat:1}}</td>
+                    <td>{{std.set_code_ms|floatformat:1}}</td>
+                    <td>{{std.cleared_code_ms|floatformat:1}}</td>
+                </tr>
+                <tr>
+                    <td>#Outliers</td>
+                    <td>{{num_outliers.client_request_sent_ms}}</td>
+                    <td>{{num_outliers.server_request_received_ms}}</td>
+                    <td>{{num_outliers.set_code_ms}}</td>
+                    <td>{{num_outliers.cleared_code_ms}}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="h5 mt-3">Without outliers</div>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    {% for col in cleandata.columns %}
+                    <th>{{col}}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Min</td>
+                    <td>{{cleaned.min.client_request_sent_ms|floatformat:1}}</td>
+                    <td>{{cleaned.min.server_request_received_ms|floatformat:1}}</td>
+                    <td>{{cleaned.min.set_code_ms|floatformat:1}}</td>
+                    <td>{{cleaned.min.cleared_code_ms|floatformat:1}}</td>
+                </tr>
+                <tr>
+                    <td>Max</td>
+                    <td>{{cleaned.max.client_request_sent_ms|floatformat:1}}</td>
+                    <td>{{cleaned.max.server_request_received_ms|floatformat:1}}</td>
+                    <td>{{cleaned.max.set_code_ms|floatformat:1}}</td>
+                    <td>{{cleaned.max.cleared_code_ms|floatformat:1}}</td>
+                </tr>
+                <tr>
+                    <td>Median</td>
+                    <td>{{cleaned.median.client_request_sent_ms|floatformat:1}}</td>
+                    <td>{{cleaned.median.server_request_received_ms|floatformat:1}}</td>
+                    <td>{{cleaned.median.set_code_ms|floatformat:1}}</td>
+                    <td>{{cleaned.median.cleared_code_ms|floatformat:1}}</td>
+                </tr>
+                <tr>
+                    <td>Mean</td>
+                    <td>{{cleaned.mean.client_request_sent_ms|floatformat:1}}</td>
+                    <td>{{cleaned.mean.server_request_received_ms|floatformat:1}}</td>
+                    <td>{{cleaned.mean.set_code_ms|floatformat:1}}</td>
+                    <td>{{cleaned.mean.cleared_code_ms|floatformat:1}}</td>
+                </tr>
+                <tr>
+                    <td>Std</td>
+                    <td>{{cleaned.std.client_request_sent_ms|floatformat:1}}</td>
+                    <td>{{cleaned.std.server_request_received_ms|floatformat:1}}</td>
+                    <td>{{cleaned.std.set_code_ms|floatformat:1}}</td>
+                    <td>{{cleaned.std.cleared_code_ms|floatformat:1}}</td>
+                </tr>
+            </tbody>
+        </table>
+
+    </div>
+
+    <div class="col">
+        <h3>Time (ms) between events</h3>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    {% for col in diffdata.columns %}
+                    <th>{{col}}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in diffdata.itertuples %}
+                    <tr {% if row.has_outlier %}class="text-danger"{%endif%}>
+                        <td>{{row.client_request_sent_ms|floatformat:1}}</td>
+                        <td>{{row.server_request_received_ms|floatformat:1}}</td>
+                        <td>{{row.set_code_ms|floatformat:1}}</td>
+                        <td>{{row.cleared_code_ms|floatformat:1}}</td>
+                        <td>{{row.has_outlier}}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+{% endblock %}

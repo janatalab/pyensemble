@@ -30,6 +30,23 @@ def _initialize_port(address=DEFAULT_ADDRESS):
     PORT = ParallelPort(address=address)
 
 
+def test_port_addresses():
+    PORT_ADDRESSES = ["0xEFF4", "0xEFF5", "0xEFF6", "0xEFF7", "0xEFF8", "0xEFF9", "0xEFFA", "0xEFFB", "0xEFFC",
+                      "0xEFFD", "0xEFFE", "0xEFFF"]
+
+    for address in PORT_ADDRESSES:
+        _initialize_port(address=address)
+
+        for pin in range(2,10):
+            input("Press Enter to continue...")
+            print(f"Testing pin {pin} on port {address} ...")
+            PORT.setPin(pin, 1)
+
+            time.sleep(PULSE_DURATION_SEC)
+
+            PORT.setPin(pin, 0)
+
+
 def send_stimid(request):
     template = "io/send_stimid.html"
 
@@ -50,9 +67,11 @@ def send_stimid(request):
 
 
 def send_code(request):
+    # Get a timestamp for when this request came in
+    server_request_received_ms = timezone.now()
+
     code = int(request.POST['code'])
-    request_sent_ms = int(request.POST['timestamp'])
-    request_received_ms = timezone.now()
+    client_request_sent_ms = int(request.POST['timestamp'])
 
     PORT.setData(code)
     set_code_ms = timezone.now()
@@ -65,8 +84,8 @@ def send_code(request):
     cleared_code_ms = timezone.now()
 
     request.session['timing_test'].append({
-        'request_sent_ms': request_sent_ms,
-        'request_received_ms': request_received_ms.timestamp()*1000,
+        'client_request_sent_ms': client_request_sent_ms,
+        'server_request_received_ms': server_request_received_ms.timestamp() * 1000,
         'set_code_ms': set_code_ms.timestamp()*1000,
         'cleared_code_ms': cleared_code_ms.timestamp()*1000,
     })
@@ -117,6 +136,7 @@ def run_timing_test(request):
 
 def end_test(request):
     template = "io/timing_test_results.html"
+    tolerance_ms = 100
     context = {}
 
     # Create a Pandas dataframe from the timing data
@@ -126,11 +146,38 @@ def end_test(request):
     # Calculate the differences
     diffdata = data.diff()
 
-    context['min'] = diffdata.max().to_dict()
+    context['min'] = diffdata.min().to_dict()
     context['max'] = diffdata.max().to_dict()
+    context['median'] = diffdata.median().to_dict()
     context['mean'] = diffdata.mean().to_dict()
     context['std'] = diffdata.std().to_dict()
 
-    pdb.set_trace()
+    # Deal with outliers
+    diff_from_median = diffdata - diffdata.median()
+
+    outlier_mask = diff_from_median.abs() > tolerance_ms
+
+    num_outliers = outlier_mask.sum()
+
+    context['num_outliers'] = num_outliers.to_dict()
+
+    diffdata['has_outlier'] = outlier_mask.any(axis=1)
+
+    context['diffdata'] = diffdata
+
+    # Calculate stats using clean data
+    cleandata = diffdata[diffdata['has_outlier']==False]
+
+    cleandata = cleandata.drop(['has_outlier'], axis=1)
+
+    context['cleandata'] = cleandata
+
+    context['cleaned'] = {
+        'min': cleandata.min().to_dict(),
+        'max': cleandata.max().to_dict(),
+        'median': cleandata.median().to_dict(),
+        'mean': cleandata.mean().to_dict(),
+        'std': cleandata.std().to_dict(),
+    }
 
     return render(request, template, context)
