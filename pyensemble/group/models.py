@@ -75,7 +75,7 @@ class GroupSession(AbstractSession):
         return f'groupsession_{self.id}'
 
     @property
-    def num_users(self):
+    def num_subject_sessions(self):
         return self.groupsessionsubjectsession_set.count()
 
     # The place we need to enforce modifiability is on our save() method in order to prevent changes once we've saved ourselves once in a terminal state. So, we need to overwrite the default save method.
@@ -123,7 +123,7 @@ class GroupSession(AbstractSession):
             # Search the trial_info field the Response table contains an entry for the designated trial for all session users
             responded = Response.objects.filter(session__in=self.groupsessionsubjectsession_set, trial_info__trial_num=trial_num)
 
-            if responded.count() == self.num_users:
+            if responded.count() == self.num_subject_sessions:
                 self._responding_complete =  True
 
         return self._responding_complete
@@ -185,6 +185,9 @@ class GroupSessionSubjectSessionQuerySet(models.QuerySet):
         for session in self:
             session.user_session.expired=True
             session.user_session.save()
+
+    def all_completed(self):
+        return self.count() == self.filter(user_session__end_datetime__isnull=False).count()
 
 
 class GroupSessionSubjectSessionManager(models.Manager):

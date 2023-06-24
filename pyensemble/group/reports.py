@@ -89,11 +89,21 @@ def experiment_summary(request):
 
 @login_required
 def experiment_sessions(request):
+    # Extract our experiment ID
+    experiment_id = request.GET['experiment_id']
+
+    # Get the experiment session data
+    experiment_data = get_experiment_session_data(experiment_id)
+
+    # Return the response
+    return JsonResponse(experiment_data)
+
+
+def get_experiment_session_data(experiment_id):
     # Only provide information about groups with attached participants
-    # We ultimately want to add a "populated" manager to the GroupSession model that returns objects that have populated sessions
 
     # We can also get our list of sessions from the GroupSessionSubjectSession
-    gsss_set = GroupSessionSubjectSession.objects.filter(group_session__experiment__id=request.GET['experiment_id'])
+    gsss_set = GroupSessionSubjectSession.objects.filter(group_session__experiment__id=experiment_id)
 
     # Extract the unique group_sessions
     group_sessions = gsss_set.values_list('group_session', flat=True).distinct()
@@ -114,10 +124,13 @@ def experiment_sessions(request):
         session_info['id'] = session.id
         session_info['start'] = session.start
         session_info['notes'] = session.notes
+        session_info['meta'] = {
+            'all_completed': session.groupsessionsubjectsession_set.all().all_completed()
+        }
         session_info['subjects'] = []
 
         # Associate the subject sessions
-        for gsss in gsss_set.filter(group_session=session.id):
+        for gsss in session.groupsessionsubjectsession_set.all():
             subject_session = gsss.user_session
 
             subject_info = {
@@ -136,8 +149,6 @@ def experiment_sessions(request):
                 }
             else:
                 subject_info['last_response'] = None
-
-
 
             session_info['subjects'].append(subject_info)
 
@@ -159,11 +170,11 @@ def experiment_sessions(request):
         #     # Extract their last response
         #     last_response = subject_responses.last()
 
-    outdict = {
+    experiment_data = {
         'sessions': session_list,
     }
 
-    return JsonResponse(outdict)
+    return experiment_data
 
 @login_required
 def experiment_responses(request):

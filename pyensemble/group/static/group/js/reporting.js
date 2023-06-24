@@ -70,7 +70,7 @@ $(function() {
         }
         
         column_labels = header_row.selectAll("th")
-            .data(Object.keys(data[0]));
+            .data(Object.keys(data[0]).filter(d => d!="meta"));
 
         column_labels.enter()
             .append("th")
@@ -78,6 +78,10 @@ $(function() {
                 .attr("class", function(d){
                     if (d=='id'){
                         return "freeze-pane index";
+                    }
+
+                    if (d=='notes'){
+                        return "reporting-notes-col";
                     }
                 });
 
@@ -95,13 +99,19 @@ $(function() {
         // Create rows for any new sessions        
         sessions.enter()
             .append("tr")
-                .classed("groupsession-data", true)
+                .attr("class", function(d){
+                    let base_class = "groupsession-data";
+                    
+                    if (d.meta.all_completed) base_class += " groupsession-all-complete"
+                    
+                    return base_class
+                })
                 .attr("id", function(d){
                     return "groupsession-"+d.id;
                 })
             .selectAll("td")
                 .data(function(d){
-                    return d3.entries(d);
+                    return d3.entries(d).filter(function(d) {return d.key != "meta"})
                 })
                 .enter()
                 .append("td")
@@ -119,9 +129,13 @@ $(function() {
                         }
                     })
                     .attr("class", function(d){
+                        var class_str = "align-middle";
+
                         if (d.key == 'id'){
-                            return "freeze-pane index";
+                            class_str += " freeze-pane index";
                         }
+
+                        return class_str
                     });
 
         sessions.select("table.subject-info").selectAll('tr')
