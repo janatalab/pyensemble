@@ -37,6 +37,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('pyensemble', '0007_auto_20230228_2214'),
+        ('sites', '0002_alter_domain_unique'),
     ]
 
     operations = [
