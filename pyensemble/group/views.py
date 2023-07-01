@@ -195,7 +195,20 @@ def attach_participant(request):
 
 @login_required
 def attach_file(request):
-    pass
+    if request.method == "POST":
+        form = GroupSessionFileAttachForm(request.POST, request.FILES)
+        if form.is_valid():
+            # file is saved
+            form.save()
+            return HttpResponseRedirect(reverse('group:attach_file_success'))
+    else:
+        # Get our group session
+        groupsession_id = request.GET.get('groupsession_id', None)
+
+        form = GroupSessionFileAttachForm(initial={'groupsession': groupsession_id})
+
+    return render(request, "group/attach_file.html", {"form": form})
+
 
 @login_required
 def get_groupsession_participants(request):

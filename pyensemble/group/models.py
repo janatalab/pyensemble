@@ -164,12 +164,12 @@ class GroupSession(AbstractSession):
         self.groupsessionsubjectsession_set.all().set_state('EXIT_LOOP')
 
 
-def group_filename(instance, filename):
-    return "{0}/{1}/{2}".format(instance.group_session.experiment.title, instance.group_session.id, filename)
-
 class GroupSessionFile(models.Model):
-    group_session = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
-    file = models.FileField(upload_to=group_filename)
+    groupsession = models.ForeignKey('GroupSession', db_constraint=True, on_delete=models.CASCADE)
+    file = models.FileField(upload_to=self.filepath)
+
+    def filepath(self, filename):
+        return "{0}/{1}/{2}".format(self.groupsession.experiment.title, self.groupsession.id, filename)
 
 
 class GroupSessionFileAttribute(models.Model):
