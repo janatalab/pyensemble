@@ -36,6 +36,7 @@ class GroupSubject(models.Model):
 def init_session_context():
     return {'state': ''}
 
+
 class GroupSession(AbstractSession):
     group = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
 
@@ -161,6 +162,33 @@ class GroupSession(AbstractSession):
 
     def set_group_exit_loop(self):
         self.groupsessionsubjectsession_set.all().set_state('EXIT_LOOP')
+
+
+class GroupSessionFile(models.Model):
+    groupsession = models.ForeignKey('GroupSession', db_constraint=True, on_delete=models.CASCADE)
+    file = models.FileField(upload_to=self.filepath)
+
+    def filepath(self, filename):
+        return "{0}/{1}/{2}".format(self.groupsession.experiment.title, self.groupsession.id, filename)
+
+
+class GroupSessionFileAttribute(models.Model):
+    unique_hash = models.CharField(max_length=32, unique=True)
+
+    file = models.ForeignKey('GroupSessionFile', db_constraint=True, on_delete=models.CASCADE)
+    attribute = models.ForeignKey('pyensemble.Attribute', db_constraint=True, on_delete=models.CASCADE)
+
+    attribute_value_double = models.FloatField(blank=True, null=True)
+    attribute_value_text = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        m = hashlib.md5()
+        m.update(self.file.encode('utf-8'))
+        m.update(self.attribute.name.encode('utf-8'))
+        m.update(str(self.attribute_value_double).encode('utf-8'))
+        m.update(self.attribute_value_text.encode('utf-8'))
+        self.unique_hash = m.hexdigest()
+        super(GroupSessionFileAttribute, self).save(*args, **kwargs)
 
 
 class GroupSessionSubjectSessionQuerySet(models.QuerySet):
