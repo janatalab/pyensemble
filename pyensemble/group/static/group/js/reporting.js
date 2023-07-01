@@ -1,9 +1,12 @@
 // reporting.js
 
-$(function() {
-    const urls = JSON.parse(document.getElementById('group-urls').textContent);
+// $(function() {
+window.PyEnsemble.reporting = (function(){
+    var core = {};
 
-    function onChangedSelection (e, clickedIndex, isSelected, previousValue) {
+    core.urls = JSON.parse(document.getElementById('group-urls').textContent);
+
+    function onChangedSelection(e, clickedIndex, isSelected, previousValue) {
 
         var level = e.target.name.toLowerCase();
         var item_id = e.target.options[clickedIndex].value;
@@ -12,7 +15,7 @@ $(function() {
         if (level == 'experiment'){
             // Update menu items for session dropdown
             $.ajax({
-                url: urls['experiment-session-selector'],
+                url: core.urls['experiment-session-selector'],
                 type: 'GET',
                 data: {'id': item_id,},
                 dataType: 'html',
@@ -29,7 +32,7 @@ $(function() {
 
             // Get ourselves an experiment analysis nav               
             $.ajax({
-                url: urls['experiment-analysis-nav'],
+                url: core.urls['experiment-analysis-nav'],
                 type: 'GET',
                 data: {'id': item_id,},
                 dataType: 'html',
@@ -42,7 +45,7 @@ $(function() {
         }
         else if (level == "session"){
             $.ajax({
-                url: urls['session-detail'],
+                url: core.urls['session-detail'],
                 type: 'GET',
                 data: {'id': item_id},
                 dataType: 'html',
@@ -56,21 +59,27 @@ $(function() {
     $('.selectpicker').selectpicker()
         .on('changed.bs.select', onChangedSelection);
 
-    function populateTable(data){
+
+    core.populateTable = function(data){
         // Create our basic table
         if (d3.select("#results_table").select("table").empty()){
             var table = d3.select("#results_table").append("table").attr("class","reporting table table-striped table-bordered table-sm"),
                 thead = table.append("thead").attr("class","reporting"),
                 tbody = table.append("tbody").attr("class","reporting");            
-        };
+        } else {
+            var thead = d3.select("#results_table thead");
+            var tbody = d3.select("#results_table tbody");
+        }
 
         // Add column labels
-        if (thead.select("tr").empty()){
-            var header_row = thead.append("tr");
-        }
+        var header_row = thead.select("tr");
+
+        if (header_row.empty()){
+            header_row = thead.append("tr");
+        } 
         
         column_labels = header_row.selectAll("th")
-            .data(Object.keys(data[0]));
+            .data(Object.keys(data[0]).filter(d => d!="meta"));
 
         column_labels.enter()
             .append("th")
@@ -78,6 +87,10 @@ $(function() {
                 .attr("class", function(d){
                     if (d=='id'){
                         return "freeze-pane index";
+                    }
+
+                    if (d=='notes'){
+                        return "reporting-notes-col";
                     }
                 });
 
@@ -95,13 +108,19 @@ $(function() {
         // Create rows for any new sessions        
         sessions.enter()
             .append("tr")
-                .classed("groupsession-data", true)
+                .attr("class", function(d){
+                    let base_class = "groupsession-data";
+                    
+                    if (d.meta.all_completed) base_class += " groupsession-all-complete"
+                    
+                    return base_class
+                })
                 .attr("id", function(d){
                     return "groupsession-"+d.id;
                 })
             .selectAll("td")
                 .data(function(d){
-                    return d3.entries(d);
+                    return d3.entries(d).filter(function(d) {return d.key != "meta"})
                 })
                 .enter()
                 .append("td")
@@ -113,15 +132,22 @@ $(function() {
                             let val = d.value;
 
                             val += "<div class='text-danger'>Exclude <input type='checkbox' class='session exclude-checkbox' id='"+d.value+"-exclude' ></div>";
+
+                            val += "<button type='button' class='btn btn-outline-info attach-file-btn' id='attach-file-"+d.value+"' data-toggle='modal' data-target='#attachFileModal' data-session='"+d.value+"'>Attach File</button>";
+
                             return val
                         } else {
                            return d.value
                         }
                     })
                     .attr("class", function(d){
+                        var class_str = "align-middle";
+
                         if (d.key == 'id'){
-                            return "freeze-pane index";
+                            class_str += " freeze-pane index";
                         }
+
+                        return class_str
                     });
 
         sessions.select("table.subject-info").selectAll('tr')
@@ -151,6 +177,11 @@ $(function() {
                     })
 
         d3.selectAll(".session.exclude-checkbox").on("change", excludeGroupSession);
+        $('.attach-file-btn').on('click', function(){
+            // Set the session ID on the modal
+            document.querySelector(this.dataset.target).dataset.session = this.dataset.session;
+        });
+
     }
 
     function excludeGroupSession(){
@@ -161,7 +192,7 @@ $(function() {
         let session_id = this.id.match(/(\w*)-exclude/)[1];
 
         $.ajax({
-                url: urls['exclude-groupsession'],
+                url: core.urls['exclude-groupsession'],
                 type: 'POST',
                 dataType: "json",        
                 data: {
@@ -190,9 +221,31 @@ $(function() {
             data: {'experiment_id': $(".selectpicker[name='Experiment']").val()},
             dataType: 'json',
             success: function(data){
-                populateTable(data['sessions']);
+                core.populateTable(data['sessions']);
             },
         });
     };
 
-});
+    core.fetchAttachFileForm = function(ev){
+        var session_id = ev.dataset.session;
+        // Fetch our groupsession file upload form
+        var url = core.urls['attach-file'];
+        $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: "html",        
+            data: {
+                'session_id': session_id,
+            },
+            success: function(response){
+                $(ev).find(".modal-body").html(response);
+                $(ev).find("form").attr({action:url});
+            },
+            error: function(response){
+                alert('Unable to fetch file attachment form ...')
+            }
+        });        
+    }
+
+    return core
+})();

@@ -1,3 +1,5 @@
+import os
+
 from django.db import models
 from django.conf import settings
 
@@ -35,6 +37,7 @@ class GroupSubject(models.Model):
 
 def init_session_context():
     return {'state': ''}
+
 
 class GroupSession(AbstractSession):
     group = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
@@ -75,7 +78,7 @@ class GroupSession(AbstractSession):
         return f'groupsession_{self.id}'
 
     @property
-    def num_users(self):
+    def num_subject_sessions(self):
         return self.groupsessionsubjectsession_set.count()
 
     # The place we need to enforce modifiability is on our save() method in order to prevent changes once we've saved ourselves once in a terminal state. So, we need to overwrite the default save method.
@@ -123,7 +126,7 @@ class GroupSession(AbstractSession):
             # Search the trial_info field the Response table contains an entry for the designated trial for all session users
             responded = Response.objects.filter(session__in=self.groupsessionsubjectsession_set, trial_info__trial_num=trial_num)
 
-            if responded.count() == self.num_users:
+            if responded.count() == self.num_subject_sessions:
                 self._responding_complete =  True
 
         return self._responding_complete
@@ -163,6 +166,37 @@ class GroupSession(AbstractSession):
         self.groupsessionsubjectsession_set.all().set_state('EXIT_LOOP')
 
 
+def groupsession_filepath(instance, filename):
+    return os.path.join(instance.groupsession.experiment.title, str(instance.groupsession.id), filename)
+
+
+class GroupSessionFile(models.Model):
+    groupsession = models.ForeignKey('GroupSession', db_constraint=True, on_delete=models.CASCADE)
+    file = models.FileField(upload_to=groupsession_filepath)
+
+    class Meta:
+        unique_together = (("groupsession","file"),)
+
+
+class GroupSessionFileAttribute(models.Model):
+    unique_hash = models.CharField(max_length=32, unique=True)
+
+    file = models.ForeignKey('GroupSessionFile', db_constraint=True, on_delete=models.CASCADE)
+    attribute = models.ForeignKey('pyensemble.Attribute', db_constraint=True, on_delete=models.CASCADE)
+
+    attribute_value_double = models.FloatField(blank=True, null=True)
+    attribute_value_text = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        m = hashlib.md5()
+        m.update(self.file.encode('utf-8'))
+        m.update(self.attribute.name.encode('utf-8'))
+        m.update(str(self.attribute_value_double).encode('utf-8'))
+        m.update(self.attribute_value_text.encode('utf-8'))
+        self.unique_hash = m.hexdigest()
+        super(GroupSessionFileAttribute, self).save(*args, **kwargs)
+
+
 class GroupSessionSubjectSessionQuerySet(models.QuerySet):
     def ready_server(self):
         return self.count() == self.filter(state=self.model.States.READY_SERVER).count()
@@ -186,10 +220,14 @@ class GroupSessionSubjectSessionQuerySet(models.QuerySet):
             session.user_session.expired=True
             session.user_session.save()
 
+    def all_completed(self):
+        return self.count() == self.filter(user_session__end_datetime__isnull=False).count()
+
 
 class GroupSessionSubjectSessionManager(models.Manager):
     def get_queryset(self):
         return GroupSessionSubjectSessionQuerySet(self.model, using=self._db)
+
 
 class GroupSessionSubjectSession(models.Model):
     group_session = models.ForeignKey('GroupSession', db_constraint=True, on_delete=models.CASCADE)

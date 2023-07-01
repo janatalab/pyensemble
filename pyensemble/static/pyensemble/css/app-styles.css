@@ -208,6 +208,14 @@ td.session_id {
     height: 50vh;
 }
 
+.reporting-notes-col {
+    width: 35%;
+}
+
+.groupsession-all-complete {
+    background-color: rgb(212,255,212)!important;
+}
+
 .analysis-nav {
 /*    position: absolute;*/
 /*    top: 65px;*/

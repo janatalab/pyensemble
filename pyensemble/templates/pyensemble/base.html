@@ -46,6 +46,8 @@
 
         <script type="text/javascript" src="{% static 'pyensemble/js/csrf.js' %}"></script>
 
+        <script>window.PyEnsemble = {};</script>
+
         {% if first_form %}
             {% include "pyensemble/timezone.html" %}
         {% endif %}

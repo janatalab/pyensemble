@@ -13,7 +13,7 @@ from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
 
 from .models import Group, GroupSession, GroupSessionSubjectSession
-from .forms import GroupForm, get_group_code_form, GroupSessionForm, GroupSessionNotesForm
+from .forms import GroupForm, get_group_code_form, GroupSessionForm, GroupSessionNotesForm, GroupSessionFileAttachForm
 
 from pyensemble.models import Ticket, Session
 from pyensemble.tasks import create_tickets
@@ -161,6 +161,7 @@ def attach_experimenter(request):
 
     return render(request, template, context)
 
+
 def attach_participant(request):
     if request.method == 'POST':
         GroupCodeForm = get_group_code_form(code_type='participant')
@@ -191,6 +192,33 @@ def attach_participant(request):
 
     return render(request, template, context)
 
+
+@login_required
+def attach_file(request):
+    if request.method == "POST":
+        form = GroupSessionFileAttachForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            # file is saved
+            form.save()
+            return HttpResponseRedirect(reverse('pyensemble-group:attach_file_success'))
+    else:
+        # Get our group session
+        groupsession_id = request.GET.get('session_id', None)
+
+        form = GroupSessionFileAttachForm(initial={'groupsession': groupsession_id})
+
+    context = {
+        'form': form,
+    }
+
+    return render(request, "group/report/attach_file.html", context)
+
+
+def attach_file_success(request):
+    return HttpResponse("Successfully uploaded the file")
+
+
 @login_required
 def get_groupsession_participants(request):
     # Get our groupsession ID
@@ -202,6 +230,7 @@ def get_groupsession_participants(request):
     participants = {p['user_session__subject']:{'first': p['user_session__subject__name_first'], 'last': p['user_session__subject__name_last']} for p in pinfo}
     
     return JsonResponse(participants)
+
 
 @login_required
 def groupsession_status(request):
@@ -225,6 +254,7 @@ def groupsession_status(request):
 
         template = 'group/session_status.html'
         return render(request, template, context)
+
 
 def get_groupuser_session(request):
     # Get the group session ID from the session cache
