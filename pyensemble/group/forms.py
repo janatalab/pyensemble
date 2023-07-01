@@ -7,7 +7,7 @@
 import django.forms as forms
 from django.core.exceptions import ValidationError
 
-from .models import Group, GroupSession
+from .models import Group, GroupSession, GroupSessionFile
 from pyensemble.models import Ticket, Experiment
 
 from crispy_forms.helper import FormHelper
@@ -123,7 +123,7 @@ class GroupSessionNotesForm(forms.ModelForm):
         self.helper.form_method = 'post'
 
 
-class GroupSessionFileAttachForm(form.ModelForm):
+class GroupSessionFileAttachForm(forms.ModelForm):
     class Meta:
         model = GroupSessionFile
         fields = '__all__'      

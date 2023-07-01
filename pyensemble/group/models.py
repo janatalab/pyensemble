@@ -1,3 +1,5 @@
+import os
+
 from django.db import models
 from django.conf import settings
 
@@ -164,12 +166,16 @@ class GroupSession(AbstractSession):
         self.groupsessionsubjectsession_set.all().set_state('EXIT_LOOP')
 
 
+def groupsession_filepath(instance, filename):
+    return os.path.join(instance.groupsession.experiment.title, str(instance.groupsession.id), filename)
+
+
 class GroupSessionFile(models.Model):
     groupsession = models.ForeignKey('GroupSession', db_constraint=True, on_delete=models.CASCADE)
-    file = models.FileField(upload_to=self.filepath)
+    file = models.FileField(upload_to=groupsession_filepath)
 
-    def filepath(self, filename):
-        return "{0}/{1}/{2}".format(self.groupsession.experiment.title, self.groupsession.id, filename)
+    class Meta:
+        unique_together = (("groupsession","file"),)
 
 
 class GroupSessionFileAttribute(models.Model):
@@ -221,6 +227,7 @@ class GroupSessionSubjectSessionQuerySet(models.QuerySet):
 class GroupSessionSubjectSessionManager(models.Manager):
     def get_queryset(self):
         return GroupSessionSubjectSessionQuerySet(self.model, using=self._db)
+
 
 class GroupSessionSubjectSession(models.Model):
     group_session = models.ForeignKey('GroupSession', db_constraint=True, on_delete=models.CASCADE)

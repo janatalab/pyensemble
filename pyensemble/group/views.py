@@ -13,7 +13,7 @@ from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
 
 from .models import Group, GroupSession, GroupSessionSubjectSession
-from .forms import GroupForm, get_group_code_form, GroupSessionForm, GroupSessionNotesForm
+from .forms import GroupForm, get_group_code_form, GroupSessionForm, GroupSessionNotesForm, GroupSessionFileAttachForm
 
 from pyensemble.models import Ticket, Session
 from pyensemble.tasks import create_tickets
@@ -197,17 +197,26 @@ def attach_participant(request):
 def attach_file(request):
     if request.method == "POST":
         form = GroupSessionFileAttachForm(request.POST, request.FILES)
+
         if form.is_valid():
             # file is saved
             form.save()
-            return HttpResponseRedirect(reverse('group:attach_file_success'))
+            return HttpResponseRedirect(reverse('pyensemble-group:attach_file_success'))
     else:
         # Get our group session
-        groupsession_id = request.GET.get('groupsession_id', None)
+        groupsession_id = request.GET.get('session_id', None)
 
         form = GroupSessionFileAttachForm(initial={'groupsession': groupsession_id})
 
-    return render(request, "group/attach_file.html", {"form": form})
+    context = {
+        'form': form,
+    }
+
+    return render(request, "group/report/attach_file.html", context)
+
+
+def attach_file_success(request):
+    return HttpResponse("Successfully uploaded the file")
 
 
 @login_required

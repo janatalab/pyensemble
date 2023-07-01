@@ -25,6 +25,7 @@ def home(request):
             'experiment-analysis-nav': reverse('pyensemble-group:experiment-analysis-nav'),
             'session-detail': reverse('pyensemble-group:session-detail'),
             'exclude-groupsession': reverse('pyensemble-group:exclude_groupsession'),
+            'attach-file': reverse('pyensemble-group:attach_file'),
         }
     }
 
@@ -128,6 +129,8 @@ def get_experiment_session_data(experiment_id):
             'all_completed': session.groupsessionsubjectsession_set.all().all_completed()
         }
         session_info['subjects'] = []
+
+        session_info['files'] = [f for f in session.groupsessionfile_set.values_list('file', flat=True)]
 
         # Associate the subject sessions
         for gsss in session.groupsessionsubjectsession_set.all():

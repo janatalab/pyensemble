@@ -45,10 +45,19 @@
             <div id="results_table" class="mt-2 overflow-auto sticky-top"></div>
     </div>
 </main>
+
 {% endblock %}
 
 {% block appscript %}
     {{ group_urls|json_script:"group-urls" }}
 
     <script type="text/javascript" src="{% static 'group/js/reporting.js' %}"></script>
+
+    {% include "pyensemble/modals/modals_base.html" with modal_id='attachFileModal' modal_title='Attach File' %}
+
+    <script>
+        $('#attachFileModal').on('show.bs.modal', function (ev) {
+            PyEnsemble.reporting.fetchAttachFileForm(ev.target);
+        });
+    </script>
 {% endblock %}
