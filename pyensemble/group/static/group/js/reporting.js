@@ -133,9 +133,16 @@ window.PyEnsemble.reporting = (function(){
 
                             val += "<div class='text-danger'>Exclude <input type='checkbox' class='session exclude-checkbox' id='"+d.value+"-exclude' ></div>";
 
-                            val += "<button type='button' class='btn btn-outline-info attach-file-btn' id='attach-file-"+d.value+"' data-toggle='modal' data-target='#attachFileModal' data-session='"+d.value+"'>Attach File</button>";
+                            return val
+
+                        } else if (d.key == 'files'){
+                            let session_id = d3.select(this.parentElement).datum().id;
+                            let val = "<button type='button' class='btn btn-outline-info attach-file-btn' id='attach-file-"+session_id+"' data-toggle='modal' data-target='#attachFileModal' data-session='"+session_id+"'>Attach File</button>";;
+
+                            val += "<div>"+d.value+"</div>";
 
                             return val
+
                         } else {
                            return d.value
                         }
@@ -228,8 +235,8 @@ window.PyEnsemble.reporting = (function(){
 
     core.fetchAttachFileForm = function(ev){
         var session_id = ev.dataset.session;
-        // Fetch our groupsession file upload form
         var url = core.urls['attach-file'];
+
         $.ajax({
             url: url,
             type: 'GET',
