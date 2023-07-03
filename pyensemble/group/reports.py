@@ -124,13 +124,15 @@ def get_experiment_session_data(experiment_id):
 
         session_info['id'] = session.id
         session_info['start'] = session.start
+        session_info['subjects'] = []
         session_info['notes'] = session.notes
+        session_info['files'] = [f for f in session.groupsessionfile_set.values_list('file', flat=True)]
+
         session_info['meta'] = {
             'all_completed': session.groupsessionsubjectsession_set.all().all_completed()
         }
-        session_info['subjects'] = []
+        
 
-        session_info['files'] = [f for f in session.groupsessionfile_set.values_list('file', flat=True)]
 
         # Associate the subject sessions
         for gsss in session.groupsessionsubjectsession_set.all():

@@ -13,12 +13,10 @@
         return session_ids
     }
 
-    function excludeSubject(){
-        if (!this.checked) {return};
+    function excludeSession(){
+        $(".exclude-session-btn").attr("disabled", true);
 
-        $(".exclude-checkbox").attr("disabled", true);
-
-        let subject_id = this.id.match(/(\w*)-exclude/)[1];
+        let subject_id = this.id.match(/exclude-(\w*)/)[1];
 
         let subject_info = d3.select(document.getElementById(subject_id)).datum();
 
@@ -40,7 +38,7 @@
                     alert(response.responseText);
                 },
                 complete: function(){
-                    $(".exclude-checkbox").attr("disabled", false);
+                    $(".exclude-session-btn").attr("disabled", false);
                 }
         });
     }
@@ -227,20 +225,20 @@
                     }).enter()
                         .append("td")
                             .html(function(d,i) {
-                                if (d.key.match(/exclude/)){
-                                    let val = "<input type='checkbox' class='exclude-checkbox'";
-                                    if (d.value=="true") {
-                                        val += " checked";
-                                    }
-                                    val += ">";
-                                    return val
-                                } else {
+                                // if (d.key.match(/exclude/)){
+                                //     let val = "<input type='checkbox' class='exclude-session-btn'";
+                                //     if (d.value=="true") {
+                                //         val += " checked";
+                                //     }
+                                //     val += ">";
+                                //     return val
+                                // } else {
                                     let val = d.value;
                                     if (d.key == "index-label"){
-                                        val += "<div class='text-danger'>Exclude <input type='checkbox' class='subject exclude-checkbox' id='"+d.value+"-exclude' ></div>";
+                                        val += "<div class='text-danger'><button type='button' class='subject exclude-session-btn btn btn-danger' id='exclude-"+d.value+"'>Exclude</button></div>";
                                     }
                                     return val;
-                                }
+                                // }
                             })
                             .attr("class", function(d,i){
                                 if (i) {
@@ -251,7 +249,7 @@
                             });
 
         // Attach event handlers
-        d3.selectAll(".subject.exclude-checkbox").on("change", excludeSubject);
+        d3.selectAll(".subject.exclude-session-btn").on("change", excludeSession);
         d3.selectAll(".variable-input").on("change", updateStatsHighlighting);
     };
 

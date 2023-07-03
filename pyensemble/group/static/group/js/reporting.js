@@ -131,7 +131,7 @@ window.PyEnsemble.reporting = (function(){
                         } else if (d.key == 'id'){
                             let val = d.value;
 
-                            val += "<div class='text-danger'>Exclude <input type='checkbox' class='session exclude-checkbox' id='"+d.value+"-exclude' ></div>";
+                            val += "<div class='text-danger'><button type='button' class='session exclude-session-btn btn btn-danger btn-sm' id='exclude-"+d.value+"'>Exclude</button></div>";
 
                             return val
 
@@ -183,8 +183,9 @@ window.PyEnsemble.reporting = (function(){
                         }
                     })
 
-        d3.selectAll(".session.exclude-checkbox").on("change", excludeGroupSession);
-        $('.attach-file-btn').on('click', function(){
+        // Attach callbacks
+        $(".session.exclude-session-btn").on("click", excludeGroupSession);
+        $(".attach-file-btn").on("click", function(){
             // Set the session ID on the modal
             document.querySelector(this.dataset.target).dataset.session = this.dataset.session;
         });
@@ -192,11 +193,9 @@ window.PyEnsemble.reporting = (function(){
     }
 
     function excludeGroupSession(){
-        if (!this.checked) {return};
+        $(".exclude-session-btn").attr("disabled", true);
 
-        $(".exclude-checkbox").attr("disabled", true);
-
-        let session_id = this.id.match(/(\w*)-exclude/)[1];
+        let session_id = this.id.match(/exclude-(\w*)/)[1];
 
         $.ajax({
                 url: core.urls['exclude-groupsession'],
@@ -213,7 +212,7 @@ window.PyEnsemble.reporting = (function(){
                     alert(response.responseText);
                 },
                 complete: function(){
-                    $(".exclude-checkbox").attr("disabled", false);
+                    $(".exclude-session-btn").attr("disabled", false);
                 }
         });
     }
