@@ -31,21 +31,21 @@ def home(request):
 
     return render(request, template, context)
 
-@login_required
-def session_selector(request):
-    pk = request.GET['id']
+# @login_required
+# def session_selector(request):
+#     pk = request.GET['id']
 
-    if not pk:
-        return HttpResponseRedirect(reverse('pyensemble-group:report'))
+#     if not pk:
+#         return HttpResponseRedirect(reverse('pyensemble-group:report'))
 
-    template = "pyensemble/selectors/selector.html"
+#     template = "pyensemble/selectors/selector.html"
 
-    context = {
-        'level': 'session',
-        'options': GroupSession.objects.filter(experiment__id=pk)
-    }
+#     context = {
+#         'level': 'session',
+#         'options': GroupSession.objects.filter(experiment__id=pk)
+#     }
 
-    return render(request, template, context)
+#     return render(request, template, context)
 
 @login_required
 def session_detail(request):
@@ -176,7 +176,7 @@ def get_experiment_session_data(experiment_id):
         #     last_response = subject_responses.last()
 
     experiment_data = {
-        'sessions': session_list,
+        'session_data': session_list,
     }
 
     return experiment_data

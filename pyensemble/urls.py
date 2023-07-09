@@ -78,14 +78,27 @@ editor_patterns = [
 
 reporting_patterns = [
     path('', reporting.index, name='reporting'),
-    path('study/', reporting.study, name='study-reporting'),
-    path('experiment/', reporting.experiment, name='experiment-reporting'),
+    # path('study/', reporting.study, name='study-reporting'),
+    path('study/analysis/nav/', TemplateView.as_view(template_name="pyensemble/reporting/study_analysis_nav.html"), name='study-analysis-nav'),    
+    path('study/summary/', reporting.study_summary, name='study-summary'),
+   path('study/sessions/', reporting.study_sessions, name='study-sessions'),
+
+    # path('experiment/', reporting.experiment, name='experiment-reporting'),
     path('experiment/summary/', reporting.experiment_summary, name='experiment-summary'),
     path('experiment/responses/', reporting.experiment_responses, name='experiment-responses'),
     path('experiment/analysis/nav/', TemplateView.as_view(template_name="pyensemble/reporting/experiment_analysis_nav.html"), name='experiment-analysis-nav'),
+    path('experiment/session/selector/', reporting.experiment_session_selector, name='experiment-session-selector'),
+    path('experiment/sessions/', reporting.experiment_sessions, name='experiment-sessions'),
+
     path('session/', reporting.session, name='session-reporting'),
     path('session/exclude/', reporting.exclude_session, name='session-exclude'),
+    path('session/attach/file/', reporting.attach_session_file, name="attach_session_file"),
+    path('session/attach/file/success/', reporting.attach_session_file_success, name="attach_session_file_success"),
+
+    path('subject/exclude/', reporting.exclude_subject, name='subject-exclude'),
+
 ]
+
 
 
 # Collect our final set of patterns in the expected urlpatterns

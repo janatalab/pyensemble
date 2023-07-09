@@ -1,15 +1,15 @@
 {% extends "pyensemble/base.html" %}
-{% load i18n %}
+{% load static %}
 
 {% block head %}
     <script src="//d3js.org/d3.v3.min.js" charset="utf-8"></script>
 {% endblock %}
 
-{% block title %}{% trans "PyEnsemble Reporting" %}{% endblock %}
+{% block title %}PyEnsemble Reporting{% endblock %}
 
 {% block header %}
 <div id="nav-section">
-    <nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light" id="primary-navbar">
+    <nav class="fixed-top navbar navbar-expand-sm navbar-light bg-light" id="primary-navbar">
         <a class="navbar-brand" href="{% url 'home' %}">PyEnsemble - Reports</a>
         <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#editor-navbar" aria-expanded="false" aria-controls="editor-navbar">
             <span class="navbar-toggler-icon"></span>
@@ -17,18 +17,15 @@
 
         <div class="collapse navbar-collapse" id="editor-navbar">
             <ul class="navbar-nav mr-auto">
-                <li class="nav-item content-link">
-                    <a class="nav-link" href="{% url 'study-reporting' %}">Study</a>
+                <li class="nav-item">
+                    {% include "pyensemble/selectors/selector.html" with level="Study" options=studies%}
                 </li>
-                <li>
-                    <a class="nav-link content-link" href="{% url 'experiment-reporting' %}">Experiment</a>
+                <li class="nav-item">
+                     {% include "pyensemble/selectors/selector.html" with level="Experiment" options=experiments%}
                 </li>
-                <li>
+<!--                 <li>
                     <a class="nav-link content-link" href="{% url 'session-reporting' %}">Session</a>
-                </li>
-                <li>
-                    <a class="nav-link content-link" href="{% url 'pyensemble-group:report' %}">Group</a>
-                </li>
+                </li> -->
             </ul>
             <ul class="navbar-nav ml-auto">
                 <a class="nav-link" href="{% url 'logout' %}">Logout</a>
@@ -38,4 +35,31 @@
     <nav class="navbar navbar-expand-sm navbar-light bg-light analysis-nav" id="secondary-navbar">
     </nav>
 </div>
+{% endblock %}
+
+{% block main %}
+<main>
+    <div id="summary_section" class="d-none">
+    </div>
+
+    <div class="px-3" id="session_list_section">    
+            <div id="item_title" class="p-2 h4"></div>
+            <div id="session_list_table" class="mt-2 overflow-auto sticky-top"></div>
+    </div>
+</main>
+
+{% endblock %}
+
+{% block appscript %}
+    {{ report_urls|json_script:"reporting-urls" }}
+
+    <script type="text/javascript" src="{% static 'pyensemble/js/reporting.js' %}"></script>
+
+    {% include "pyensemble/modals/modals_base.html" with modal_id='attachFileModal' modal_title='Attach File' %}
+
+    <script>
+        $('#attachFileModal').on('show.bs.modal', function (ev) {
+            PyEnsemble.reporting.fetchAttachFileForm(ev.target);
+        });
+    </script>
 {% endblock %}

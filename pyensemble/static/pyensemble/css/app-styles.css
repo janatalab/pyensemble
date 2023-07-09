@@ -148,6 +148,17 @@ input[type=number] {
     width: 100%;
 }
 
+
+#session_list_section {
+    padding-top: 10px;
+}
+
+#session_list_table {
+    position: relative;
+    min-height: 80vh;
+}
+
+
 #results_section {
     padding-top: 10px;
 /*    position: absolute;
