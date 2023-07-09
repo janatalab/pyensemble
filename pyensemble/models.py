@@ -305,7 +305,7 @@ class AbstractSession(models.Model):
             session_reporting_script = 'debug.reporting.default()'
 
         # Check whether we want to use cached reporting data
-        use_cached = kwargs.get('use_cached', False)
+        use_cached = kwargs.get('use_cached', True)
 
         # Check whether we have cached reporting data
         data = {}
@@ -1064,3 +1064,34 @@ class Notification(models.Model):
         # This should be made more robust in terms of verifying that the send_mail function actually sent the email
         self.sent = timezone.now()
         self.save()
+
+
+def session_filepath(instance, filename):
+    return os.path.join('experiment', instance.session.experiment.title, 'session', str(instance.session.id), filename)
+
+
+class SessionFile(models.Model):
+    session = models.ForeignKey('Session', db_constraint=True, on_delete=models.CASCADE)
+    file = models.FileField(upload_to=session_filepath)
+
+    class Meta:
+        unique_together = (("session","file"),)
+
+
+class SessionFileAttribute(models.Model):
+    unique_hash = models.CharField(max_length=32, unique=True)
+
+    file = models.ForeignKey('SessionFile', db_constraint=True, on_delete=models.CASCADE)
+    attribute = models.ForeignKey('pyensemble.Attribute', db_constraint=True, on_delete=models.CASCADE)
+
+    attribute_value_double = models.FloatField(blank=True, null=True)
+    attribute_value_text = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        m = hashlib.md5()
+        m.update(self.file.encode('utf-8'))
+        m.update(self.attribute.name.encode('utf-8'))
+        m.update(str(self.attribute_value_double).encode('utf-8'))
+        m.update(self.attribute_value_text.encode('utf-8'))
+        self.unique_hash = m.hexdigest()
+        super(SessionFileAttribute, self).save(*args, **kwargs)
