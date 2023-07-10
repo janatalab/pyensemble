@@ -6,7 +6,11 @@ associated with the AbstractSession model in pyensemble.models and
 the get_experiment_data method in pyensemble.reporting
 '''
 
+import json
+
 from django.http import JsonResponse
+
+from pyensemble.group.models import GroupSession
 
 import pdb
 
@@ -27,28 +31,41 @@ def default(session, *args, **kwargs):
         session_data['duration_min'] = duration
 
     if session.experiment.is_group:
-        # Basic group session reporting
-        session_data['subject_data'] = []
-        session_data['notes'] = session.notes
-        session_data['files'] = [f for f in session.groupsessionfile_set.values_list('file', flat=True)]
+        # Are we getting data at the group level or individual subject level
+        if isinstance(session, GroupSession):
+            # Get our subject sessions for this group session
+            subject_sessions = session.groupsessionsubjectsession_set.all()
 
-        session_data['meta'] = {
-            'all_completed': session.groupsessionsubjectsession_set.all().all_completed()
-        }
+            subject_session_data = {}
 
-        # Associate the subject sessions
-        for gsss in session.groupsessionsubjectsession_set.all():
-            subject_session = gsss.user_session
+            # Basic group session reporting
+            session_data['subject_session_data'] = subject_session_data
+            session_data['notes'] = session.notes
+            session_data['files'] = [f for f in session.groupsessionfile_set.values_list('file', flat=True)]
 
-            subject_data = get_subject_data(subject_session)
-            subject_data.update({'session_id', subject_session.id})
+            session_data['meta'] = {
+                'all_completed': subject_sessions.all_completed()
+            }
 
-            session_data['subject_data'].append(subject_data)
+            # Associate the subject sessions
+            for gsss in subject_sessions:
+                subject_session = gsss.user_session
 
-        session_list.append(session_info)
+                # Fetch the session data via the reporting mechanism
+                response = subject_session.reporting(**kwargs)
+
+                # Update our directory
+                subject_session_data.update({subject_session.id: json.loads(response.content)})
+
+                # subject_data = get_subject_data(subject_session)
+                # subject_data.update({'session_id', subject_session.id})
+
+                # session_data['session_data'].append(subject_data)
+        else:
+            session_data.update(get_subject_data(session, **kwargs))
 
     else:
-        session_data.update(subject_data)
+        session_data.update(get_subject_data(session, **kwargs))
 
     return JsonResponse(session_data)
 

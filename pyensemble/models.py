@@ -305,7 +305,7 @@ class AbstractSession(models.Model):
             session_reporting_script = 'debug.reporting.default()'
 
         # Check whether we want to use cached reporting data
-        use_cached = kwargs.get('use_cached', True)
+        use_cached = kwargs.get('use_cached', False)
 
         # Check whether we have cached reporting data
         data = {}

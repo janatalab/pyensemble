@@ -15,6 +15,9 @@ window.PyEnsemble.reporting = (function(){
             subject: undefined,
             session: undefined,
         };
+
+        $("#summary_section").html("");
+        $("#summary_section").addClass("d-none");
     };
 
     core.resetCurrentSelections();
@@ -56,23 +59,6 @@ window.PyEnsemble.reporting = (function(){
                 },
             });
         } else if (level == 'experiment'){
-            // Update menu items for session dropdown
-            // $.ajax({
-            //     url: core.urls['experiment-session-selector'],
-            //     type: 'GET',
-            //     data: {'id': item_id,},
-            //     dataType: 'html',
-            //     success: function(response){
-            //         // $("#session-list").html(response);
-            //         // $(".selectpicker[name='session']")
-            //         //     .selectpicker('show')
-            //         //     .on('changed.bs.select', onChangedSelection);
-            //     },
-            //     complete: function(){
-            //         $("#session_list_table").html("");
-            //     }
-            // });
-
             // Get ourselves an experiment analysis nav               
             $.ajax({
                 url: core.urls['experiment-analysis-nav'],
@@ -108,7 +94,6 @@ window.PyEnsemble.reporting = (function(){
         ev.preventDefault();
 
         // Get our selected experiment
-        // var experiment_id = $(".selectpicker[name='Experiment']").val();
         var dataType = "json";
 
         if (ev.target.text == 'Responses'){
@@ -122,8 +107,6 @@ window.PyEnsemble.reporting = (function(){
             dataType: dataType,
             success: function(data){
                 // Determine what kind of data we're dealing with
-                // core.populateTable(data['session_data']);
-
                 if (dataType == "json"){
                     updateResults(data);
 
@@ -219,7 +202,7 @@ window.PyEnsemble.reporting = (function(){
             });
 
         // Update subject aggregate colors
-        d3.selectAll(".participant-data").each(function(d){
+        d3.selectAll(".session-data").each(function(d){
             let target = d3.select(this);
             let numBad = target.selectAll(".outlier").size();
             let colorVal = 255-stepSize*numBad;
@@ -243,195 +226,78 @@ window.PyEnsemble.reporting = (function(){
         }
 
         // Bind the data to the session table
-        bindData(data);
+        populateTable(data);
     }
     
-    function bindData(data){
-        // Extract the column labels
-        let column_tuples = undefined;
-        var entry_data = undefined;
+    function populateTable(data){
+        // Get the data that we will be entering into the table
+        var table_entry_data = undefined;
 
         if (data.type == "study_data"){
-            entry_data = data.experiment_data;
+            table_entry_data = data.experiment_data;
 
         } else if (data.type == "experiment_data"){
-            entry_data = data.session_data;
+            table_entry_data = data.session_data;
         }
 
-        // Extract the column labels
-        column_tuples = Object.keys(Object.values(entry_data)[0]);
-
-        // Build the column header
-        let level_items = column_tuples.map(parseColumnTuple);
-
-        let num_levels = level_items[0].length;
-
-        // Initialize our levels array
-        let levels = [];
-
-        for (let l=0; l<num_levels; l++){
-            levels[l] = {}
-            
-            levels[l].key = num_levels > 1 ? l ? "variable" : "experiment" : "variable";
-            levels[l].value = level_items.map(function(d){return d[l]});
+        // If we have no data to display, state as much and exit
+        if (!table_entry_data){
+            let ss = $("#summary_section");
+            ss.html("No session data available");
+            ss.removeClass("d-none");
+            return
         }
 
-        // Verify the number of levels
-        if (num_levels > 1) {
-            let counter = {};
+        // Get our column label information, keeping in mind that we can have multiple levels of columns
+        var column_info = getColumnInfo(Object.values(table_entry_data)[0]);
 
-            for (item of levels[0].value){
-                if (counter[item]) {
-                    counter[item] += 1;
-                } else {
-                    counter[item] = 1;
-                }
+        function getColumnInfo(entry_data_template){
+            // Extract the column labels
+            let column_tuples = Object.keys(entry_data_template);
+
+            // Build the column header
+            let level_items = column_tuples.map(parseColumnTuple);
+
+            let num_levels = level_items[0].length;
+
+            // Initialize our levels array
+            let levels = [];
+
+            for (let l=0; l<num_levels; l++){
+                levels[l] = {}
+                
+                levels[l].key = num_levels > 1 ? l ? "variable" : "experiment" : "variable";
+                levels[l].value = level_items.map(function(d){return d[l]}).filter(d=>d!="meta");
+            }
+
+            // Verify the number of levels
+            if (num_levels > 1) {
+                let counter = {};
+
+                for (item of levels[0].value){
+                    if (counter[item]) {
+                        counter[item] += 1;
+                    } else {
+                        counter[item] = 1;
+                    }
+                };
+
+                // Replace levels[0] with the counter data
+                levels[0].value = [{"key": "index-label", "value": "ID"}].concat(d3.entries(counter));
+            } else {
+                levels[0].value = ["ID"].concat(levels[0].value);
+            }
+
+            let column_info = {
+                column_tuples: column_tuples,
+                levels: levels,
+                num_levels: num_levels,
+                level_items: level_items,
             };
 
-            // Replace levels[0] with the counter data
-            levels[0].value = [{"key": "index-label", "value": "ID"}].concat(d3.entries(counter));
-        } else {
-            levels[0].value = ["ID"].concat(levels[0].value);
-        }
-
-        // Create our basic table
-        if (d3.select("#session_list_table").select("table").empty()){
-            var table = d3.select("#session_list_table").append("table").attr("class","reporting table table-bordered table-sm"),
-                thead = table.append("thead").attr("class","reporting"),
-                tbody = table.append("tbody").attr("class","reporting");            
+            return column_info
         };
 
-        // Add the column labels
-        d3.select("#session_list_table thead").selectAll("tr")
-            .data(levels, function(d){return d.key;})
-            .enter()
-            .append("tr")
-            .selectAll("th")
-                .data(function(d){return d.value;})
-                .enter()
-                .append("th")
-                    .attr("rowspan", function(d){
-                        return d.key=="index-label" ? levels.length : 1;
-                    })
-                    .attr("colspan", function(d){
-                        return d.key=="index-label" ? 1 : d.value;
-                    })
-                    .attr("class", function(d, i){
-                        if (d.key == "index-label"){
-                            return "freeze-pane index";
-                        } else {
-                            let type = d3.select(this.parentNode).datum().key;
-                            if (type == "experiment"){
-                                return d.key;
-                            } else {
-                                let retval = "";
-                                if (num_levels > 1){
-                                    retval = level_items[i][0] + " " + d;
-                                } else {
-                                    if (i == 0) retval = "freeze-pane index";
-                                }
-                                return retval
-                            }
-                        }
-                    })
-                    .html(function(d, i){
-                        if (d.key=="index-label"){
-                            return d.value;
-                        } else {
-                            let type = d3.select(this.parentNode).datum().key;
-                            if (type == "experiment"){
-                                return d.key;
-                            } else {
-                                let str = "";
-                                str += "<div class='variable-label'>"+d+"</div>";
-
-                                if (i > 0){
-                                    let experiment_str = num_levels > 1 ? level_items[i][0]+"-" : "";
-
-                                    let min_label = experiment_str+d+"-min";
-                                    let max_label = experiment_str+d+"-max";
-
-                                    str += "<div class='stats'>";
-
-                                    str += "<label for='"+min_label+"'>";
-                                    str += "Min";
-                                    str += "</label>";
-                                    str += "<input type='number' class='form-control variable-input min' id='" + min_label+ "'>";
-
-                                    str += "<label for='"+max_label+"'>";
-                                    str += "Max";
-                                    str += "</label>";
-                                    str += "<input type='number' class='form-control variable-input max' id='"+max_label+"'>";
-                                    
-                                    str += "</div";
-                                }
-
-                                return str;
-                            }
-                        }
-                    })
-                    .each(function(d, i){
-                        if (!(d.key == 'index-label')){
-                            if (data.stats && d3.select(this.parentNode).datum().key == 'variable'){
-                                let data_min = data.stats.min[column_tuples[i]];
-                                let data_max = data.stats.max[column_tuples[i]];
-
-                                d3.select(this).select("input.min").property("value",data_min);
-                                d3.select(this).select("input.max").property("value",data_max);
-                            }
-                        }
-                    });
-
-        // let subjects = d3.select("#session_list_table tbody").selectAll("tr")
-        //     .data(d3.entries(data.experiment_data), function(d){return d.key;});
-        let entries = d3.select("#session_list_table tbody").selectAll("tr")
-            .data(d3.entries(entry_data), function(d){return d.key});
-
-        // Remove rows for excluded entries
-        entries.exit().remove();
-
-        // Create rows for any new entries
-        entries.enter()
-                .append("tr")
-                    .classed("participant-data", true)
-                    .attr("id", function(d){
-                        return "entry-"+d.key;
-                    })
-                .selectAll("td")
-                    .data(function(d) {
-                        return [{"key":"index-label","value":d.key}].concat(d3.entries(d.value));
-                    }).enter()
-                        .append("td")
-                            .html(function(d,i) {
-                                // if (d.key.match(/exclude/)){
-                                //     let val = "<input type='checkbox' class='exclude-session-btn'";
-                                //     if (d.value=="true") {
-                                //         val += " checked";
-                                //     }
-                                //     val += ">";
-                                //     return val
-                                // } else {
-                                    let val = d.value;
-                                    if (d.key == "index-label"){
-                                        val += "<div class='text-danger'><button type='button' class='subject exclude-session-btn btn btn-danger btn-sm' id='exclude-"+d.value+"'>Exclude</button></div>";
-                                    }
-                                    return val;
-                                // }
-                            })
-                            .attr("class", function(d,i){
-                                if (i) {
-                                    return parseColumnTuple(d.key).reduce((outstr,d) => outstr+" "+d);
-                                } else {
-                                    return "text-primary freeze-pane index";
-                                }
-                            });
-
-        // Attach event handlers
-        d3.selectAll(".subject.exclude-session-btn").on("click", excludeSession);
-        d3.selectAll(".variable-input").on("change", updateStatsHighlighting);
-    };
-
-    core.populateTable = function(data){
         // Create our basic table
         if (d3.select("#session_list_table").select("table").empty()){
             var table = d3.select("#session_list_table").append("table").attr("class","reporting table table-striped table-bordered table-sm"),
@@ -442,45 +308,105 @@ window.PyEnsemble.reporting = (function(){
             var tbody = d3.select("#session_list_table tbody");
         }
 
-        // Add column labels
-        var header_row = thead.select("tr");
+        // Attach data to column header rows
+        let header_rows = thead.selectAll("tr")
+            .data(column_info.levels, function(d){return d.key;});
 
-        if (header_row.empty()){
-            header_row = thead.append("tr");
-        } 
-        
-        column_labels = header_row.selectAll("th")
-            .data(Object.keys(data[0]).filter(d => d!="meta"));
+        // Remove header rows, e.g. if switching from study to experiment
+        header_rows.exit().remove();
 
-        column_labels.enter()
+        // Add our column headers
+        let column_headers = header_rows.enter().append("tr").selectAll("th")
+            .data(function(d){return d.value;});
+
+        column_headers.enter()
             .append("th")
-                .html(function(d){return d;})
-                .attr("class", function(d){
-                    if (d=='id'){
+                .attr("rowspan", function(d){
+                    return d.key=="index-label" ? column_info.num_levels : 1;
+                })
+                .attr("colspan", function(d){
+                    return d.key=="index-label" ? 1 : d.value;
+                })
+                .attr("class", function(d, i){
+                    if (d.key == "index-label"){
                         return "freeze-pane index";
-                    }
+                    } else {
+                        let type = d3.select(this.parentNode).datum().key;
 
-                    if (d=='notes'){
-                        return "reporting-notes-col";
+                        if (type == "experiment"){
+                            return d.key;
+                        } else {
+                            let retval = "";
+                            if (column_info.num_levels > 1){
+                                retval = column_info.level_items[i][0] + " " + d;
+                            } else {
+                                if (i == 0) retval = "freeze-pane index";
+                                if (d == "notes") retval = "reporting-notes-col";
+
+                            }
+                            return retval
+                        }
+                    }
+                })
+                .html(function(d, i){
+                    if (d.key=="index-label"){
+                        return d.value;
+                    } else {
+                        let type = d3.select(this.parentNode).datum().key;
+                        if (type == "experiment"){
+                            return d.key;
+                        } else {
+                            let str = "";
+                            str += "<div class='variable-label'>"+d+"</div>";
+
+                            if (i > 0){
+                                let experiment_str = column_info.num_levels > 1 ? column_info.level_items[i][0]+"-" : "";
+
+                                let min_label = experiment_str+d+"-min";
+                                let max_label = experiment_str+d+"-max";
+
+                                str += "<div class='stats'>";
+
+                                str += "<label for='"+min_label+"'>";
+                                str += "Min";
+                                str += "</label>";
+                                str += "<input type='number' class='form-control variable-input min' id='" + min_label+ "'>";
+
+                                str += "<label for='"+max_label+"'>";
+                                str += "Max";
+                                str += "</label>";
+                                str += "<input type='number' class='form-control variable-input max' id='"+max_label+"'>";
+                                
+                                str += "</div";
+                            }
+
+                            return str;
+                        }
+                    }
+                })
+                .each(function(d, i){
+                    if (!(d.key == 'index-label')){
+                        if (data.stats && d3.select(this.parentNode).datum().key == 'variable'){
+                            let data_min = data.stats.min[column_info.column_tuples[i]];
+                            let data_max = data.stats.max[column_info.column_tuples[i]];
+
+                            d3.select(this).select("input.min").property("value",data_min);
+                            d3.select(this).select("input.max").property("value",data_max);
+                        }
                     }
                 });
 
-        column_labels.exit().remove()
+        // Remove any deleted columns
+        column_headers.exit().remove();
 
-        // Add rows
+        // Add session entries
         let entries = d3.select("#session_list_table tbody").selectAll("tr")
-            .data(data, function(d){
-                if (d.id != undefined){
-                    return d.id;
-                } else if (d.session_id != undefined){
-                    return d.session_id;
-                }
-            });
+            .data(d3.entries(table_entry_data), function(d){return d.key});
 
-        // Remove rows for removed entries
-        entries.exit().remove();    
+        // Remove rows for excluded entries
+        entries.exit().remove();
 
-        // Create rows for any new entries        
+        // Create rows for any new entries
         entries.enter()
             .append("tr")
                 .attr("class", function(d){
@@ -491,58 +417,60 @@ window.PyEnsemble.reporting = (function(){
                     return base_class
                 })
                 .attr("id", function(d){
-                    return "session-"+d.id;
+                    return "entry-"+d.key;
                 })
             .selectAll("td")
-                .data(function(d){
-                    return d3.entries(d).filter(function(d) {return d.key != "meta"})
-                })
-                .enter()
-                .append("td")
-                    .html(function(d){
-                        if (d.key == 'subjects'){
-                            return "<table class='subject-info'></table>"
-
-                        } else if (d.key == 'id'){
+                .data(function(d) {
+                    return [{"key":"index-label","value":d.key}].concat(d3.entries(d.value).filter(function(d){return d.key != "meta"}));
+                }).enter()
+                    .append("td")
+                        .html(function(d,i) {
                             let val = d.value;
 
-                            val += "<div class='text-danger'><button type='button' class='session exclude-session-btn btn btn-danger btn-sm' id='exclude-"+d.value+"'>Exclude</button></div>";
+                            if (d.key == "index-label"){
+                                val += "<div class='text-danger'><button type='button' class='session exclude-session-btn btn btn-danger btn-sm' id='exclude-"+d.value+"'>Exclude</button></div>";
 
-                            return val
+                            } else if (d.key == 'subject_session_data'){
+                                return "<table class='subject-info'></table>"
 
-                        } else if (d.key == 'files'){
-                            let session_id = d3.select(this.parentElement).datum().id;
-                            let val = "<button type='button' class='btn btn-outline-info attach-file-btn' id='attach-file-"+session_id+"' data-toggle='modal' data-target='#attachFileModal' data-session='"+session_id+"'>Attach File</button>";;
+                            } else if (d.key == 'files'){
+                                let session_id = d3.select(this.parentElement).datum().key;
+                                
+                                val = "<button type='button' class='btn btn-outline-info attach-file-btn' id='attach-file-"+session_id+"' data-toggle='modal' data-target='#attachFileModal' data-session='"+session_id+"'>Attach File</button>";;
 
-                            val += "<div>"+d.value+"</div>";
+                                val += "<div>"+d.value+"</div>";
+                            } else if (d.key == "last_response"){
+                                if (d.value){
+                                    return Object.values(d.value).join(', ')
+                                } else {
+                                    return "No responses"
+                                }
+                            }
 
-                            return val
+                            return val;
+                        })
+                        .attr("class", function(d,i){
+                            let class_str = "align-middle";
 
-                        } else {
-                           return d.value
-                        }
-                    })
-                    .attr("class", function(d){
-                        var class_str = "align-middle";
+                            if (i) {
+                                return parseColumnTuple(d.key).reduce((outstr,d) => class_str + " " + d);
+                            } else {
+                                return class_str + " text-primary freeze-pane index";
+                            }
+                        });
 
-                        if (d.key == 'id'){
-                            class_str += " freeze-pane index";
-                        }
-
-                        return class_str
-                    });
 
         entries.select("table.subject-info").selectAll('tr')
             .data(function(d){
-                return d.subjects
+                return d3.entries(d.value.subject_session_data)
             }, function(s){
-                return s.subject_id
+                return s.key
             })
             .enter()
             .append("tr")
                 .selectAll("td")
                 .data(function(d){
-                    return d3.entries(d)
+                    return d3.entries(d.value)
                 })
                 .enter()
                 .append("td")
@@ -564,20 +492,20 @@ window.PyEnsemble.reporting = (function(){
             // Set the session ID on the modal
             document.querySelector(this.dataset.target).dataset.session = this.dataset.session;
         });
-
     }
 
+
     core.fetchAttachFileForm = function(ev){
-        var session_id = ev.dataset.session;
         var url = core.urls['attach-file'];
+
+        // Get our session ID
+        core.currentSelections.session = ev.dataset.session;
 
         $.ajax({
             url: url,
             type: 'GET',
             dataType: "html",        
-            data: {
-                'session_id': session_id,
-            },
+            data: core.currentSelections,
             success: function(response){
                 $(ev).find(".modal-body").html(response);
                 $(ev).find("form").attr({action:url});

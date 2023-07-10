@@ -10,12 +10,13 @@ from django.db.models import Max
 
 from django.urls import reverse
 from django.shortcuts import render
-from django.http import HttpResponse, JsonResponse, HttpResponseBadRequest
+from django.http import HttpResponse, JsonResponse, HttpResponseBadRequest, HttpResponseRedirect
 
 from pyensemble.models import Study, Session, Experiment, StudyXExperiment
 from pyensemble.group.models import GroupSession
 
 from pyensemble.group import reports as group_report
+from pyensemble.group import forms as group_forms
 
 from pyensemble import forms
 
@@ -122,7 +123,7 @@ def experiment_responses(request, *args, **kwargs):
 
         if form.is_valid():
             # Fetch our responses according to the specified criteria
-            pdb.set_trace()
+            # pdb.set_trace()
             experiment_responses = Response.objects.filter(
                 experiment=form.cleaned_data['experiment'],
                 question__in=form.cleaned_data['question'],
@@ -274,7 +275,10 @@ def get_experiment_session_data(experiment, **kwargs):
     session_data = {}
 
     # Get all our sessions
-    sessions = experiment.session_set.all()
+    if experiment.is_group:
+        sessions = experiment.groupsession_set.all()
+    else:
+        sessions = experiment.session_set.all()
 
     # Exclude sessions flagged as such
     include_excluded = kwargs.get('include_excluded', False)
@@ -289,73 +293,6 @@ def get_experiment_session_data(experiment, **kwargs):
         session_data.update({session.id: json.loads(response.content)})
 
     return session_data
-
-    # elif organize_by == 'subject':
-    #     # Get the list of subjects
-    #     subjects = sessions.values_list('subject__subject_id',flat=True).distinct()
-
-    #     data.update({
-    #         'subjects': list(subjects),
-    #         'data': [],
-    #         'num_sessions_per_subject': [],
-    #         })
-
-    #     # Iterate over subjects
-    #     for subject in subjects:
-    #         subject_sessions = sessions.filter(subject__subject_id=subject)
-
-    #         # Note the number of sessions for this subject
-    #         num_subject_sessions = subject_sessions.count()
-    #         data['num_sessions_per_subject'].append((subject, num_subject_sessions))
-
-    #         for session in subject_sessions:
-    #             # Run the reporting
-    #             response = session.reporting(**kwargs)
-
-    #         if num_subject_sessions > 1:
-    #             # Get a list of complete sessions
-    #             complete_sessions = subject_sessions.filter(end_datetime__isnull=False)
-    #             num_complete_sessions = complete_sessions.count()
-
-    #             if num_complete_sessions == 1:
-    #                 session = complete_sessions[0]
-
-    #             elif num_complete_sessions > 1:
-    #                 # Annotate each session with the maximum response_order value for that session
-    #                 complete_sessions = complete_sessions.annotate(max_response_order=Max('response__response_order'))
-
-    #                 # Get the max response_order value across sessions
-    #                 max_value_obj = complete_sessions.aggregate(max_field=Max('max_response_order'))
-
-    #                 # Select the object with the greatest value
-    #                 session = complete_sessions.get(max_response_order=max_value_obj['max_field'])
-
-    #         # If we did not find a session that ended cleanly, grab the last one
-    #         if not session or not session.end:
-    #             session = subject_sessions.last()
-
-    #         # Run the reporting
-    #         response = session.reporting(**kwargs)
-
-    #         data['data'].append(json.loads(response.content))
-
-    # Assign our output variable
-    # outdata = data
-
-    # # If we aren't fetching as part of a study, then compute the stats and package the result
-    # if kwargs.get('package', False):
-    #     # Confert to data frame
-    #     df = convert_experiment_data_to_df(data)
-
-    #     # We now need to package it into same format as we do for a study
-    #     stats, df = get_column_statistics(df)
-
-    #     outdata = {
-    #         'title': experiment.title,
-    #         'experiment_data': df.to_json(orient='index', double_precision=2),
-    #         'stats': stats,
-    #     }
-
 
 
 def get_column_statistics(data):
@@ -424,9 +361,9 @@ def attach_session_file(request):
     if request.method == "POST":
         # Check whether we have a groupsession or session field
         if request.POST.get('groupsession', None):
-            form_class = GroupSessionFileAttachForm
+            form_class = group_forms.GroupSessionFileAttachForm
         else:
-            form_class = SessionFileAttachForm
+            form_class = forms.SessionFileAttachForm
 
         # Populate the form
         form = form_class(request.POST, request.FILES)            
@@ -439,15 +376,16 @@ def attach_session_file(request):
 
     else:
         # Determine whether we are dealing with a group experiment
-        experiment = Experiment.objects.get(pk=request.GET.get('experiment_id'))
+        experiment = Experiment.objects.get(pk=request.GET.get('experiment'))
 
-        session_id = request.GET.get('session_id', None)
+        session_id = request.GET.get('session', None)
 
         if experiment.is_group:
-            form = forms.GroupSessionFileAttachForm(initial={'groupsession': session_id})
+            form = group_forms.GroupSessionFileAttachForm(initial={'groupsession': session_id})
 
         else:
-            form = forms.SessionFileAttachForm(initial={'session': session_id})            
+            form = forms.SessionFileAttachForm(initial={'session': session_id}) 
+
     context = {
         'form': form,
     }
