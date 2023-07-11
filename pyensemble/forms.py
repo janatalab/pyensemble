@@ -14,7 +14,7 @@ from crispy_forms.bootstrap import InlineRadios, InlineCheckboxes, UneditableFie
 
 from captcha.fields import ReCaptchaField
 
-from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket, Study, Response
+from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket, Study, Response, SessionFile
 
 from pyensemble.widgets import RangeInput
 
@@ -407,6 +407,11 @@ class ExperimentResponsesForm(forms.Form):
         self.helper.add_input(Submit('submit', 'Submit'))
 
 
+class SessionFileAttachForm(forms.ModelForm):
+    class Meta:
+        model = SessionFile
+        fields = '__all__'
 
-
-        
+    def __init__(self, *args, **kwargs):
+        super(SessionFileAttachForm, self).__init__(*args, **kwargs)
+        self.fields['session'].widget = forms.HiddenInput()

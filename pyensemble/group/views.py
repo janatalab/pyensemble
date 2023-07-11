@@ -193,30 +193,30 @@ def attach_participant(request):
     return render(request, template, context)
 
 
-@login_required
-def attach_file(request):
-    if request.method == "POST":
-        form = GroupSessionFileAttachForm(request.POST, request.FILES)
+# @login_required
+# def attach_file(request):
+#     if request.method == "POST":
+#         form = GroupSessionFileAttachForm(request.POST, request.FILES)
 
-        if form.is_valid():
-            # file is saved
-            form.save()
-            return HttpResponseRedirect(reverse('pyensemble-group:attach_file_success'))
-    else:
-        # Get our group session
-        groupsession_id = request.GET.get('session_id', None)
+#         if form.is_valid():
+#             # file is saved
+#             form.save()
+#             return HttpResponseRedirect(reverse('pyensemble-group:attach_file_success'))
+#     else:
+#         # Get our group session
+#         groupsession_id = request.GET.get('session_id', None)
 
-        form = GroupSessionFileAttachForm(initial={'groupsession': groupsession_id})
+#         form = GroupSessionFileAttachForm(initial={'groupsession': groupsession_id})
 
-    context = {
-        'form': form,
-    }
+#     context = {
+#         'form': form,
+#     }
 
-    return render(request, "group/report/attach_file.html", context)
+#     return render(request, "group/report/attach_file.html", context)
 
 
-def attach_file_success(request):
-    return HttpResponse("Successfully uploaded the file")
+# def attach_file_success(request):
+#     return HttpResponse("Successfully uploaded the file")
 
 
 @login_required
@@ -381,7 +381,7 @@ def exclude_groupsession(request):
     session.exclude = True
     session.save()
 
-    return JsonResponse({})
+    return HttpResponse(f"Marked {session_id} for exclusion")
 
   
 def groupuser_exitloop(request):

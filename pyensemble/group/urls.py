@@ -2,7 +2,7 @@ from django.urls import path
 
 from django.views.generic import TemplateView
 
-from . import views, reports
+from . import views
 
 app_name = 'pyensemble-group'
 
@@ -13,14 +13,12 @@ urlpatterns = [
     path('session/exit_loop/', views.exit_loop, name="exit_loop"),
     path('session/abort/', views.abort_groupsession, name="abort_groupsession"),
     path('session/end/', views.end_groupsession, name="end_groupsession"),
+
     path('session/exclude/', views.exclude_groupsession, name="exclude_groupsession"),
 
     path('session/attach/participant/', views.attach_participant, name='attach_participant'),
     path('session/attach/experimenter/', views.attach_experimenter, name='attach_experimenter'),
     
-    path('session/attach/file/', views.attach_file, name="attach_file"),
-    path('session/attach/file/success/', views.attach_file_success, name="attach_file_success"),
-
     path('session/participants/get/', views.get_groupsession_participants, name='get_groupsession_participants'),
 
     path('participant/state/get/', views.groupuser_state, name='groupuser_state'),
@@ -31,13 +29,5 @@ urlpatterns = [
     path('trial/start/', views.start_trial, name='start_trial'),
     path('trial/end/', views.end_trial, name='end_trial'),
     path('set/client/ready/', views.set_client_ready, name='set_client_ready'),
-
-    path('report/', reports.home, name='report'),
-    path('report/experiment/summary/', reports.experiment_summary, name='experiment-summary'),
-    path('report/experiment/sessions/', reports.experiment_sessions, name='experiment-sessions'),
-    path('report/experiment/responses/', reports.experiment_responses, name='experiment-responses'),
-    path('report/experiment/session/selector/', reports.session_selector, name='experiment-session-selector'),
-    path('report/experiment/analysis/nav/', TemplateView.as_view(template_name="group/report/experiment_analysis_nav.html"), name='experiment-analysis-nav'),
-    path('report/session/detail/', reports.session_detail, name='session-detail'),
 
 ]

@@ -167,7 +167,7 @@ class GroupSession(AbstractSession):
 
 
 def groupsession_filepath(instance, filename):
-    return os.path.join(instance.groupsession.experiment.title, str(instance.groupsession.id), filename)
+    return os.path.join('experiment', instance.groupsession.experiment.title, 'groupsession', str(instance.groupsession.id), filename)
 
 
 class GroupSessionFile(models.Model):
