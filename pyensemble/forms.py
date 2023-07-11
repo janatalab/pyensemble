@@ -410,4 +410,8 @@ class ExperimentResponsesForm(forms.Form):
 class SessionFileAttachForm(forms.ModelForm):
     class Meta:
         model = SessionFile
-        fields = '__all__'  
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super(SessionFileAttachForm, self).__init__(*args, **kwargs)
+        self.fields['session'].widget = forms.HiddenInput()

@@ -128,3 +128,6 @@ class GroupSessionFileAttachForm(forms.ModelForm):
         model = GroupSessionFile
         fields = '__all__'      
 
+    def __init__(self, *args, **kwargs):
+        super(GroupSessionFileAttachForm, self).__init__(*args, **kwargs)
+        self.fields['groupsession'].widget = forms.HiddenInput()

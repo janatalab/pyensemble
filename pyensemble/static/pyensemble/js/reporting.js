@@ -6,6 +6,10 @@ window.PyEnsemble.reporting = (function(){
 
     core.urls = JSON.parse(document.getElementById('reporting-urls').textContent);
 
+    core.callbacks = {
+        'attach-file-modal-post-submit': onAttachedFile,
+    };
+
     core.currentAnalysisLevel = undefined;
 
     core.resetCurrentSelections = function(){
@@ -16,8 +20,12 @@ window.PyEnsemble.reporting = (function(){
             session: undefined,
         };
 
+        $("#secondary-navbar").addClass("d-none");
+
         $("#summary_section").html("");
         $("#summary_section").addClass("d-none");
+
+        $("#session_list_table").html("");
     };
 
     core.resetCurrentSelections();
@@ -40,54 +48,19 @@ window.PyEnsemble.reporting = (function(){
             }
         });
 
-        $("#secondary-navbar").addClass("d-none");
+        // Set our summary and session urls
+        $("#summary-nav-link").attr({href: core.urls[level+'-summary']})
+        $("#sessions-nav-link").attr({href: core.urls[level+'-sessions']})
 
-        $("#session_list_table").html("");
+        $("#secondary-navbar").removeClass("d-none");
 
         var url = "";
-
-        if (level == 'study'){
-            $.ajax({
-                url: core.urls['study-analysis-nav'],
-                type: 'GET',
-                data: {'id': item_id,},
-                dataType: 'html',
-                success: function(response){
-                    $("#secondary-navbar").html(response);
-                    $(".analysis-item").on('click', onAnalysisRequest);
-                    $("#secondary-navbar").removeClass("d-none");
-                },
-            });
-        } else if (level == 'experiment'){
-            // Get ourselves an experiment analysis nav               
-            $.ajax({
-                url: core.urls['experiment-analysis-nav'],
-                type: 'GET',
-                data: {'id': item_id,},
-                dataType: 'html',
-                success: function(response){
-                    $("#secondary-navbar").html(response);
-                    $(".analysis-item").on('click', onAnalysisRequest);
-                    $("#secondary-navbar").removeClass("d-none");
-
-                },
-            });
-
-        } else if (level == "session"){
-            $.ajax({
-                url: core.urls['session-detail'],
-                type: 'GET',
-                data: {'id': item_id},
-                dataType: 'html',
-                success: function(response){
-                    $("#session_list_table").html(response);
-                },
-            });
-        }
     }
 
     $('.selectpicker').selectpicker()
         .on('changed.bs.select', onChangedSelection);
+
+    $(".analysis-item").on('click', onAnalysisRequest);
 
     function onAnalysisRequest(ev){
         ev.stopImmediatePropagation();
@@ -494,7 +467,6 @@ window.PyEnsemble.reporting = (function(){
         });
     }
 
-
     core.fetchAttachFileForm = function(ev){
         var url = core.urls['attach-file'];
 
@@ -514,6 +486,10 @@ window.PyEnsemble.reporting = (function(){
                 alert('Unable to fetch file attachment form ...')
             }
         });        
+    }
+
+    function onAttachedFile(data){
+        // Update the files table cell for this session
     }
 
     return core

@@ -32,7 +32,13 @@
             </ul>
         </div>
     </nav>
-    <nav class="navbar navbar-expand-sm navbar-light bg-light analysis-nav" id="secondary-navbar">
+    <nav id="secondary-navbar" class="navbar navbar-expand-sm navbar-light bg-light analysis-nav d-none" >
+        <div class="collapse navbar-collapse border-top">
+            <ul class="navbar-nav nav-tabs mr-auto">
+                <li class="nav-item analysis-item"><a id="summary-nav-link" class="nav-link" href="">Summary</a></li>
+                <li class="nav-item analysis-item"><a id="sessions-nav-link" class="nav-link" href="">Sessions</a></li>
+            </ul>
+        </div>
     </nav>
 </div>
 {% endblock %}

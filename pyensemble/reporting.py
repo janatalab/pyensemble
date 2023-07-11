@@ -15,9 +15,7 @@ from django.http import HttpResponse, JsonResponse, HttpResponseBadRequest, Http
 from pyensemble.models import Study, Session, Experiment, StudyXExperiment
 from pyensemble.group.models import GroupSession
 
-from pyensemble.group import reports as group_report
 from pyensemble.group import forms as group_forms
-
 from pyensemble import forms
 
 import pdb
@@ -36,9 +34,10 @@ def index(request, *args, **kwargs):
         'studies': Study.objects.all(),
         'experiments': Experiment.objects.all(),
         'report_urls': {
-            'study-analysis-nav': reverse('study-analysis-nav'),
-            'experiment-analysis-nav': reverse('experiment-analysis-nav'),
-            'experiment-session-selector': reverse('experiment-session-selector'),
+            'study-summary': reverse('study-summary'),
+            'study-sessions': reverse('study-sessions'),
+            'experiment-summary': reverse('experiment-summary'),
+            'experiment-sessions': reverse('experiment-sessions'),
             'exclude-session': reverse('session-exclude'),
             'exclude-subject': reverse('subject-exclude'),
             'attach-file': reverse('attach_session_file'),
@@ -179,8 +178,10 @@ def get_study_data(study, **kwargs):
 
         # Make sure we have an associated reporting script
         # May want to have this error-checking elsewhere
-        if not experiment.session_reporting_script:
-            return HttpResponseBadRequest(f"No reporting script associated with {experiment.title}")
+        require_custom_reporting = kwargs.get('require_custom_reporting', False)
+
+        if require_custom_reporting and not experiment.session_reporting_script:
+            return HttpResponseBadRequest(f"No custom reporting script associated with {experiment.title}")
 
         # Call the experiment method to aggregate data for the experiment
         experiment_data = get_experiment_data(experiment, **kwargs)
@@ -372,7 +373,13 @@ def attach_session_file(request):
             # Save the file
             form.save()
 
-            return HttpResponseRedirect(reverse('attach_session_file_success'))
+            # Extract the file name and return it
+            context = {
+                'filename': form.cleaned_data['file'].name
+            }
+
+            # return render(request, template, form.cleaned_data)
+            return HttpResponse(f"Attached {context['filename']}")
 
     else:
         # Determine whether we are dealing with a group experiment
@@ -393,10 +400,6 @@ def attach_session_file(request):
     return render(request, "pyensemble/reporting/attach_session_file.html", context)
 
 
-def attach_session_file_success(request):
-    return HttpResponse("Successfully uploaded the session file")
-
-
 @login_required
 def study_sessions(request):
     # Extract our study ID
@@ -410,6 +413,9 @@ def study_sessions(request):
 
     if isinstance(data, ValueError):
         return HttpResponseBadRequest(data.args[0])
+
+    elif isinstance(data, HttpResponseBadRequest):
+        return data
 
     return JsonResponse(data)
 
