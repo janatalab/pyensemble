@@ -172,7 +172,7 @@ def groupsession_filepath(instance, filename):
 
 class GroupSessionFile(models.Model):
     groupsession = models.ForeignKey('GroupSession', db_constraint=True, on_delete=models.CASCADE)
-    file = models.FileField(upload_to=groupsession_filepath)
+    file = models.FileField(upload_to=groupsession_filepath, max_length=512)
 
     class Meta:
         unique_together = (("groupsession","file"),)
