@@ -443,7 +443,27 @@ If one chooses to collect responses within jsPsych, rather than with one or more
 
 <a name="participant_sources"/></a>
 ### Participants from other sources
-Nominal support is provided for handling referrals from participant pools. SONA and Prolific are currently supported. Prolific subject IDs can be used in lieu of the default IDs created within PyEnsemble, thus providing the ability to link responses in PyEnsemble with demographic and other metadata that can be downloaded from Prolific. Moreover, Prolific session IDs are also stored in the PyEnsemble Session table.
+Some support is provided for handling referrals from participant pools. SONA and Prolific are currently supported.
+#### SONA
+It is possible to automatically grant SONA credit upon experiment completion. The way this works is that if a SONA code parameter is present when the experiment is initiated via a ticket, the form_end_session will automatically add a button for subjects to click to get their SONA credit. If no SONA code is present, no button is shown. The redirection link is provided in the study information in SONA.
+
+To enable this option for an experiment, you have to do two things:
+
+1. Within the SONA experiment administration interface for the experiment (https://ucdavis.sona-systems.com/):
+    1. Navigate to the Study Information section for the experiment: in the '''Study Menu''' dropdown, select, '''Change Study Information'''
+    2. Navigate to Study URL field in the Advanced Settings section of the Study Information. 
+    3. Enter the experiment URL, adding the %SURVEY_CODE% parameter designation. This would be a master ticket URL with '&sona=%SURVEY_CODE%’ added, e.g. <code>https://example.com/pyensemble/run/4/start/?tc=ee82b742d8a1edc0687b81c9e50b85e8&sona=%SURVEY_CODE%</code> 
+   After saving the changes, the ''completion URL'' that is required for the next step will be made visible on the experiment's main page in SONA to which you will have been redirected.
+    4. Go to the '''Website''' section of the '''Study Information''' section.
+    5. Copy the ''client-side'' '''Completion URL''', e.g. <code>https://ucdavis.sona-systems.com/webstudy_credit.aspx?experiment_id=2255&credit_token=85131ec13ac34144b446e5e21a5715f1&survey_code=XXXX</code>
+2. Within the PyEnsemble Experiment editor
+    1. Select the experiment
+    2. Paste the completion URL into the '''SONA Credit Callback''' field and save the changes.
+
+You can test the mechanism by returning to the SONA Study Information page and click on the '''Sample Link with Embedded ID Code''' button next to the completion URLs.
+
+#### Prolific
+Prolific subject IDs can be used in lieu of the default IDs created within PyEnsemble, thus providing the ability to link responses in PyEnsemble with demographic and other metadata that can be downloaded from Prolific. Moreover, Prolific session IDs are also stored in the PyEnsemble Session table.
 
 <a name="groups"/></a>
 ### Group experiments
