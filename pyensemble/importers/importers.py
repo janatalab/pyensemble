@@ -246,7 +246,7 @@ def import_stimulus_table(request):
         form = ImportForm(request.POST, request.FILES)
 
         if form.is_valid():
-            result = tasks.process_stimulus_table(request.FILES['file'])
+            result = tasks.process_stimulus_table(form.cleaned_data)
 
             context = {
                 'result': result,

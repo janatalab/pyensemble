@@ -5,6 +5,12 @@
 <main>
     <div class="h1 m-3">Stimulus Importer</div>
     <div class="row justify-content-center">
+        <div class="col-10 col-sm-8 col-lg-6 text-muted text-center">
+            <p class="text-warning">BEWARE IF UPLOADING A .CSV FILE EXPORTED FROM MICROSOFT EXCEL!</p>
+            <p>Microsoft Excel might preprend hidden junk characters to the first column name when saving out to a .csv file, which will prevent the information from the column being written to the stimulus table. After exporting from Excel to a .csv file, open the .csv file in a basic text editor and save it out again to get rid of the hidden characters.</p>
+        </div>
+    </div>
+    <div class="row justify-content-center m-3">
         <div class="md-col-6 border p-3">
             {% crispy form %}
         </div>
