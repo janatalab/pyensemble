@@ -3,9 +3,11 @@
 {% block main %}
     <main>
         <div class="container">
-            Processed {{result.num_submitted}} stimuli ...
-            {{result.num_existing}} had existing entries
-            {{result.num_written}} new entries
+            Processed {{result.num_submitted}} stimul{{ result.num_submitted|pluralize:"us,i" }} ...
+            <br>
+            Found {{result.num_existing}} existing entr{{ result.num_existing|pluralize:"y,ies" }} ... 
+            <br>
+            Created {{result.num_written}} new entr{{ result.num_written|pluralize:"y,ies" }}
         </div>
     </main>
 {% endblock %}
