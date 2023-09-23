@@ -41,7 +41,7 @@ polling2==0.5.0
 prompt-toolkit==3.0.36
 ptyprocess==0.7.0
 pycparser==2.21
-Pygments==2.14.0
+Pygments==2.15.0
 pyparsing==3.0.9
 python-dateutil==2.8.2
 python-Levenshtein==0.20.9
