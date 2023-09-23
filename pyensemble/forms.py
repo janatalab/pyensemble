@@ -6,6 +6,7 @@ from django.conf import settings
 import django.forms as forms
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.urls import reverse
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import LayoutObject, Layout, Field, Submit, Row, Div, Fieldset
@@ -13,14 +14,16 @@ from crispy_forms.bootstrap import InlineRadios, InlineCheckboxes, UneditableFie
 
 from captcha.fields import ReCaptchaField
 
-from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket, Study
+from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket, Study, Response, SessionFile
+
+from pyensemble.widgets import RangeInput
 
 import pdb
 
 class EnumCreateForm(forms.ModelForm):
     class Meta:
         model = DataFormat
-        exclude = ('df_type',)
+        exclude = ('df_type','_range_hash','range_data')
 
         widgets = {
             'enum_values': forms.TextInput(attrs={'placeholder':'e.g. "Yes","No"'})
@@ -33,6 +36,7 @@ class EnumCreateForm(forms.ModelForm):
         self.helper.form_method = 'post'
         self.helper.form_action = 'enum_create'
         self.helper.form_class = 'editor-form'
+
 
 class QuestionEditHelper(FormHelper):
     form_method = 'POST'
@@ -104,6 +108,7 @@ class QuestionPresentForm(forms.ModelForm):
             'required': True,
             }
 
+
         # Set up the input field as a function of the HTML type
         html_field_type = self.instance.html_field_type
 
@@ -141,6 +146,14 @@ class QuestionPresentForm(forms.ModelForm):
         elif html_field_type == 'textarea':
             widget = forms.Textarea(attrs={'autocomplete':'off'})
 
+        elif html_field_type == 'slider':
+            widget = RangeInput(attrs=df.range_data)
+
+            if not df.range_data:
+                widget.value = 0
+            else:
+                widget.value = df.range_data['min']
+
         field_params['widget'] = widget
 
         if html_field_type in ['radiogroup','menu']:
@@ -149,6 +162,8 @@ class QuestionPresentForm(forms.ModelForm):
             self.fields['option'] = forms.MultipleChoiceField(**field_params)
         elif html_field_type == 'numeric':
             self.fields['option'] = forms.IntegerField(**field_params)
+        elif html_field_type == 'slider':
+            self.fields['option'] = forms.FloatField(**field_params)
         else:
             self.fields['option'] = forms.CharField(**field_params)
 
@@ -196,15 +211,30 @@ class ExperimentFormForm(forms.ModelForm):
             'form_handler': forms.Select(attrs={'placeholder':'Choose a form handler'}),
         }
 
-    field_order = ('form_handler','condition_script','stimulus_script','goto','repeat','break_loop_button','break_loop_button_text','continue_button_text')
+    field_order = (
+        'form_handler',
+        'goto',
+        'repeat',
+        'break_loop_button',
+        'break_loop_button_text',
+        'continue_button_text',
+        'condition_script',
+        'stimulus_script',
+        'record_response_script'
+        )
 
     def __init__(self, *args, **kwargs):
-        super(ExperimentFormForm,self).__init__(*args,**kwargs)
+        super(ExperimentFormForm,self).__init__(*args, **kwargs)
 
-        for field in ['condition_script','stimulus_script']:
+        for field in ['condition_script', 'stimulus_script', 'record_response_script']:
             script = getattr(self.instance,field,'')
             if script:
-                self.fields[field].widget.attrs.update({'class':'has-popover', 'data-content':script, 'data-placement':'right', 'data-container':'body'})
+                self.fields[field].widget.attrs.update({
+                    'class':'has-popover',
+                    'data-content':script,
+                    'data-placement':'right',
+                    'data-container':'body'
+                    })
 
 class ExperimentForm(forms.ModelForm):
     class Meta:
@@ -221,7 +251,19 @@ class ExperimentForm(forms.ModelForm):
 
 ExperimentFormFormset = forms.inlineformset_factory(Experiment, ExperimentXForm, 
     form=ExperimentFormForm, 
-    fields=('form_order', 'form_handler', 'goto','repeat','condition_script','stimulus_script', 'break_loop_button', 'break_loop_button_text', 'continue_button_text','use_clientside_validation'), 
+    fields= (
+        'form_order',
+        'form_handler',
+        'goto',
+        'repeat',
+        'condition_script',
+        'stimulus_script',
+        'break_loop_button',
+        'break_loop_button_text',
+        'continue_button_text',
+        'use_clientside_validation',
+        'record_response_script'
+        ),
     can_order=True,
     can_delete=True,
     extra=0,
@@ -240,7 +282,7 @@ class CopyExperimentForm(forms.ModelForm):
     helper.form_method = 'POST'
     helper.form_id = 'copyItemForm'
 
-
+# TODO: Refactor TicketCreationForm into a ModelForm and also make use of validfrom field
 class TicketCreationForm(forms.Form):
     input_format = '%d/%m/%Y %H:00'
     num_master = forms.IntegerField(label='Number of (multiple-use) master tickets', initial=0)
@@ -305,10 +347,75 @@ class CaptchaForm(forms.Form):
 
 
 class StudySelectForm(forms.Form):
-
     study = forms.ModelChoiceField(queryset=Study.objects.all())
-    # widget=forms.Select(attrs={'class': 'form-control'})
 
     helper = FormHelper()
-    helper.form_class = 'diagnostics-selector-form'
+    helper.form_class = 'reporting-selector-form'
     helper.add_input(Submit('submit', 'Submit'))
+
+
+class ExperimentSelectForm(forms.Form):
+    experiment = forms.ModelChoiceField(queryset=None)
+
+    def __init__(self, *args, **kwargs):
+        excludes = kwargs.pop('exclude', None)
+        filters = kwargs.pop('filter', None)
+
+        super(ExperimentSelectForm, self).__init__(*args, **kwargs)
+
+        # Get all experiment objects
+        queryset=Experiment.objects.all()
+
+        # Filter if we got filtering values
+        if excludes:
+            queryset = queryset.exclude(**excludes)
+
+        if filters:
+            queryset = queryset.filter(**filters)
+
+        # Create our field
+        self.fields['experiment'].queryset = queryset
+
+    helper = FormHelper()
+    helper.form_class = 'reporting-selector-form'
+    helper.add_input(Submit('submit', 'Submit'))
+
+
+
+class ExperimentResponsesForm(forms.Form):
+    experiment = forms.IntegerField(widget=forms.HiddenInput())
+    question = forms.MultipleChoiceField(choices=[])
+    filter_excluded = forms.BooleanField(required=False, label='Remove sessions marked as excluded')
+    filter_unfinished = forms.BooleanField(required=False, label='Remove incomplete sessions')
+
+    def __init__(self, *args, **kwargs):
+        super(ExperimentResponsesForm, self).__init__(*args, **kwargs)
+
+        # Extract our experiment ID
+        if 'initial' in kwargs.keys():
+            experiment_id = kwargs['initial']['experiment']
+        elif args:
+            experiment_id = args[0]['experiment']
+
+
+        # Since we are focused on ultimately gettings responses, make queries against the Response table
+        experiment_responses = Response.objects.filter(experiment=experiment_id)
+
+        # Get our list of questions that were asked in this experiment
+        self.fields['question'].choices = experiment_responses.values_list('question', 'question__text').distinct()
+
+
+        self.helper = FormHelper()
+        self.helper.form_action = reverse('experiment-responses')
+        self.helper.form_class = 'reporting-selector-form'
+        self.helper.add_input(Submit('submit', 'Submit'))
+
+
+class SessionFileAttachForm(forms.ModelForm):
+    class Meta:
+        model = SessionFile
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super(SessionFileAttachForm, self).__init__(*args, **kwargs)
+        self.fields['session'].widget = forms.HiddenInput()

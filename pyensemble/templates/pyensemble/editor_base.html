@@ -11,7 +11,7 @@
 
 {% block header %}
 <nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light">
-    <a class="navbar-brand" href="{% url 'editor' %}">PyEnsemble</a>
+    <a class="navbar-brand" href="{% url 'home' %}">PyEnsemble - Editors</a>
     <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#editor-navbar" aria-expanded="false" aria-controls="editor-navbar">
         <span class="navbar-toggler-icon"></span>
     </button>
@@ -23,6 +23,9 @@
             <li><a class="nav-link content-link" href="{% url 'question_list' %}">Questions</a></li>
             <li><a class="nav-link content-link" href="{% url 'enum_list' %}">Enums</a></li>
         </ul>
+        <ul class="navbar-nav ml-auto">
+            <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+        </ul>
     </div>
   </div>
 </nav>
@@ -30,8 +33,8 @@
 
 {% block main %}
 <main role="main">
-    <!-- <div class="container-fluid my-2"> -->
-        <div class="row align-items-start justify-content-start">
+    <div class="container-fluid">
+        <div class="">
             <!-- left nav -->
             <div class="d-none" id="content-left">
                 <div id="contentList" class="list-group bd-sidebar">
@@ -52,7 +55,7 @@
                 {% endblock %}
             </div>
         </div>
-    <!-- </div> -->
+    </div>
 </main>
 {% endblock %}
 

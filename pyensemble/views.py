@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from django.core.cache import cache
 
+from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 
@@ -30,7 +31,7 @@ from pyensemble.models import Ticket, Session, Experiment, Form, Question, Exper
 
 from pyensemble.forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
 
-from pyensemble.tasks import get_expsess_key, fetch_subject_id, get_or_create_prolific_subject, create_tickets
+from pyensemble.tasks import fetch_subject_id, get_or_create_prolific_subject, create_tickets
 
 from pyensemble import errors
 
@@ -38,14 +39,66 @@ from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_metho
 from pyensemble import experiments 
 
 from pyensemble.group.models import GroupSession, GroupSessionSubjectSession
-from pyensemble.group.views import get_group_session, set_groupuser_state, init_group_trial
+from pyensemble.group.views import get_group_session, set_groupuser_state, get_groupuser_state, init_group_trial
 
 from crispy_forms.layout import Submit
 
 import pdb
 
+def logout_view(request):
+    logout(request)
+
+    return HttpResponseRedirect(reverse('home'))
+
+class PyEnsembleHomeView(LoginRequiredMixin,TemplateView):
+    template_name = 'pyensemble/pyensemble_home.html'
+
 class EditorView(LoginRequiredMixin,TemplateView):
-    template_name = 'editor_base.html'
+    template_name = 'pyensemble/editor_base.html'
+
+class StimulusView(LoginRequiredMixin, TemplateView):
+    template_name = 'pyensemble/stimulus_base.html'
+
+def get_stimulus_search_options(queryset):
+    options = {}
+
+    fields = ['playlist', 'genre', 'artist', 'year', 'file_format']
+    for field in fields:
+        options[field] = Stimulus.objects.order_by(field).values_list(field, flat=True).distinct()
+
+    return options
+
+class StimulusSearchView(LoginRequiredMixin, TemplateView):
+    template_name = 'pyensemble/stimulus_search.html'
+
+    def get_context_data(self, **kwargs):
+        context = super(StimulusSearchView, self).get_context_data(**kwargs)
+
+        queryset = Stimulus.objects.all()
+
+        context.update(get_stimulus_search_options(queryset))
+
+        return context
+
+
+class StimulusListView(LoginRequiredMixin, ListView):
+    model = Stimulus
+    context_object_name = 'stimulus_list'
+    paginate_by = 25
+
+    def get_queryset(self):
+        queryset = super(StimulusListView, self).get_queryset()
+        pdb.set_trace()
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super(StimulusListView, self).get_context_data(**kwargs)
+
+        context.update(get_stimulus_search_options(self.queryset))
+
+        pdb.set_trace()
+        return context
 
 #
 # Experiment editing views
@@ -329,18 +382,18 @@ class EnumCreateView(LoginRequiredMixin,CreateView):
 # Start experiment
 @require_http_methods(['GET'])
 def run_experiment(request, experiment_id=None):
+    # Get our experiment object
+    experiment = Experiment.objects.get(id=experiment_id)
+
     # Keep the general session alive
     request.session.set_expiry(settings.SESSION_DURATION)
 
     # Get cached information for this experiment and session, if we have it
-    expsess_key = get_expsess_key(experiment_id)
+    expsess_key = experiment.cache_key
     expsessinfo = request.session.get(expsess_key,{})
 
-    # Get our experiment object
-    experiment = Experiment.objects.get(id=experiment_id)
-
     # Check whether we have a running session, and initialize a new one if not.
-    if not expsessinfo.get('running',False): 
+    if not expsessinfo.get('running', False): 
         # Pull out our ticket code
         ticket_code = request.GET.get('tc', None)
 
@@ -380,6 +433,10 @@ def run_experiment(request, experiment_id=None):
         if ticket.type == 'user' and ticket.used:
             return errors.ticket_error(request, ticket, 'TICKET_ALREADY_USED')
 
+        # Make sure the ticket's validity has commenced
+        if ticket.start and timezone.now() < ticket.start:
+            return errors.ticket_error(request, ticket, 'TICKET_NOT_YET_VALID')
+
         # Make sure ticket hasn't expired
         if ticket.expired:
             return errors.ticket_error(request, ticket, 'TICKET_EXPIRED')
@@ -395,6 +452,8 @@ def run_experiment(request, experiment_id=None):
             if subject.id_origin == 'PRLFC':
                 prolific_pid = subject_id
 
+            tmp_subject = False
+
         # If the participant has not yet registered, create a new temporary entry. The id needs to be a unique hash, otherwise we run into collisions.
         if not subject:
             if not request.session.session_key:
@@ -402,16 +461,23 @@ def run_experiment(request, experiment_id=None):
 
             subject, created = Subject.objects.get_or_create(subject_id=request.session.session_key)
 
+            tmp_subject = True
+
         # See whether we were passed in an explicit session_id as a URL parameter
         origin_sessid = request.GET.get('SESSION_ID', None)
 
         # Initialize a session in the PyEnsemble session table
         session = Session.objects.create(
             experiment = ticket.experiment, 
-            ticket = ticket, subject = subject, 
+            ticket = ticket, 
+            subject = subject, 
             origin_sessid = origin_sessid
-            )
+        )
 
+        # Calculate the age of the subject
+        if not tmp_subject:
+            session.calc_age()
+            
         # If this is a group experiment, attach the session to a group session
         if experiment.is_group:
             # Get the group session object associated with this ticket
@@ -441,7 +507,6 @@ def run_experiment(request, experiment_id=None):
             'response_order': 0,
             'stimulus_id': None,
             'break_loop': False,
-            'last_in_loop': {},
             'visit_count': {},
             'running': True,
             'sona': sona_code,
@@ -471,19 +536,24 @@ def serve_form(request, experiment_id=None):
         'stimulus': None,
         'skip_trial': False,
         'feedback': '',
-        # 'group': {},
     }
 
+    experiment = Experiment.objects.get(pk=experiment_id)
+
     # Get the key that we can use to retrieve experiment-specific session information for this user   
-    expsess_key = get_expsess_key(experiment_id)
+    expsess_key = experiment.cache_key
 
     # Make sure the experiment session info is cached in the session info
     # Otherwise restart the experiment
     if expsess_key not in request.session.keys() or not request.session[expsess_key]:
         return render(request,'pyensemble/error.html',{'msg':'Invalid attempt to start or resume the experiment','next':'/'})
 
+
     # Get our experiment session info
     expsessinfo = request.session[expsess_key]
+
+    # Update our context with our session ID
+    context.update({'session_id': expsessinfo['session_id']})
 
     # Get the index of the form we're on
     form_idx = expsessinfo['curr_form_idx']
@@ -518,6 +588,9 @@ def serve_form(request, experiment_id=None):
         # Process the submitted form
         #
 
+        # Get our PyEnsemble session
+        session = Session.objects.get(id=expsessinfo['session_id'])
+
         # By default we pass captcha test because we don't require it
         passes_captcha = True
 
@@ -537,8 +610,7 @@ def serve_form(request, experiment_id=None):
 
         # Flag the fact that we've served the first form, irrespective of whether the POST was valid. Write the local timezone for the session to the session object
         if expsessinfo['first_form']:
-            session = Session.objects.get(id=expsessinfo['session_id'])
-            session.timezone = request.session['timezone']
+            session.timezone = request.session.get('timezone', settings.TIME_ZONE)
             session.save()
 
         expsessinfo.update({'first_form': False})
@@ -563,8 +635,6 @@ def serve_form(request, experiment_id=None):
         context.update({'stimulus': stimulus})
 
         if passes_captcha and formset.is_valid():
-            expsessinfo['response_order']+=1
-
             #
             # Write data to the database. With only a couple of exceptions, based on form_handler, this will be to the Response table
             #
@@ -593,18 +663,21 @@ def serve_form(request, experiment_id=None):
                 expsessinfo['subject_id'] = subject_id
 
                 # Replace the temporary subject with our actual subject in our session instance
-                session = Session.objects.get(pk=expsessinfo['session_id'])
 
                 # Get the temporary subject
                 tmp_subject = session.subject
 
                 # Attach the registered subject and save the session
                 session.subject = subject
+
+                # Calculate the age of our subject
+                session.calc_age()
+
+                # Save the updated session
                 session.save()
 
                 # Now that we've saved our updated session it is safe to delete the temporary subject
                 tmp_subject.delete()
-
 
             elif handler_name == 'form_consent':
                 question = formset.forms[0]
@@ -640,10 +713,19 @@ def serve_form(request, experiment_id=None):
                 subject.save()
 
             else:
+                # Evaluate any further experiment-form-specific response validation callback. The primary intent is to check for submission of an identical response arising from an inadvertent double form submission.
+                if not currform.record_response(request):
+
+                    # If we were told to not record the response, progress on with the experiment without updating the form visit count or getting the next form index
+                    return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
+
                 #
                 # Save responses to the Response table
                 #
                 responses = []
+
+                # Increment our response_order variable if we are actually planning to write a response to the database. The same response_order value applies to all questions on this form.
+                expsessinfo['response_order']+=1
 
                 for idx,question in enumerate(formset.forms):
             
@@ -674,15 +756,18 @@ def serve_form(request, experiment_id=None):
                         jspsych_data = ''
 
                     # If we are in group session trial, write group session context to trial info for the first response
-                    if not idx and handler_name in ['group_trial']:
-                        group_session = get_group_session(request)
-                        trial_info = group_session.context.get('params',{})
+                    if handler_name in ['group_trial']:
+                        if not idx:
+                            group_session = get_group_session(request)
+                            trial_info = group_session.context.get('params',{})
+                        else:
+                            trial_info = ""
 
                     # Create a Response object and append it to our list
                     responses.append(Response(
                         experiment=currform.experiment,
                         subject=Subject.objects.get(subject_id=expsessinfo['subject_id']),
-                        session=Session.objects.get(id=expsessinfo['session_id']),
+                        session=session,
                         form=currform.form,
                         form_order=form_idx,
                         stimulus=stimulus,
@@ -704,9 +789,10 @@ def serve_form(request, experiment_id=None):
 
             # Now that the responses have been saved, the user's state, in a group experiment is again unknown
             if handler_name == 'group_trial':
-                user_state = set_groupuser_state(request,'UNKNOWN')
+                if get_groupuser_state(request) != 'EXIT_LOOP':
+                    set_groupuser_state(request,'UNKNOWN')
 
-            # Update our visit count
+            # Update our visit count for this form
             num_visits = expsessinfo['visit_count'].get(form_idx,0)
             num_visits +=1
             expsessinfo['visit_count'][form_idx] = num_visits
@@ -731,6 +817,18 @@ def serve_form(request, experiment_id=None):
 
         if session.expired:
             reset_session(request, experiment_id)
+
+        # If we are part of a group session, check whether we are being asked to exit a loop
+        if hasattr(session, 'groupsessionsubjectsession'):
+            gsss = session.groupsessionsubjectsession
+
+            if gsss.state == gsss.States.EXIT_LOOP:
+                expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
+                request.session.modified=True
+
+                # Move to the next form by calling ourselves
+                return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
+
 
         # Determine whether any conditions on this form have been met
         if not currform.conditions_met(request):
@@ -824,8 +922,8 @@ def serve_form(request, experiment_id=None):
 
         if presents_stimulus and not timeline:
             # If we are at the start of a loop, then any forms within the loop should not be presented, so skip to the form after the end of the loop
-            if form_idx in expsessinfo['last_in_loop'].keys():
-                expsessinfo['curr_form_idx']=expsessinfo['last_in_loop'][form_idx]+1
+            if form_idx in session.experiment.get_loop_info().keys():
+                expsessinfo['curr_form_idx'] = session.experiment._loop_info[form_idx]+1
             else:
                 expsessinfo['curr_form_idx']+=1
 
@@ -921,6 +1019,9 @@ def serve_form(request, experiment_id=None):
     # Determine our form template (based on the form_handler field)
     template = os.path.join('pyensemble/handlers/', f'{handler_name}.html')
 
+    # Update our context with our session
+    context.update({'session': session})
+
     # Make sure to save any changes to our session cache
     request.session.modified = True
     return render(request, template, context)
@@ -941,14 +1042,15 @@ def create_ticket(request):
         args=(ticket_request.cleaned_data['experiment_id'],)))
 
 def reset_session(request, experiment_id):
-    expsess_key = get_expsess_key(experiment_id)
-    expsessinfo = request.session.get(expsess_key)
+    experiment = Experiment.objects.get(pk=experiment_id)
+
+    expsessinfo = request.session.get(experiment.cache_key)
 
     if not expsessinfo:
         msg = f'Experiment {experiment_id} session not initialized'
     else:
+        request.session.pop(experiment.cache_key, None)
         msg = f'Experiment {experiment_id} session reset'
-        request.session.pop(expsess_key,None)
 
     return render(request,'pyensemble/message.html',{'msg':msg})
 
@@ -973,6 +1075,17 @@ def flush_session_cache(request):
 
 def record_timezone(request):
     if request.method == 'POST':
-        request.session['timezone'] = request.POST['timezone']
+        # Extract our timezone
+        tzname = request.POST['timezone']
+
+        # Update our Django session cache
+        request.session['timezone'] = tzname
+
+        # Update our PyEnsemble subject session
+        session_id = request.POST.get('session_id', None)
+        if session_id:
+            session = Session.objects.get(pk=session_id)
+            session.timezone = tzname
+            session.save()
 
         return HttpResponse("ok")

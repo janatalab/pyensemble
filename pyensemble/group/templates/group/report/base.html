@@ -1,0 +1,62 @@
+{% extends "pyensemble/base.html" %}
+{% load static %}
+
+{% block head %}
+    <script src="//d3js.org/d3.v3.min.js" charset="utf-8"></script>
+{% endblock %}
+
+{% block title %}PyEnsemble Group Reports{% endblock %}
+
+{% block header %}
+<div id="nav-section">
+    <nav class="navbar navbar-expand-sm navbar-light bg-light" id="primary-navbar">
+        <a class="navbar-brand" href="{% url 'home' %}">PyEnsemble - Group Reports</a>
+        <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#editor-navbar" aria-expanded="false" aria-controls="primary-navbar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse">
+            <ul class="navbar-nav mr-auto">
+                <li class="nav-item d-none">
+                    {% include "pyensemble/selectors/selector.html" with level="Study" options=studies%}
+                </li>
+                <li class="nav-item">
+                    {% include "pyensemble/selectors/selector.html" with level="Experiment" options=experiments%}
+                </li>
+                <li id="session-list" class="nav-item">
+                </li>
+            </ul>
+            <ul class="navbar-nav ml-auto">
+                <li><a class="nav-link" href="{% url 'logout' %}">Logout</a></li>
+            </ul>
+        </div>
+    </nav>
+    <nav class="navbar navbar-expand-sm navbar-light bg-light analysis-nav" id="secondary-navbar"></nav>
+</div>
+
+{% endblock %}
+
+
+{% block main %}
+<main>
+    <div class="px-3" id="results_section">    
+            <div id="item_title" class="p-2 h4"></div>
+            <div id="results_table" class="mt-2 overflow-auto sticky-top"></div>
+    </div>
+</main>
+
+{% endblock %}
+
+{% block appscript %}
+    {{ group_urls|json_script:"group-urls" }}
+
+    <script type="text/javascript" src="{% static 'group/js/reporting.js' %}"></script>
+
+    {% include "pyensemble/modals/modals_base.html" with modal_id='attachFileModal' modal_title='Attach File' %}
+
+    <script>
+        $('#attachFileModal').on('show.bs.modal', function (ev) {
+            PyEnsemble.reporting.fetchAttachFileForm(ev.target);
+        });
+    </script>
+{% endblock %}

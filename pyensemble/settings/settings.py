@@ -23,15 +23,17 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 # What is our label for this particular installation of PyEnsemble. This is what helps to distinguish multiple PyEnsemble instances on a single server from each other. Make sure to use a trailing slash.
 INSTANCE_LABEL = 'pyensemble/'
 
-# Specify the path to password files
+# Specify the path to password and settings files
 PASS_DIR = os.path.dirname(os.path.join('/var/www/private', INSTANCE_LABEL))
 
 # Specify the directory where experiments will be located
 EXPERIMENT_DIR = os.path.join(BASE_DIR,'pyensemble/experiments')
 
 # Open our configuration file
+SITE_CONFIG_FILE = os.path.join(PASS_DIR, 'pyensemble_params.ini')
+
 config = ConfigParser()
-config.read(os.path.join(PASS_DIR, 'pyensemble_params.ini'))
+config.read(SITE_CONFIG_FILE)
 
 # Get our Django secret
 SECRET_KEY = config['django']['secret']
@@ -47,11 +49,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
     'encrypted_model_fields',
     'captcha',
     'crispy_forms',
     'pyensemble',
     'pyensemble.group',
+    'pyensemble.integrations',
 ]
 
 MIDDLEWARE = [
@@ -152,6 +156,13 @@ try:
 except:
     pass
 
+# Spotify
+try:
+    SPOTIFY_CLIENT_ID = config['spotify']['client_id']
+    SPOTIFY_CLIENT_SECRET = config['spotify']['client_secret']
+except:
+    pass
+
 # Internationalization
 # https://docs.djangoproject.com/en/2.2/topics/i18n/
 
@@ -177,9 +188,13 @@ STATIC_URL = '/static/'+INSTANCE_LABEL
 MEDIA_ROOT = config['django']['media_root']
 MEDIA_URL = config['django']['media_url']
 
+# SITE stuff
+SITE_ID = 1
+PORT = ''  # use '' for default http(s) ports
+
 # Login and logout stuff
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'editor'
+LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = '/'
 
 # Various things pertaining to sessions
@@ -206,10 +221,19 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'timestamped': {
-            'format': '%(levelname)s %(asctime)s %(module)s %(message)s',
+            'format': '%(levelname)s: %(asctime)s %(module)s %(message)s',
         },
+        'experiment': {
+            'format': '%(levelname)s: %(asctime)s %(pathname)s (%(funcName)s): %(message)s',
+        }
     },
     'handlers': {
+        'experiment-debug-file': {
+            'level': 'DEBUG',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOG_DIR,'experiment-debug.txt'),
+            'formatter': 'experiment',
+        },
         'debug-file': {
             'level': 'DEBUG',
             'class': 'logging.FileHandler',
@@ -243,6 +267,11 @@ LOGGING = {
         'django.template': {
             'handlers': ['template-file'],
             'level': 'ERROR',
+            'propagate': True,
+        },
+        'experiments': {
+            'handlers': ['experiment-debug-file'],
+            'level': 'DEBUG',
             'propagate': True,
         }
     },

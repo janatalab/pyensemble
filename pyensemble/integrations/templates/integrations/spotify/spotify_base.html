@@ -1,0 +1,21 @@
+{% extends "pyensemble/base.html" %}
+
+{% block header %}
+    <nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light">
+        <a class="navbar-brand" href="{% url 'home' %}">PyEnsemble - Spotify</a>
+        <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#stimulus-navbar" aria-expanded="false" aria-controls="stimulus-navbar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="stimulus-navbar">
+            <ul class="navbar-nav mr-auto">
+                <li><a class="nav-link content-link" href="{% url 'integrations:spotify-search' %}">Search</a></li>
+                <li><a class="nav-link content-link" href="{% url 'integrations:spotify-import' %}">Import</a></li>
+            </ul>
+            <ul class="navbar-nav ml-auto">
+                <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+            </ul>
+        </div>
+      </div>
+    </nav>
+{% endblock %}

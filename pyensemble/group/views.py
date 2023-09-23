@@ -13,7 +13,7 @@ from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
 
 from .models import Group, GroupSession, GroupSessionSubjectSession
-from .forms import GroupForm, get_group_code_form, GroupSessionForm, GroupSessionNotesForm
+from .forms import GroupForm, get_group_code_form, GroupSessionForm, GroupSessionNotesForm, GroupSessionFileAttachForm
 
 from pyensemble.models import Ticket, Session
 from pyensemble.tasks import create_tickets
@@ -42,7 +42,13 @@ def get_session_id(request):
     return session_id
 
 def get_group_session(request):
-    return GroupSession.objects.get(pk=get_session_id(request))
+    session_id = get_session_id(request)
+
+    if session_id:
+        return GroupSession.objects.get(pk=session_id)
+
+    else:
+        return None
 
 @login_required
 def start_groupsession(request):
@@ -79,7 +85,7 @@ def start_groupsession(request):
                 )
 
             # Initialize a group session object in the session cache
-            cache_key = group_session.get_cache_key()
+            cache_key = group_session.cache_key
             request.session['group_session_key'] = cache_key
             request.session[cache_key] = {'id': group_session.id}
 
@@ -130,7 +136,8 @@ def attach_experimenter(request):
 
         if form.is_valid():
             # Get the ticket object
-            ticket = Ticket.objects.get(experimenter_code=form.cleaned_data['experimenter_code'])
+            # See note in attach_participant
+            ticket = Ticket.objects.filter(experimenter_code=form.cleaned_data['experimenter_code']).last()
 
             # Get the session
             session = GroupSession.objects.get(ticket=ticket)
@@ -138,7 +145,7 @@ def attach_experimenter(request):
             session.save()
 
             # Initialize a session variables cache
-            cache_key = ticket.groupsession.get_cache_key()
+            cache_key = ticket.groupsession.cache_key
             request.session['group_session_key'] = cache_key
             request.session[cache_key] = {'id': ticket.groupsession.id}
 
@@ -154,6 +161,7 @@ def attach_experimenter(request):
 
     return render(request, template, context)
 
+
 def attach_participant(request):
     if request.method == 'POST':
         GroupCodeForm = get_group_code_form(code_type='participant')
@@ -161,10 +169,11 @@ def attach_participant(request):
 
         if form.is_valid():
             # Get the ticket object
-            ticket = Ticket.objects.get(participant_code=form.cleaned_data['participant_code'])
+            # NOTE: Their is a small chance of colliding 4-character strings at the start and end of otherwise unique tickets, so always filter and grab the last ticket. This is still error prone without more robust validation, but unlikely for such an error to occur in a low-volume setting.
+            ticket = Ticket.objects.filter(participant_code=form.cleaned_data['participant_code']).last()
 
             # Cache the group session key in the participant's cache
-            cache_key = ticket.groupsession.get_cache_key()
+            cache_key = ticket.groupsession.cache_key
             request.session['group_session_key'] = cache_key
             request.session[cache_key] = {'id': ticket.groupsession.id}
 
@@ -183,6 +192,33 @@ def attach_participant(request):
 
     return render(request, template, context)
 
+
+# @login_required
+# def attach_file(request):
+#     if request.method == "POST":
+#         form = GroupSessionFileAttachForm(request.POST, request.FILES)
+
+#         if form.is_valid():
+#             # file is saved
+#             form.save()
+#             return HttpResponseRedirect(reverse('pyensemble-group:attach_file_success'))
+#     else:
+#         # Get our group session
+#         groupsession_id = request.GET.get('session_id', None)
+
+#         form = GroupSessionFileAttachForm(initial={'groupsession': groupsession_id})
+
+#     context = {
+#         'form': form,
+#     }
+
+#     return render(request, "group/report/attach_file.html", context)
+
+
+# def attach_file_success(request):
+#     return HttpResponse("Successfully uploaded the file")
+
+
 @login_required
 def get_groupsession_participants(request):
     # Get our groupsession ID
@@ -194,6 +230,7 @@ def get_groupsession_participants(request):
     participants = {p['user_session__subject']:{'first': p['user_session__subject__name_first'], 'last': p['user_session__subject__name_last']} for p in pinfo}
     
     return JsonResponse(participants)
+
 
 @login_required
 def groupsession_status(request):
@@ -218,6 +255,7 @@ def groupsession_status(request):
         template = 'group/session_status.html'
         return render(request, template, context)
 
+
 def get_groupuser_session(request):
     # Get the group session ID from the session cache
     groupsession_id = get_session_id(request)
@@ -226,7 +264,7 @@ def get_groupuser_session(request):
     group_session = GroupSession.objects.get(pk=groupsession_id)
 
     # Get the experiment info from the user's session cache
-    expsessinfo = request.session[group_session.experiment.get_cache_key()]
+    expsessinfo = request.session[group_session.experiment.cache_key]
 
     # Get the user session
     user_session = Session.objects.get(pk=expsessinfo['session_id'])
@@ -258,6 +296,18 @@ def set_groupuser_state(request, state):
     gsus.save()
     
     return gsus.state
+
+
+def wait_groupuser_state(request):
+    gsus = get_groupuser_session(request)
+
+    if request.method == 'GET':
+        target_state = request.GET.getlist('state')
+
+        state = gsus.wait_state(target_state)
+
+        return HttpResponseRedirect(reverse('pyensemble-group:groupuser_state'))
+
 
 def set_client_ready(request):
     status = set_groupuser_state(request, 'READY_CLIENT')
@@ -308,9 +358,35 @@ def trial_status(request):
 
     return JsonResponse(data)
 
+
+# Signal that we want to exit the loop we are in
+def exit_loop(request):
+    get_group_session(request).set_group_exit_loop()
+
+    return HttpResponseRedirect(reverse('pyensemble-group:groupsession_status'))
+
+
 def groupuser_state(request):
     state = {}
     if request.method == 'GET':
         state = get_groupuser_state(request)
 
     return JsonResponse(state, safe=False)
+
+
+def exclude_groupsession(request):
+    session_id = request.POST['session']
+
+    session = GroupSession.objects.get(pk=session_id)
+    session.exclude = True
+    session.save()
+
+    return HttpResponse(f"Marked {session_id} for exclusion")
+
+  
+def groupuser_exitloop(request):
+    # Get our experiment info
+    group_session = get_group_session(request)
+
+    return HttpResponseRedirect(reverse('serve_form', args=(group_session.experiment.id,)))
+

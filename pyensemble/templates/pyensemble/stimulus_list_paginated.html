@@ -1,0 +1,103 @@
+{% extends "pyensemble/stimulus_base.html" %}
+
+{% block main %}
+<main>
+    <div id="secondary-navbar"></div>
+
+    {% include "pyensemble/stimulus_search_section.html" %}
+
+    <div id="results_section" class="">
+        <h3>Stimuli</h3>
+        <div id="results_table" class="mt-2 overflow-auto sticky-top">
+            <table class="reporting table table-striped table-bordered table-sm">
+                <thead class="reporting">
+                    <tr>
+                        <th class="freeze-pane index">ID</th>
+                        <th class="freeze-pane index">Title<hr>
+                            <input id="title_filter" type="text" class="form-control table-filter" placeholder="">
+                        </th>
+                        <th>Artist<hr>                     
+                            <input id="song_filter" type="text" class="form-control table-filter" placeholder="">
+                        </th>
+                        <th>Album<hr>
+                            <input id="album_filter" type="text" class="form-control table-filter" placeholder="">
+                        </th>
+                        <th>Year<hr>
+                            <input id="year_filter" type="text" class="form-control table-filter" placeholder="">
+                        </th>
+                        <th>Genre<hr>
+                            <input id="genre_filter" type="text" class="form-control table-filter" placeholder="">
+                        </th>
+                        <th>Playlist<hr>                     
+                            <input id="playlist_filter" type="text" class="form-control table-filter" placeholder="">
+                        </th>
+                        <th>Description<hr>
+                            <input id="description_filter" type="text" class="form-control table-filter" placeholder="">
+                        </th>
+                        <th>Attributes<hr>                     
+                            <input id="attribute_filter" type="text" class="form-control table-filter" placeholder="">
+                        </th>
+                        <th>Format<hr>                     
+                            <input id="format_filter" type="text" class="form-control table-filter" placeholder="">
+                        </th>
+                        <th>Duration</th>
+                        <th>Location</th>
+                    </tr>
+                </thead>
+                <tbody class="reporting">
+                    {% for stimulus in page_obj %}
+                    <tr>
+                        <td class="freeze-pane index">{{stimulus.id}}</td>
+                        <td class="freeze-pane index text-left">{{stimulus.name}}</td>
+                        <td>{{stimulus.artist}}</td>
+                        <td>{{stimulus.album}}</td>
+                        <td>{{stimulus.year}}</td>
+                        <td>{{stimulus.genre}}</td>
+                        <td>{{stimulus.playlist}}</td>
+                        <td>{{stimulus.description}}</td>
+                        <td>
+                            {% for sxa in stimulus.stimulusxattribute_set.all %}
+                                <div>{{sxa.attribute.name}}: 
+                                    {% if sxa.attribute_value_double %} 
+                                        {{sxa.attribute_value_double}}, 
+                                    {% endif %}
+                                    {{sxa.attribute_value_text}}
+                                </div>
+                            {% endfor %}
+                        </td>
+                        <td>{{stimulus.format}}</td>
+                        <td>{{stimulus.duration}}</td>
+                        <td class="text-left">{{stimulus.location}}</td>
+
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="100%">
+                            <div class="">
+                                <span class="step-links">
+                                    {% if page_obj.has_previous %}
+                                        <a href="?page=1">&laquo; first</a>
+                                        <a href="?page={{ page_obj.previous_page_number }}">previous</a>
+                                    {% endif %}
+
+                                    <span class="current">
+                                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}.
+                                    </span>
+
+                                    {% if page_obj.has_next %}
+                                        <a href="?page={{ page_obj.next_page_number }}">next</a>
+                                        <a href="?page={{ page_obj.paginator.num_pages }}">last &raquo;</a>
+                                    {% endif %}
+                                </span>
+                            </div>                        
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+
+        </div>
+    </div>
+</main>
+{% endblock %}

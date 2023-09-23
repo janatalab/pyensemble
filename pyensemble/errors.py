@@ -35,6 +35,9 @@ def ticket_error(request, ticket, error_type):
     elif error_type == "TICKET_ALREADY_USED":   
         error_msg = "This ticket has already been used" 
 
+    elif error_type == "TICKET_NOT_YET_VALID":
+        error_msg = "This ticket is not yet valid"
+
     elif error_type == "TICKET_EXPIRED":   
         error_msg = "This ticket has expired" 
 

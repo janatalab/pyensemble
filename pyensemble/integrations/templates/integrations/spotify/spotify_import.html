@@ -1,0 +1,10 @@
+{% extends "integrations/spotify/spotify_base.html"%}
+{% load crispy_forms_tags %}
+
+{% block main %}
+    <main>
+        <div class="container col-md-8 col-lg-6">
+            {% crispy form %}
+        </div>
+    </main>
+{% endblock %}

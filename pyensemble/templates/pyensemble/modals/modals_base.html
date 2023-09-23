@@ -1,1 +1,46 @@
-<!-- modals_base.html -->
+<!-- Customizable PyEnsemble Modal -->
+<div class="modal fade" id="{% if modal_id %}{{modal_id}}{%else%}PyEnsembleModal{%endif%}" tabindex="-1" role="dialog" aria-labelledby="{% if modal_id %}{{modal_id}}Label{%else%}PyEnsembleModalLabel{%endif%}" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="{% if modal_id %}{{modal_id}}Label{%else%}PyEnsembleModalLabel{%endif%}">{%if modal_title%}{{modal_title}}{%endif%}</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        {% block modal_body %}{%endblock%}
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="modalSubmitBtn">{%if modal_submit%}{{modal_submit}}{%else%}Submit{%endif%}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% block modal_script %}
+<script>
+    function submitModalForm(target){
+        $.ajax({
+            type: target.attr('method'),
+            url: target.attr('action'),
+            data: new FormData(target[0]),
+            processData: false,
+            contentType: false,
+            success: function(response){
+                alert(response);
+            },
+            error: function(response){
+                alert("An error occurred!");
+            }
+        });
+    }
+
+    $("#modalSubmitBtn").on('click', function(ev){
+      ev.preventDefault();
+      $("#{%if modal_id%}{{modal_id}}{%else%}PyEnsembleModal{%endif%}").modal('hide');
+      submitModalForm($("#{%if modal_id%}{{modal_id}}{%else%}PyEnsembleModal{%endif%} form"));
+    })
+</script>
+{% endblock %}

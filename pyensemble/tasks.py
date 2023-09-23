@@ -13,9 +13,6 @@ from django.utils import timezone
 
 import pdb
 
-def get_expsess_key(experiment_id):
-    return f'experiment_{experiment_id}'
-    
 
 def fetch_subject_id(subject, scheme='nhdl'):
     from pyensemble.models import Subject
@@ -68,8 +65,14 @@ def create_tickets(ticket_request_data):
     ticket_list = []
 
     # Get our experiment
-    experiment_id = ticket_request_data['experiment_id']
-    experiment = Experiment.objects.get(id=experiment_id)
+    experiment = ticket_request_data.get('experiment', None)
+
+    if not experiment:
+        experiment_id = ticket_request_data['experiment_id']
+        experiment = Experiment.objects.get(id=experiment_id)
+
+    # Get our ticket timezone
+    timezone = ticket_request_data.get('timezone', settings.TIME_ZONE)
 
     # Get our ticket types
     ticket_types = [tt[0] for tt in Ticket.TICKET_TYPE_CHOICES]
@@ -81,28 +84,31 @@ def create_tickets(ticket_request_data):
         subject = ticket_request_data.get('subject', None)
 
         if num_tickets:
+            validfrom_datetime = ticket_request_data.get(f'{ticket_type}_validfrom', None)
             expiration_datetime = ticket_request_data.get(f'{ticket_type}_expiration',None)
 
             # Add the ticket(s)
             for iticket in range(num_tickets):
-                unencrypted_str = '%d_%d'%(num_existing_tickets+len(ticket_list), experiment_id)
+                unencrypted_str = '%d_%d'%(num_existing_tickets+len(ticket_list), experiment.id)
                 encrypted_str = hashlib.md5(unencrypted_str.encode('utf-8')).hexdigest()
 
                 # Add a new ticket to our list
                 ticket = Ticket.objects.create(
-                    ticket_code=encrypted_str, 
-                    experiment=experiment, 
-                    type=ticket_type, 
-                    expiration_datetime=expiration_datetime,
+                    ticket_code = encrypted_str,
+                    experiment = experiment,
+                    type = ticket_type,
+                    validfrom_datetime = validfrom_datetime,
+                    expiration_datetime = expiration_datetime,
+                    timezone = timezone,
                     subject = subject
                 )
                 ticket_list.append(ticket)
 
     return ticket_list
 
-def send_email(template, context):
+def send_email(template_name, context):
     # Get our template
-    template = loader.get_template(template)
+    template = loader.get_template(template_name)
 
     # Render the content as HTML
     html_content = template.render(context)
@@ -117,7 +123,7 @@ def send_email(template, context):
     msg_subject = context.get("msg_subject","No subject")
 
     # Get the subject's email
-    to_email = [context['subject'].email]
+    to_email = [context['session'].subject.email]
 
     # Construct the basic message
     message = EmailMultiAlternatives(
@@ -149,12 +155,15 @@ def dispatch_notifications():
 def execute_postsession_callbacks():
     from pyensemble.models import Session 
 
-    # Get a list of completed Sessions for which the Experiment has a post_session_callback, and the callback has not been executed
-    sessions = Session.objects.exclude(
-            end_datetime__isnull = True,
-            experiment__post_session_callback__exact = "")
+    # Get a list of completed Sessions for which the Experiment has a post_session_callback
+    sessions = Session.objects.exclude(experiment__post_session_callback__exact = "").exclude(end_datetime__isnull = True)
 
+    # Get those that have not yet been executed
     sessions = sessions.filter(executed_postsession_callback = False)
+
+    # TODO: Get a list of the different post_session_callback values and iterate the list, isolating each call in a try-except block so that a buggy callback doesn't cause the whole stack to fail.
 
     for session in sessions:
         session.run_post_session()
+
+

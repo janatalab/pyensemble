@@ -41,6 +41,19 @@
     {% endif %}
 {% endblock %}
 
+{% block formscript %}
+    <script>
+        $('#question-form').on('submit', function(e) {
+            if (!$(this).data('submitted')) {
+                $(this).data('submitted', true).addClass('form-disabled');
+            }
+            else {
+                e.preventDefault();
+            }
+        });
+    </script>
+{% endblock %}
+
 {% block appscript %}
     <script>
         $(document).ready(function () {
