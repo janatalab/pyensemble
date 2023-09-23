@@ -48,7 +48,7 @@ python-Levenshtein==0.20.9
 python-memcached==1.59
 pytz==2022.7.1
 rapidfuzz==2.11.1
-redis==4.3.6
+redis==4.4.4
 requests==2.31.0
 six==1.16.0
 spotipy==2.23.0
