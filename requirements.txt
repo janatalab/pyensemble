@@ -27,7 +27,7 @@ kombu==5.1.0
 Levenshtein==0.20.9
 mod-wsgi==4.9.4
 mysqlclient==2.1.1
-numpy==1.22.0
+numpy==1.25.0
 pandas==1.1.5
 parso==0.7.1
 pexpect==4.8.0
