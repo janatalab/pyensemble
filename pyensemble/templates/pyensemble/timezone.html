@@ -7,6 +7,9 @@
             dataType: "json",        
             data: {
                 'timezone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+                {% if session_id %}
+                'session_id': {{session_id}},
+                {% endif %}
             },
             success: function(data){
             },

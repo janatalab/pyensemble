@@ -13,31 +13,40 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.contrib import admin
-from django.urls import path, include, reverse
-from django.contrib.auth import views as auth_views
-from django.views.generic import RedirectView
 from django.conf import settings
 from django.conf.urls.static import static
 
+from django.contrib import admin
+from django.contrib.auth import views as auth_views
+from django.urls import path, include, reverse
+from django.views.generic import RedirectView, TemplateView
+
 from . import views
-from . import diagnostics
+from . import reporting
 
 import pyensemble.errors as error
 from pyensemble import importers
 
 from .experiments import urls as experiment_urls
 from .importers import urls as importer_urls
+from .integrations import urls as integrations_urls
 
 # from django.contrib.auth.decorators import login_required
 
 app_name = 'pyensemble'
 
 app_patterns = [
-    path('', RedirectView.as_view(pattern_name='login',permanent=False)),
+    # path('', RedirectView.as_view(pattern_name='login',permanent=False)),
+    path('', views.PyEnsembleHomeView.as_view(), name='home'),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
+    path('accounts/logout/', views.logout_view, name='logout'),
     path('admin/', admin.site.urls),
-    path('editor/', views.EditorView.as_view(template_name='pyensemble/editor_base.html'),name='editor'),
+    path('editor/', views.EditorView.as_view(template_name='pyensemble/editor_base.html'), name='editor'),
+
+    path('stimulus/', views.StimulusView.as_view(template_name='pyensemble/stimulus_base.html'), name='stimulus'),
+    path('stimulus/search/', views.StimulusSearchView.as_view(template_name='pyensemble/stimulus_search.html'), name='stimulus-search'),
+    path('stimulus/list/', views.StimulusListView.as_view(template_name='pyensemble/stimulus_list_paginated.html'), name='stimulus-list'),
+
     path('ticket/create/', views.create_ticket, name='create_ticket'),
 
     path('run/<int:experiment_id>/start/', views.run_experiment, name='run_experiment'),
@@ -45,7 +54,6 @@ app_patterns = [
     path('session/reset/<int:experiment_id>/', views.reset_session, name='reset_session'),
     path('session/flush/', views.flush_session_cache, name='flush_session_cache'),
     path('error/<slug:feature_string>/', error.feature_not_enabled, name='feature_not_enabled'),
-    path('stimuli/upload/', importers.import_stimuli.import_file),
     path('record/timezone', views.record_timezone, name='record-timezone'),    
 ]
 
@@ -68,13 +76,25 @@ editor_patterns = [
     path('enums/create/', views.EnumCreateView.as_view(), name='enum_create'),
 ]
 
-diagnostics_patterns = [
-    path('', diagnostics.index, name='diagnostics'),
-    path('study/', diagnostics.study, name='study-diagnostics'),
-    path('experiment/', diagnostics.experiment, name='experiment-diagnostics'),
-    path('session/', diagnostics.session, name='session-diagnostics'),
-    path('session/exclude/', diagnostics.exclude_session, name='session-exclude'),
+reporting_patterns = [
+    path('', reporting.index, name='reporting'),
+    # path('study/', reporting.study, name='study-reporting'),
+    path('study/summary/', reporting.study_summary, name='study-summary'),
+   path('study/sessions/', reporting.study_sessions, name='study-sessions'),
+
+    # path('experiment/', reporting.experiment, name='experiment-reporting'),
+    path('experiment/summary/', reporting.experiment_summary, name='experiment-summary'),
+    path('experiment/responses/', reporting.experiment_responses, name='experiment-responses'),
+    path('experiment/sessions/', reporting.experiment_sessions, name='experiment-sessions'),
+
+    path('session/', reporting.session, name='session-reporting'),
+    path('session/exclude/', reporting.exclude_session, name='session-exclude'),
+    path('session/attach/file/', reporting.attach_session_file, name="attach_session_file"),
+
+    path('subject/exclude/', reporting.exclude_subject, name='subject-exclude'),
+
 ]
+
 
 # Collect our final set of patterns in the expected urlpatterns
 
@@ -83,8 +103,9 @@ urlpatterns = [
     path('group/', include('pyensemble.group.urls', namespace='pyensemble-group')),
     path('editor/', include(editor_patterns)),
     path('experiments/', include(experiment_urls, namespace='experiments')),
-    path('diagnostics/', include(diagnostics_patterns)),
-    path('importers/', include(importer_urls, namespace='importers')),
+    path('reporting/', include(reporting_patterns)),
+    path('import/', include(importer_urls, namespace='importers')),
+    path('integrations/', include(integrations_urls, namespace='integrations')),
 ]
 
 if settings.DEBUG:

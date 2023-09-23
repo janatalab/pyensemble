@@ -1,7 +1,16 @@
+import os
+
 from django.db import models
 from django.conf import settings
 
 from django.utils import timezone
+
+try:
+    import zoneinfo
+except ImportError:
+    from backports import zoneinfo
+
+from pyensemble.models import AbstractSession
 
 import polling2
 
@@ -29,12 +38,12 @@ class GroupSubject(models.Model):
 def init_session_context():
     return {'state': ''}
 
-class GroupSession(models.Model):
+
+class GroupSession(AbstractSession):
     group = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
-    experiment = models.ForeignKey('pyensemble.Experiment', db_constraint=True, on_delete=models.CASCADE)
+
     ticket = models.OneToOneField('pyensemble.Ticket', db_constraint=True, on_delete=models.CASCADE)
-    start_datetime = models.DateTimeField(blank=True, null=True, auto_now_add=True)
-    end_datetime = models.DateTimeField(blank=True, null=True)
+
     experimenter_attached = models.BooleanField(default=False)
 
     # Mechanism for saving overall session parameters
@@ -64,11 +73,12 @@ class GroupSession(models.Model):
     def __str__(self):
         return "Group: %s, Experiment: %s, Session %d"%(self.group.name, self.experiment.title, self.id)
 
-    def get_cache_key(self):
+    @property
+    def cache_key(self):
         return f'groupsession_{self.id}'
 
     @property
-    def num_users(self):
+    def num_subject_sessions(self):
         return self.groupsessionsubjectsession_set.count()
 
     # The place we need to enforce modifiability is on our save() method in order to prevent changes once we've saved ourselves once in a terminal state. So, we need to overwrite the default save method.
@@ -116,7 +126,7 @@ class GroupSession(models.Model):
             # Search the trial_info field the Response table contains an entry for the designated trial for all session users
             responded = Response.objects.filter(session__in=self.groupsessionsubjectsession_set, trial_info__trial_num=trial_num)
 
-            if responded.count() == self.num_users:
+            if responded.count() == self.num_subject_sessions:
                 self._responding_complete =  True
 
         return self._responding_complete
@@ -152,6 +162,40 @@ class GroupSession(models.Model):
     def set_group_busy(self):
         self.groupsessionsubjectsession_set.all().set_state('BUSY')
 
+    def set_group_exit_loop(self):
+        self.groupsessionsubjectsession_set.all().set_state('EXIT_LOOP')
+
+
+def groupsession_filepath(instance, filename):
+    return os.path.join('experiment', instance.groupsession.experiment.title, 'groupsession', str(instance.groupsession.id), filename)
+
+
+class GroupSessionFile(models.Model):
+    groupsession = models.ForeignKey('GroupSession', db_constraint=True, on_delete=models.CASCADE)
+    file = models.FileField(upload_to=groupsession_filepath, max_length=512)
+
+    class Meta:
+        unique_together = (("groupsession","file"),)
+
+
+class GroupSessionFileAttribute(models.Model):
+    unique_hash = models.CharField(max_length=32, unique=True)
+
+    file = models.ForeignKey('GroupSessionFile', db_constraint=True, on_delete=models.CASCADE)
+    attribute = models.ForeignKey('pyensemble.Attribute', db_constraint=True, on_delete=models.CASCADE)
+
+    attribute_value_double = models.FloatField(blank=True, null=True)
+    attribute_value_text = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        m = hashlib.md5()
+        m.update(self.file.encode('utf-8'))
+        m.update(self.attribute.name.encode('utf-8'))
+        m.update(str(self.attribute_value_double).encode('utf-8'))
+        m.update(self.attribute_value_text.encode('utf-8'))
+        self.unique_hash = m.hexdigest()
+        super(GroupSessionFileAttribute, self).save(*args, **kwargs)
+
 
 class GroupSessionSubjectSessionQuerySet(models.QuerySet):
     def ready_server(self):
@@ -176,26 +220,41 @@ class GroupSessionSubjectSessionQuerySet(models.QuerySet):
             session.user_session.expired=True
             session.user_session.save()
 
+    def all_completed(self):
+        return self.count() == self.filter(user_session__end_datetime__isnull=False).count()
+
 
 class GroupSessionSubjectSessionManager(models.Manager):
     def get_queryset(self):
         return GroupSessionSubjectSessionQuerySet(self.model, using=self._db)
 
+
 class GroupSessionSubjectSession(models.Model):
     group_session = models.ForeignKey('GroupSession', db_constraint=True, on_delete=models.CASCADE)
-    user_session = models.ForeignKey('pyensemble.Session', db_constraint=True, on_delete=models.CASCADE)
+    user_session = models.OneToOneField('pyensemble.Session', db_constraint=True, on_delete=models.CASCADE)
 
     #
     # Mechanism for indicating subject session state
     #
 
-    # UNKNOWN - Users start out in an unknown state
-    # READY_SERVER - used to indicate that a subject's session is ready for the next form. Used to synchronize subjects prior to calling of a method specified in the stimulus_script field of an ExperimentXForm instance.
-    # READY_CLIENT - used to indicate that the subject's browser is ready for a trial to commence. This is used for experiments in which an experimenter process initiates a trial once all subjects are declared ready on the client. 
-    # BUSY - Can be set to indicate that the subject is in the middle of a trial
-    # RESPONSE_PENDING - Can be used to signal that a client-side trial has completed and that the subject's form submission is being awaited
+    '''
+    UNKNOWN - Users start out in an unknown state and return to this state when on a form that doesn't pertain to a group trial
 
-    # NOTE: By default, when a form uses a group_trial form handler, the READY_SERVER and READY_CLIENT states are automatically implemented, respectively, in pyensemble.views.serve_form and a JavaScript routine that is embedded in the group_trial.html template and automatically executes when the subject's browswer is ready. These states are the only states that are need for self-standing group experiments, i.e. those that don't require an experimenter to initiate trials or send state-setting signals. Experimenter-driven group sessions will likely utilize the READY_CLIENT states and may set BUSY and RESPONSE_PENDING states for added control and status reporting.
+    READY_SERVER - used to indicate that a subject's session is ready for the next form. Used to synchronize subjects prior to calling of a method specified in the stimulus_script field of an ExperimentXForm instance.
+
+    READY_CLIENT - used to indicate that the subject's browser is ready for a trial to commence. This is used for experiments in which an experimenter process initiates a trial once all subjects are declared ready on the client. 
+
+    BUSY - Can be set to indicate that the subject is in the middle of a trial
+
+    RESPONSE_PENDING - Can be used to signal that a experimenter or participant's client-side trial has completed and that the subject's form submission is being awaited
+
+    EXIT_LOOP - This flag is used to signal that a loop should be exited. It is checked on the GET branch in pyensemble.views.serve_form()
+
+    NOTE: By default, when a form uses a group_trial form handler, the READY_SERVER and READY_CLIENT states are automatically implemented, respectively, in pyensemble.views.serve_form and a JavaScript routine that is embedded in the group_trial.html template and automatically executes when the subject's browswer is ready. These states are the only states that are needed for self-standing group experiments, i.e. those that don't require an experimenter to initiate trials or send state-setting signals. 
+
+    Experimenter-driven group sessions will likely depend on the READY_CLIENT states of participants to initialize or start trials, and may optionally set BUSY and RESPONSE_PENDING states for added control and status reporting.
+
+    '''
 
     class States(models.IntegerChoices):
         UNKNOWN = 0
@@ -203,6 +262,7 @@ class GroupSessionSubjectSession(models.Model):
         READY_CLIENT = 2
         BUSY = 3
         RESPONSE_PENDING = 4
+        EXIT_LOOP = 5
     
     state = models.PositiveSmallIntegerField(choices=States.choices, default=States.UNKNOWN)
 
@@ -210,3 +270,25 @@ class GroupSessionSubjectSession(models.Model):
 
     class Meta:
         unique_together = (('group_session','user_session'),)
+
+    def in_state(self, *args, **kwargs):
+        # Have to refresh our state from the db
+        self.refresh_from_db()
+
+        for state in kwargs['state']:
+            if self.state == self.States[state]:
+                return True
+
+        return False
+
+
+    def wait_state(self, state, timeout=45):
+        try:
+            if not isinstance(state, list):
+                state = [state]
+
+            polling2.poll(self.in_state, kwargs={'state': state}, step=0.5, timeout=timeout)
+            return True
+
+        except polling2.TimeoutException:
+            return False

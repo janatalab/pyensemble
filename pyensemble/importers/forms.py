@@ -6,6 +6,7 @@ from crispy_forms.layout import Submit
 
 class ImportForm(forms.Form):
     file = forms.FileField(label='Select a .csv or .json file to import')
+    location_root = forms.CharField(label='Directory path to prepend to location (optional)', required=False)
 
     def __init__(self, *args, **kwargs):
         self.helper = FormHelper()

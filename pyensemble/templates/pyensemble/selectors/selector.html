@@ -1,0 +1,21 @@
+
+
+
+<select 
+    class="form-control selectpicker {% if search %}search-input{%endif%}" 
+    name="{{level|lower}}"
+    title="{{level}}"
+    data-header="Select {{level}}"
+    data-live-search="true" 
+    required
+    {% if multiple %} multiple data-actions-box="true" {% endif %}
+    {% if data_width %} data-width="{{data_width}}" {% endif %}
+>
+    {% for option in options %}
+        <option 
+            value="{%if option.id %}{{option.id}}{%else%}{{option}}{%endif%}" 
+            data-tokens="{{option}}">
+            {{option}}
+        </option>
+    {% endfor %}
+</select>

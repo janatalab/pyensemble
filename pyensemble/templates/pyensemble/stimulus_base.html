@@ -1,0 +1,85 @@
+{% extends "pyensemble/base.html" %}
+
+{% block header %}
+    <nav class="navbar navbar-expand-sm navbar-light fixed-top bg-light">
+        <a class="navbar-brand" href="{% url 'home' %}">PyEnsemble - Stimuli</a>
+        <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#stimulus-navbar" aria-expanded="false" aria-controls="stimulus-navbar">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="stimulus-navbar">
+            <ul class="navbar-nav mr-auto">
+                <li><a class="nav-link content-link" href="{% url 'stimulus-search' %}">Search Database</a></li>
+                <li><a class="nav-link content-link" href="{% url 'pyensemble-importers:import-stimulus-table' %}">Import Table</a></li>
+                <li><a class="nav-link content-link" href="{% url 'integrations:spotify_base' %}">Spotify</a></li>
+            </ul>
+            <ul class="navbar-nav ml-auto">
+                <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+            </ul>
+        </div>
+      </div>
+    </nav>
+{% endblock %}
+
+{% block appscript %}
+<script>
+    function harvestSearchValues(){
+        let search_values = {};
+
+        function get_dict(d){
+            let outdict = {};
+            let property = $(d).attr('name');
+            let val = $(d).val();   
+            outdict[property] = val;
+            return outdict         
+        }
+
+        let select_values = $("select.search-input").map(function(d,v){
+                return get_dict(v);
+            });
+
+        let input_values = $("input.search-input").map(function(d,v){
+                return get_dict(v);
+            });
+
+        for (i=0; i<select_values.length; i++){
+            let item = select_values[i];
+            search_values[Object.keys(item)[0]] = Object.values(item)[0];
+        }
+
+        for (i=0; i<input_values.length; i++){
+            let item = input_values[i];
+            search_values[Object.keys(item)[0]] = Object.values(item)[0];
+        }
+
+        return search_values
+    }
+
+    $(function (){
+        $("#searchButton").on('click', function(ev){
+            // ev.stopImmediatePropagation();
+            // ev.preventDefault();
+
+            // let target = $(".reporting-selector-form");
+
+            // Harvest our search parameters
+            data = harvestSearchValues();
+
+            $.ajax({
+                type: "GET",
+                url: "{% url 'stimulus-list'%}",
+                data: data,
+                success: function(data){
+                    document.open();
+                    document.write(data);
+                    document.close();
+                },
+                error: function(response,errorText){
+                    alert(response.responseText);
+                },
+            });
+        })
+    });
+</script>
+
+{% endblock %}

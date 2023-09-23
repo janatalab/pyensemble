@@ -4,13 +4,19 @@
 #
 import hashlib
 import json
+import urllib
+
+from django.conf import settings
 
 from django.db import models
-from django.urls import reverse
+
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 
+from django.contrib.sites.models import Site
+from django.urls import reverse
 from django.http import JsonResponse
+
 from django.core.serializers.json import DjangoJSONEncoder
 
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField, EncryptedDateField
@@ -19,9 +25,14 @@ from django.utils import timezone
 
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+try:
+    import zoneinfo
+except ImportError:
+    from backports import zoneinfo
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 from pyensemble import tasks
+
 
 import pdb
 
@@ -34,7 +45,16 @@ class Attribute(models.Model):
 
 class DataFormat(models.Model):
     df_type = models.CharField(max_length=15,default='enum')
-    enum_values = models.CharField(max_length=512, blank=True)
+    enum_values = models.CharField(max_length=512, null=True, blank=True, default=None)
+
+    # Mechanism for saving range information to be associated with a slider.
+    # The dictionary stored in the JSON field is expected to have the following key, value pairs:
+    # min: <float> - the minimum value of the range
+    # max: <float> - the maximum value of the range
+    # step: <float> - the step size for the slider
+    # anchors: {} - a dictionary in which the key specifies the numeric value at which a label should be centered, and the value is the text value to be displayed at that location
+    _range_hash = models.CharField(null=True, max_length=128, db_column='range_hash')
+    range_data = models.JSONField(null=True)
 
     class Meta:
         unique_together = (("df_type", "enum_values"),)
@@ -46,6 +66,23 @@ class DataFormat(models.Model):
             self._choice = self.df_type
 
         return self._choice
+
+    @property
+    def range_hash(self):
+        if self.range_data:
+            m = hashlib.md5()
+            range_data_str = json.dumps(self.range_data)
+            m.update(range_data_str.encode('utf-8'))
+            self._range_hash = m.hexdigest()
+        else:
+            self._range_hash = ''
+
+        return self._range_hash
+
+@receiver(pre_save, sender=DataFormat)
+def generate_range_hash(sender, instance, **kwargs):
+    instance.range_hash
+
 
 class Question(models.Model):
     _unique_hash = models.CharField(max_length=128, unique=True, db_column='unique_hash')
@@ -63,6 +100,7 @@ class Question(models.Model):
         ('text','text'),
         ('menu','menu'),
         ('numeric','numeric'),
+        ('slider','slider'),
     ]
 
     html_field_type = models.CharField(max_length=10, blank=False, choices=HTML_FIELD_TYPE_OPTIONS, default='radiogroup')
@@ -75,6 +113,9 @@ class Question(models.Model):
 
     # class Meta:
     #     unique_together = (("_unique_hash", "data_format"),)
+
+    def __str__(self):
+        return self.text
 
     def __unicode__(self):
         return self.text
@@ -130,15 +171,32 @@ class Experiment(models.Model):
 
     forms = models.ManyToManyField('Form', through='ExperimentXForm')
 
-    session_diagnostic_script = models.CharField(max_length=100, blank=True)
+    # Method for generating reporting data
+    session_reporting_script = models.CharField(max_length=100, blank=True)
 
+    # Method to be called (asynchronously) if the session has been completed
     post_session_callback = models.CharField(max_length=100, blank=True)
 
     def __str__(self):
         return self.title
 
-    def get_cache_key(self):
+    @property
+    def cache_key(self):
         return f'experiment_{self.id}'
+
+    # Method for determining loops in the experiment
+    def get_loop_info(self):
+        self._loop_info = []
+
+        # Get the forms that are the ends of loops
+        endloop_forms = self.experimentxform_set.exclude(goto__isnull=True)
+
+        # Extract start and stop values
+        start_stop_list = endloop_forms.values('goto','form_order')
+
+        self._loop_info = {d['goto']:d['form_order'] for d in start_stop_list}
+
+        return self._loop_info
 
 class Response(models.Model):
     date_time = models.DateTimeField(auto_now_add=True)
@@ -158,6 +216,7 @@ class Response(models.Model):
     response_order = models.PositiveSmallIntegerField(null=False,default=None)
     response_text = models.TextField(blank=True)
     response_enum = models.IntegerField(blank=True, null=True)
+    response_float = models.FloatField(null=True, blank=True)
     jspsych_data = models.TextField(blank=True) # field for storing data returned by jsPsych
     decline = models.BooleanField(default=False)
     misc_info = models.TextField(blank=True)
@@ -170,54 +229,95 @@ class Response(models.Model):
         else:
             return self.response_text
 
-class Session(models.Model):
-    date_time = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+
+class AbstractSession(models.Model):
+    class Meta:
+        abstract = True
+
+    # Which experiment is this session associated with
+    experiment = models.ForeignKey(Experiment, db_constraint=True, on_delete=models.CASCADE)
+
+    # When did this session start?
+    start_datetime = models.DateTimeField(blank=True, null=True, auto_now_add=True)
+
+    # When did this session end?
     end_datetime = models.DateTimeField(blank=True, null=True)
-    timezone = models.CharField(max_length=64, blank=True)
 
-    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
-    ticket = models.ForeignKey('Ticket', db_constraint=True, on_delete=models.CASCADE, related_name='+')
-    subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
-    age = models.PositiveSmallIntegerField(null=True)
-
-    expired = models.BooleanField(default=False, blank=True)
+    # User's timezone
+    timezone = models.CharField(max_length=64, blank=True, default=settings.TIME_ZONE)
 
     # Should this session be excluded from consideration in experiment-wide calculations
     exclude = models.BooleanField(default=False)
 
+    # Has the session been flagged as having expired
+    expired = models.BooleanField(default=False, blank=True)
+
     # If the participant is being referred from a source other than PyEnsemble, e.g. Prolific, have a field for storing the session identifier at the origin, if available and desired.
     origin_sessid = models.CharField(max_length=64, null=True, blank=True)
 
-    diagnostics_data = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
+    # Reporting data
+    reporting_data = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
 
+    # Has the post-session method associated with the experiment, if any, been executed
     executed_postsession_callback = models.BooleanField(default=False)
 
-    def save(self, *args, **kwargs):
-        if not self.age:
-            if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
-                self.age = relativedelta(datetime.now(),self.subject.dob).years
-            else:
-                self.age = None
+    # Conversion to local time of session
+    def localtime(self, time):
+        tz = settings.TIME_ZONE
+        
+        if self.timezone:
+            tz = self.timezone
 
-        super(Session,self).save(*args, **kwargs)
+        return timezone.localtime(time, zoneinfo.ZoneInfo(tz))
 
-    def diagnostics(self, *args, **kwargs):
-        if not self.experiment.session_diagnostic_script:
-            raise ValueError(f"No diagnostics script specified for {self.experiment.title}")
+    # Access start of session in local time
+    @property
+    def start(self):
+        self._start = None
 
-        # Check whether we have cached diagnostics data
+        if self.start_datetime:
+            self._start = self.localtime(self.start_datetime)
+
+        return self._start
+
+    # Access end of session in local time
+    @property
+    def end(self):
+        self._end = None
+
+        if self.end_datetime:
+            self._end = self.localtime(self.end_datetime)
+            
+        return self._end
+
+    '''
+    Method to run the reporting script, if any, that has been associated with the experiment. Note that this method does not return a view, but rather a data dictionary, encoded as JSON, that can be used in a view.
+
+    We may want to add a default reporting script that provides basic session statistics
+    '''
+
+    def reporting(self, *args, **kwargs):
+        # Get our reporting script
+        session_reporting_script = self.experiment.session_reporting_script
+
+        if not session_reporting_script:
+            # raise ValueError(f"No reporting script specified for {self.experiment.title}")
+            session_reporting_script = 'debug.reporting.default()'
+
+        # Check whether we want to use cached reporting data
         use_cached = kwargs.get('use_cached', False)
 
+        # Check whether we have cached reporting data
         data = {}
         if use_cached:
-            data = self.diagnostics_data
+            data = self.reporting_data
 
-        # Run the diagnostics if none are currently available
+        # Run the reporting if none are currently available
         if not data:
-            # Parse the specified diagnostics script call
-            funcdict = parse_function_spec(self.experiment.session_diagnostic_script)
+            # Parse the specified reporting script call
+            funcdict = parse_function_spec(session_reporting_script)
 
-            # Fetch the diagnostics method
+            # Fetch the reporting method
             method = fetch_experiment_method(funcdict['func_name'])
 
             # Execute the method
@@ -227,11 +327,14 @@ class Session(models.Model):
             data = json.loads(response.content)
 
             # Cache the data
-            self.diagnostics_data = data
+            self.reporting_data = data
             self.save()
 
         return JsonResponse(data)
 
+    '''
+    Method to execute an optional method, specified in the experiment, that runs asynchronously on completed sessions.
+    '''
     def run_post_session(self, *args, **kwargs):
         # Get our callback
         callback = self.experiment.post_session_callback
@@ -255,6 +358,25 @@ class Session(models.Model):
         return response
 
 
+class Session(AbstractSession):
+    # The participant associated with this session
+    subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
+
+    # The ticket used to access this session
+    ticket = models.ForeignKey('Ticket', db_constraint=True, on_delete=models.CASCADE, related_name='+')
+
+    # Participant's age at the time of the session
+    age = models.PositiveSmallIntegerField(null=True)
+
+    def calc_age(self, *args, **kwargs):
+        # Calculate the participant's age the first time the save method is called
+        if not self.age:
+            if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
+                self.age = relativedelta(datetime.now(), self.subject.dob).years
+                self.save()
+
+        return self.age
+
 class Stimulus(models.Model):
     name = models.CharField(max_length=200)
     description = models.CharField(max_length=30)
@@ -272,7 +394,8 @@ class Stimulus(models.Model):
     channels = models.IntegerField(blank=True, null=True)
     width = models.IntegerField(blank=True, null=True)
     height = models.IntegerField(blank=True, null=True)
-    location = models.FileField()
+    location = models.FileField(max_length=512, blank=True)
+    url = models.URLField(max_length=512, blank=True)
 
     attributes = models.ManyToManyField('Attribute', through='StimulusXAttribute')
 
@@ -355,15 +478,64 @@ class Ticket(models.Model):
     experimenter_code = models.CharField(max_length=4, blank=True, default='')
 
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+
     type = models.CharField(
         max_length=6,
         choices=TICKET_TYPE_CHOICES,
         default='master',
         )
+
     used = models.BooleanField(default=False)
+
+    validfrom_datetime = models.DateTimeField(blank=True, null=True)
     expiration_datetime = models.DateTimeField(blank=True, null=True)
+    timezone = models.CharField(max_length=64, blank=True, default=settings.TIME_ZONE)
 
     subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
+
+    @property
+    def url(self):
+        if not getattr(self,'_url', None):
+            path = reverse('run_experiment', args=(self.experiment.pk,))
+            path += '?' + urllib.parse.urlencode({'tc':self.ticket_code})
+
+            domain = Site.objects.get_current().domain
+
+            if settings.PORT:
+                # Used in debugging using runsslserver
+                url = f"{domain}{settings.PORT}{path}"
+            else:
+                # Used in production
+                url = f"{domain}/{settings.INSTANCE_LABEL}{path}"
+
+            # Remove any double forward slash
+            url = url.replace('//','/')
+
+            self._url = f"https://{url}"
+
+        return self._url
+
+    def localtime(self, time):
+        tz = settings.TIME_ZONE
+
+        if self.timezone:
+            tz = self.timezone
+
+        return timezone.localtime(time, zoneinfo.ZoneInfo(tz))
+
+    @property
+    def start(self):
+        self._start = None
+        if self.validfrom_datetime:
+            self._start = self.localtime(self.validfrom_datetime)
+        return self._start
+
+    @property
+    def end(self):
+        self._end = None
+        if self.expiration_datetime:
+            self._end = self.localtime(self.expiration_datetime)
+        return self._end
 
     @property
     def expired(self):
@@ -464,14 +636,35 @@ class ExperimentXForm(models.Model):
     ]
 
     form_handler = models.CharField(max_length=50, blank=True, choices=FORM_HANDLER_OPTIONS, default='form_generic')
+
     goto = models.IntegerField(blank=True, null=True)
     repeat = models.IntegerField(blank=True, null=True)
+
+    # Not-fully-debugged vestige of original Ensemble implementation of how conditional form execution was specified. 
     condition = models.TextField(blank=True)
+
+    '''
+    Path to an optional method within a module located under experiments that is evaluated to determine whether this form should be served to the participant
+    '''
     condition_script = models.CharField(max_length=100, blank=True)
+
+    '''
+    Path to an optional method with a module located under experiments that is evaluated in order to obtain a stimulus identifier, a JSPsych timeline, or any other data that is needed for running the trial associated with the form
+    '''
     stimulus_script = models.CharField(max_length=100, blank=True)
+
+    '''
+    Path to an optional method within a module located under experiments that is evaluated to determine whether the participant's response should be accepted and recorded to the Response table. This method can be used to trap inadvertent double submissions. The executed method should return True if the response is to be recorded.
+    '''
+    record_response_script = models.CharField(max_length=100, blank=True)
+
     break_loop_button = models.BooleanField(default=False)
     break_loop_button_text = models.CharField(max_length=50, blank=True)
     continue_button_text = models.CharField(max_length=50, blank=True, default='Next')
+
+    '''
+    Should forms be validated in the client rather than with the Django form-validators. Client-side validation is currently used only to validate completion of required fields, not correct data types.
+    '''
     use_clientside_validation = models.BooleanField(default=False)
 
     class Meta:
@@ -529,8 +722,7 @@ class ExperimentXForm(models.Model):
     def conditions_met(self, request):
         met_conditions = True
 
-        expsess_key = 'experiment_%d'%(self.experiment.id,)
-        expsessinfo = request.session.get(expsess_key,None)
+        expsessinfo = request.session.get(self.experiment.cache_key, None)
 
         #
         # First check for conditions specified within the database
@@ -595,8 +787,6 @@ class ExperimentXForm(models.Model):
         # Now check whether there is any condition-checking script that we need to run
         #
         if met_conditions and self.condition_script:
-            from pyensemble import experiments
-
             # Parse the function call specification
             funcdict = parse_function_spec(self.condition_script)
 
@@ -608,22 +798,86 @@ class ExperimentXForm(models.Model):
             # Pass along our session_id
             funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
 
+            # Fetch our callable method
             method = fetch_experiment_method(funcdict['func_name'])
 
             # Call the select function with the parameters to get the trial specification
-            met_conditions = method(request, *funcdict['args'],**funcdict['kwargs'])
+            met_conditions = method(request, *funcdict['args'], **funcdict['kwargs'])
 
         return met_conditions
+
+
+    def record_response(self, request):
+        self._record_response = True
+
+        if self.record_response_script:
+            expsessinfo = request.session.get(self.experiment.cache_key, None)
+
+            # Parse the function call specification
+            funcdict = parse_function_spec(self.record_response_script)
+
+            # Pass along our session_id
+            funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})
+
+            # Fetch our callable method
+            method = fetch_experiment_method(funcdict['func_name'])
+
+            # Call the select function with the parameters to get the trial specification
+            self._record_response = method(request, *funcdict['args'], **funcdict['kwargs'])
+
+        return self._record_response
+
+    # Method to determine whether we are in a loop
+    def in_loop(self, request):
+        self._in_loop = False
+
+        if self.last_in_loop(request):
+            self._in_loop = True
+
+        return self._in_loop
+
+    # Method to return the last form in the loop we are in, if in a loop
+    def last_in_loop(self, request):
+        self._last_in_loop = None
+
+        expsessinfo = request.session.get(self.experiment.cache_key, None)
+
+        # Get the form we are on 
+        currform_idx = expsessinfo['curr_form_idx']
+
+        # Get all loops that begin on a form with a lesser form index
+        possible_loop_starts = []
+
+        first_last_in_loop = self.experiment.get_loop_info()
+        for start_idx in first_last_in_loop.keys():
+            if start_idx <= currform_idx+1:
+                possible_loop_starts.append(start_idx)
+
+        if possible_loop_starts:
+            # Get the start of the loop we are in. Nested loops are not supported!
+            loop_start = max(possible_loop_starts)
+
+            # Get the last form index of our loop
+            last_in_loop = first_last_in_loop[loop_start]
+
+            # If our form index is less than or equal to the last one, we are in the loop
+            if currform_idx+1 <= last_in_loop:
+                self._last_in_loop = last_in_loop
+
+        return self._last_in_loop
 
     def next_form_idx(self, request):
         next_form_idx = None
         experiment_id = self.experiment.id
 
-        expsess_key = f'experiment_{experiment_id}'
-        expsessinfo = request.session[expsess_key]
+        # Get our experiment session info
+        expsessinfo = request.session.get(self.experiment.cache_key, None)
+
+        # Get our session object
+        session = Session.objects.get(pk=expsessinfo['session_id'])
 
         # Get our form stack - should be a better way to do this relative to self
-        exf = ExperimentXForm.objects.filter(experiment=experiment_id).order_by('form_order')
+        exf = self.experiment.experimentxform_set.order_by('form_order')
 
         # Get our current form
         form_idx = expsessinfo['curr_form_idx']
@@ -634,10 +888,31 @@ class ExperimentXForm(models.Model):
         # Fetch our variables that control looping
         num_repeats = self.repeat
         goto_form_idx = self.goto 
-        num_visits = expsessinfo['visit_count'][form_idx]
+        if form_idx in expsessinfo['visit_count'].keys():
+            num_visits = expsessinfo['visit_count'][form_idx]
+        else:
+            num_visits = 0
+
+        # Check whether an EXIT_LOOP flag has been set in a group session
+        if hasattr(session, 'groupsessionsubjectsession'):
+            gsss = session.groupsessionsubjectsession
+
+            if gsss.state == gsss.States.EXIT_LOOP:
+                # Clear our state
+                gsss.state = gsss.States.UNKNOWN
+                gsss.save()
+
+                # Check whether we are in a loop and get the idx of the last form if we are
+                last_in_loop = self.last_in_loop(request)
+
+                if last_in_loop:
+                    # Move to form after end of loop. Remember that curr_form_idx is the actual 1-indexed form_idx-1
+                    expsessinfo['curr_form_idx'] = last_in_loop
+                    return expsessinfo['curr_form_idx']
 
         # See whether a break loop flag was set
         if currform.break_loop_button and currform.break_loop_button_text == request.POST['submit']:
+
             # If the user chose to exit the loop
             expsessinfo['curr_form_idx'] += 1
 
@@ -651,7 +926,7 @@ class ExperimentXForm(models.Model):
             expsessinfo['curr_form_idx'] = goto_form_idx-1
 
             # Set our looping info
-            expsessinfo['last_in_loop'][goto_form_idx-1] = form_idx
+            # expsessinfo['first_last_in_loop'][goto_form_idx-1] = form_idx
 
         elif form_idx == exf.count():
             expsessinfo['finished'] = True
@@ -682,6 +957,10 @@ class Study(models.Model):
     def __str__(self):
         return self.title
 
+    @property
+    def num_experiments(self):
+        return StudyXExperiment.objects.filter(study=self).count()
+
 
 class StudyXExperiment(models.Model):
     study = models.ForeignKey('Study', db_constraint=True, on_delete=models.CASCADE)
@@ -693,6 +972,30 @@ class StudyXExperiment(models.Model):
 
     def __str__(self):
         return self.experiment.title
+
+    # Method to return the previous experiment in the series
+    def prev(self):
+        experiment = None
+
+        if self.experiment_order > 1:
+            experiment = StudyXExperiment.objects.get(
+                study=self.study,
+                experiment_order=self.experiment_order-1
+                )
+
+        return experiment     
+
+    # Method to return the next experiment in the series
+    def next(self):
+        experiment = None
+
+        if self.experiment_order < self.study.num_experiments:
+            experiment = StudyXExperiment.objects.get(
+                study=self.study,
+                experiment_order=self.experiment_order+1
+                )
+
+        return experiment
 
 # One of the needs associated with studies is to send various notifications with reminders or links pertaining to their participation. It would be nice for this to be automated rather than managed manually. 
 # Necessary tasks include:
@@ -707,7 +1010,6 @@ class StudyXExperiment(models.Model):
 # Note that all times are stored in UTC. It is up to the scheduler in an experiment-specific callback to work out the appropriate timezone offset.
 
 class Notification(models.Model):
-    subject = models.ForeignKey('Subject', db_constraint=True, on_delete=models.CASCADE)
     created = models.DateTimeField(
         auto_now_add=True,
         blank=False,
@@ -728,17 +1030,31 @@ class Notification(models.Model):
     template = models.CharField(max_length=100, blank=False)
     context = models.JSONField(null=False)
 
-    # Experiment associated with this notification
+    # The participant associated with this notification
+    subject = models.ForeignKey('Subject', db_constraint=True, on_delete=models.CASCADE)
+
+    # Experiment that was the basis for this notification
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE, null=True)
 
-    # Session associated with this notification
+    # Session that was the basis this notification
     session = models.ForeignKey('Session', db_constraint=True, on_delete=models.CASCADE, null=True)
 
+    # Optional ticket that we want to associate with this notification
+    ticket = models.ForeignKey('Ticket', null=True, db_constraint=True, on_delete=models.CASCADE)
+
     def dispatch(self):
+        # Create the context that we send to the template
         context = {}
 
-        # Create the context that we send to the template
-        context.update({'subject': self.subject})
+        # First, add our desired model fields
+        context.update({
+            'subject': self.subject,
+            'experiment': self.experiment,
+            'session': self.session,
+            'ticket': self.ticket,
+        })
+
+        # Now add the context stored in a JSON field
         context.update(self.context)
 
         # Call the email-generating function
@@ -748,3 +1064,34 @@ class Notification(models.Model):
         # This should be made more robust in terms of verifying that the send_mail function actually sent the email
         self.sent = timezone.now()
         self.save()
+
+
+def session_filepath(instance, filename):
+    return os.path.join('experiment', instance.session.experiment.title, 'session', str(instance.session.id), filename)
+
+
+class SessionFile(models.Model):
+    session = models.ForeignKey('Session', db_constraint=True, on_delete=models.CASCADE)
+    file = models.FileField(upload_to=session_filepath, max_length=512)
+
+    class Meta:
+        unique_together = (("session","file"),)
+
+
+class SessionFileAttribute(models.Model):
+    unique_hash = models.CharField(max_length=32, unique=True)
+
+    file = models.ForeignKey('SessionFile', db_constraint=True, on_delete=models.CASCADE)
+    attribute = models.ForeignKey('pyensemble.Attribute', db_constraint=True, on_delete=models.CASCADE)
+
+    attribute_value_double = models.FloatField(blank=True, null=True)
+    attribute_value_text = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        m = hashlib.md5()
+        m.update(self.file.encode('utf-8'))
+        m.update(self.attribute.name.encode('utf-8'))
+        m.update(str(self.attribute_value_double).encode('utf-8'))
+        m.update(self.attribute_value_text.encode('utf-8'))
+        self.unique_hash = m.hexdigest()
+        super(SessionFileAttribute, self).save(*args, **kwargs)

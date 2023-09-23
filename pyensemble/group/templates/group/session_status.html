@@ -62,6 +62,7 @@
         </div>
         <div class="row justify-content-around my-3">
             <a class="btn btn-primary" href="{% url 'pyensemble-group:groupsession_status' %}">Update</a>
+            <a id="exitLoopButton" class="btn btn-warning" href="{% url 'pyensemble-group:exit_loop' %}">Exit Loop</a>
             <a class="btn btn-danger" href="{% url 'pyensemble-group:abort_groupsession' %}">Abort</a>
             <a class="btn btn-success" href="{% url 'pyensemble-group:end_groupsession' %}">End</a>
         </div>
@@ -87,7 +88,9 @@
                                 <div class="card-body">
                                     {{gsss.user_session.subject.name_first}} {{gsss.user_session.subject.name_last}} 
                                </div>
-                               <div class="card-body text-secondary">Most recent form:<br>    {{gsss.user_session.response_set.last.form.name}}
+                               <div class="card-body text-secondary">Most recent form:
+                                <br>{{gsss.user_session.response_set.last.form.name}}
+                                <br>Response order: {{gsss.user_session.response_set.last.response_order}}
                                </div>
                             </div>
                             <div class="card-body">
@@ -129,7 +132,7 @@
                     let target = $("#session-notes-form");
 
                     submit_form(target);
-                })
+                });
             });
         });
 

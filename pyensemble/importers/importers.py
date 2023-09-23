@@ -7,20 +7,10 @@ from django.shortcuts import render
 from pyensemble.models import Experiment, Form, Question, ExperimentXForm, FormXQuestion, DataFormat
 
 from .forms import ImportForm
+from pyensemble.importers import tasks
 
 import pdb
 
-def clean_string(item):
-    return item if item else ''
-
-def clean_boolean(item):
-    if item=='T':
-        value = True
-    elif item=='F':
-        value=False
-    else:
-        value=None
-    return value
 
 def import_experiment_structure(request):
     # This method imports legacy Ensemble experiments for which information is exported using the following query.
@@ -152,26 +142,26 @@ def import_experiment_structure(request):
 
                     experiment, created = Experiment.objects.get_or_create(
                         title=row['experiment_title'],
-                        description=clean_string(row['experiment_description']),
+                        description=tasks.clean_string(row['experiment_description']),
                         start_date=row['start_date'],
                         end_date=row['end_date'],
-                        irb_id=clean_string(row['irb_id']),
-                        language=clean_string(row['language']),
-                        params=clean_string(row['params']),
-                        locked=clean_boolean(row['experiment_locked']),
+                        irb_id=tasks.clean_string(row['irb_id']),
+                        language=tasks.clean_string(row['language']),
+                        params=tasks.clean_string(row['params']),
+                        locked=tasks.clean_boolean(row['experiment_locked']),
                         )
 
                     # Get or create our Form instance
                     form, created = Form.objects.get_or_create(
                         name=row['form_name'],
-                        category=clean_string(row['form_category']),
-                        header=clean_string(row['header']),
-                        footer=clean_string(row['footer']),
-                        header_audio_path=clean_string(row['header_audio_path']),
-                        footer_audio_path=clean_string(row['footer_audio_path']),
+                        category=tasks.clean_string(row['form_category']),
+                        header=tasks.clean_string(row['header']),
+                        footer=tasks.clean_string(row['footer']),
+                        header_audio_path=tasks.clean_string(row['header_audio_path']),
+                        footer_audio_path=tasks.clean_string(row['footer_audio_path']),
                         version=row['version'],
-                        locked=clean_boolean(row['form_locked']),
-                        visit_once=clean_boolean(row['visit_once']),
+                        locked=tasks.clean_boolean(row['form_locked']),
+                        visit_once=tasks.clean_boolean(row['visit_once']),
                         )
 
                     # Create the Experiment X Form entry
@@ -182,9 +172,9 @@ def import_experiment_structure(request):
                         form_handler=row['form_handler'],
                         goto=row['goto'],
                         repeat=row['repeat'],
-                        condition=clean_string(row['condition']),
-                        condition_script=clean_string(row['condition_matlab']),
-                        stimulus_script=clean_string(row['stimulus_matlab']),
+                        condition=tasks.clean_string(row['condition']),
+                        condition_script=tasks.clean_string(row['condition_matlab']),
+                        stimulus_script=tasks.clean_string(row['stimulus_matlab']),
                         )
 
                     # Make sure we actually have a question in order to try to create entries
@@ -194,7 +184,7 @@ def import_experiment_structure(request):
                     # Create our DataFormat entry since we need to insert this into our question
                     data_format, created = DataFormat.objects.get_or_create(
                         df_type=row['type'],
-                        enum_values=clean_string(row['enum_values']),
+                        enum_values=tasks.clean_string(row['enum_values']),
                         )
 
                     # Create the Question entry
@@ -202,23 +192,23 @@ def import_experiment_structure(request):
                     try:
                         question = Question.objects.get(
                             text=row['question_text'],
-                            category=clean_string(row['question_category']),
-                            locked=clean_boolean(row['question_locked']),
-                            value_range=clean_string(row['range']),
-                            value_default=clean_string(row['default']),
-                            html_field_type=clean_string(row['html_field_type']),
-                            audio_path=clean_string(row['audio_path']),
+                            category=tasks.clean_string(row['question_category']),
+                            locked=tasks.clean_boolean(row['question_locked']),
+                            value_range=tasks.clean_string(row['range']),
+                            value_default=tasks.clean_string(row['default']),
+                            html_field_type=tasks.clean_string(row['html_field_type']),
+                            audio_path=tasks.clean_string(row['audio_path']),
                             data_format=data_format,
                             )
 
                     except:
                         question = Question(text=row['question_text'],
-                            category=clean_string(row['question_category']),
-                            locked=clean_boolean(row['question_locked']),
-                            value_range=clean_string(row['range']),
-                            value_default=clean_string(row['default']),
-                            html_field_type=clean_string(row['html_field_type']),
-                            audio_path=clean_string(row['audio_path']),
+                            category=tasks.clean_string(row['question_category']),
+                            locked=tasks.clean_boolean(row['question_locked']),
+                            value_range=tasks.clean_string(row['range']),
+                            value_default=tasks.clean_string(row['default']),
+                            html_field_type=tasks.clean_string(row['html_field_type']),
+                            audio_path=tasks.clean_string(row['audio_path']),
                             data_format=data_format,)
 
                         # Generate the question's hash
@@ -233,7 +223,7 @@ def import_experiment_structure(request):
                         question=question,
                         form_question_num=row['form_question_num'],
                         question_iteration=row['question_iteration'],
-                        required=clean_boolean(row['required']),
+                        required=tasks.clean_boolean(row['required']),
                         )
 
             else:
@@ -247,3 +237,27 @@ def import_experiment_structure(request):
     context = {'form': form}
 
     return render(request, template, context)
+
+
+def import_stimulus_table(request):
+    template = 'pyensemble/importers/import_stimuli.html'
+
+    if request.method == 'POST':
+        form = ImportForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            result = tasks.process_stimulus_table(form.cleaned_data)
+
+            context = {
+                'result': result,
+            }
+
+            return render(request, 'pyensemble/importers/import_results.html', context)
+    else:
+        form = ImportForm()
+
+    context = {'form': form}
+
+    return render(request, template, context)
+
+
