@@ -48,70 +48,13 @@ def index(request, *args, **kwargs):
 
 
 @login_required
-def study(request, *args, **kwargs):
-    if request.method == 'POST':
-        form = forms.StudySelectForm(request.POST)
-
-        if form.is_valid():
-            # Get the study
-            study = Study.objects.get(title=form.cleaned_data['study'])
-
-            # Get the study data
-            data = get_study_data(study, **kwargs)
-
-            return JsonResponse(data)
-
-    else:
-        form = forms.StudySelectForm()
-
-    context = {
-        'form': form,
-    }
-
-    template = os.path.join(template_base, "study.html")
-    return render(request, template, context)
-
-
-@login_required
-def experiment(request, *args, **kwargs):
-    if request.method == 'POST':
-        form = forms.ExperimentSelectForm(request.POST)
-
-        if form.is_valid():
-            title = form.cleaned_data['experiment']
-
-            # Get the experiment
-            experiment = Experiment.objects.get(title=title)
-
-            # Get the experiment data
-            kwargs.update({'package': True})
-            data = get_experiment_data(experiment, **kwargs)
-
-            return JsonResponse(data)
-    else:
-        filters = {
-            # 'exclude': {'session_reporting_script':''},
-            'exclude': {},
-            'filter': {}
-        }
-        form = forms.ExperimentSelectForm(**filters)
-
-    context = {
-        'form': form,
-    }
-
-    template = os.path.join(template_base, "experiment.html")
-    return render(request, template, context)
-
-
-@login_required
 def study_summary(request, *args, **kwargs):
-    pass
+    return HttpResponse("Functionality not yet enabled ...", status=500)
 
 
 @login_required
 def experiment_summary(request, *args, **kwargs):
-    pass
+    return HttpResponse("Functionality not yet enabled ...", status=500)
 
 
 @login_required

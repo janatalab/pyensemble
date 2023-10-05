@@ -426,7 +426,7 @@ window.PyEnsemble.reporting = (function(){
                             let class_str = "align-middle";
 
                             if (i) {
-                                return parseColumnTuple(d.key).reduce((outstr,d) => class_str + " " + d);
+                                return parseColumnTuple(d.key).reduce((outstr,d) => class_str + " " + outstr + " " + d);
                             } else {
                                 return class_str + " text-primary freeze-pane index";
                             }
@@ -461,6 +461,7 @@ window.PyEnsemble.reporting = (function(){
 
         // Attach callbacks
         $(".session.exclude-session-btn").on("click", excludeSession);
+        $(".variable-input").on("change", updateStatsHighlighting);
         $(".attach-file-btn").on("click", function(){
             // Set the session ID on the modal
             document.querySelector(this.dataset.target).dataset.session = this.dataset.session;
