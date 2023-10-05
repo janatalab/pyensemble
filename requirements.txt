@@ -61,7 +61,7 @@ stack-data==0.6.2
 supervisor==4.2.5
 traitlets==5.10.0
 typing_extensions==4.1.1
-urllib3==1.26.15
+urllib3==1.26.17
 vine==5.0.0
 wcwidth==0.2.6
 zipp==3.6.0
