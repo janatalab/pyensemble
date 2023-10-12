@@ -11,6 +11,7 @@ except ImportError:
     from backports import zoneinfo
 
 from pyensemble.models import AbstractSession
+from pyensemble.storage_backends import S3DataStorage
 
 import polling2
 
@@ -172,7 +173,7 @@ def groupsession_filepath(instance, filename):
 
 class GroupSessionFile(models.Model):
     groupsession = models.ForeignKey('GroupSession', db_constraint=True, on_delete=models.CASCADE)
-    file = models.FileField(upload_to=groupsession_filepath, max_length=512)
+    file = models.FileField(storage=S3DataStorage, upload_to=groupsession_filepath, max_length=512)
 
     class Meta:
         unique_together = (("groupsession","file"),)
