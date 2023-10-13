@@ -91,3 +91,4 @@ def get_subject_data(session, *args, **kwargs):
         subject_data['last_response'] = None
 
     return subject_data
+

@@ -4,6 +4,8 @@ import json
 import pandas as pd
 import numpy as np
 
+from collections import Counter
+
 from django.contrib.auth.decorators import login_required
 
 from django.db.models import Max
@@ -54,7 +56,22 @@ def study_summary(request, *args, **kwargs):
 
 @login_required
 def experiment_summary(request, *args, **kwargs):
-    return HttpResponse("Functionality not yet enabled ...", status=500)
+    # Need to settle on a strategy for returning summary information. Either it can be in a form that is rendered in JavaScript in the browser, or it could be run through a Django template and returned as HTML and inserted into the summary section. I think the latter approach affords more flexibility.
+
+    # Extract our experiment ID
+    experiment_id = request.GET['experiment']
+
+    experiment = Experiment.objects.get(pk=experiment_id)
+
+    if experiment.is_group:
+        summary = group_experiment_summary(experiment, *args, **kwargs)
+
+    context = {
+        'experiment': experiment,
+        'summary': summary,
+    }
+
+    return render(request, os.path.join(template_base, "experiment_summary.html"), context)
 
 
 @login_required
@@ -403,3 +420,20 @@ def experiment_sessions(request):
     return JsonResponse(experiment_data)
 
 
+def group_experiment_summary(experiment, *args, **kwargs):
+    summary_data = {}
+
+    pdb.set_trace()
+
+    # Get our non-excluded group sessions
+    groupsessions = experiment.groupsession_set.filter(exclude=False)
+
+    summary_data['num_sessions'] = groupsessions.count()
+
+    # Get a list with the number of subjects per session
+    num_subs_in_session = [g.num_subject_sessions for g in groupsessions]
+
+    summary_data['groups_of_size_n'] = Counter(num_subs_in_session)
+    
+
+    return JsonResponse(summary_data)
