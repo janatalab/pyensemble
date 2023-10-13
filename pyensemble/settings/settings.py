@@ -189,15 +189,23 @@ if 'aws' in config.sections():
 
     AWS_ACCESS_KEY_ID = aws_params['s3_client_id']
     AWS_SECRET_ACCESS_KEY = aws_params['s3_client_secret']
+
     AWS_STORAGE_BUCKET_NAME = aws_params['s3_static_bucket_name']
-    AWS_S3_CUSTOM_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
+    AWS_S3_CUSTOM_STATIC_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
     AWS_S3_OBJECT_PARAMETERS = {}
+
     AWS_LOCATION = INSTANCE_LABEL
 
-    STATIC_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_DOMAIN, AWS_LOCATION)
+    STATIC_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_STATIC_DOMAIN, AWS_LOCATION)
     STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
+
     AWS_MEDIA_STORAGE_BUCKET_NAME = aws_params['s3_media_bucket_name']
+    AWS_S3_CUSTOM_MEDIA_DOMAIN = '%s.s3.amazonaws.com' % AWS_MEDIA_STORAGE_BUCKET_NAME
+
+    MEDIA_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_MEDIA_DOMAIN, AWS_LOCATION)
+    DEFAULT_FILE_STORAGE = 'pyensemble.storage_backends.S3MediaStorage'
+
     AWS_DATA_STORAGE_BUCKET_NAME = aws_params['s3_data_bucket_name']
 
 else:
