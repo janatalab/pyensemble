@@ -881,6 +881,8 @@ class ExperimentXForm(models.Model):
 
         # Get our current form
         form_idx = expsessinfo['curr_form_idx']
+        form_idx_str = str(form_idx)
+
         currform = exf[form_idx]
 
         check_conditional = True
@@ -888,8 +890,8 @@ class ExperimentXForm(models.Model):
         # Fetch our variables that control looping
         num_repeats = self.repeat
         goto_form_idx = self.goto 
-        if form_idx in expsessinfo['visit_count'].keys():
-            num_visits = expsessinfo['visit_count'][form_idx]
+        if form_idx_str in expsessinfo['visit_count'].keys():
+            num_visits = expsessinfo['visit_count'][form_idx_str]
         else:
             num_visits = 0
 
@@ -916,7 +918,7 @@ class ExperimentXForm(models.Model):
             # If the user chose to exit the loop
             expsessinfo['curr_form_idx'] += 1
 
-        elif num_repeats and num_visits == num_repeats:
+        elif num_repeats and num_visits >= num_repeats:
             # If the repeat value is set and we have visited it this number of times, then move on
             expsessinfo['curr_form_idx'] +=1
 
@@ -924,9 +926,6 @@ class ExperimentXForm(models.Model):
             # If a goto form was specified
             # stored 1-indexed in database
             expsessinfo['curr_form_idx'] = goto_form_idx-1
-
-            # Set our looping info
-            # expsessinfo['first_last_in_loop'][goto_form_idx-1] = form_idx
 
         elif form_idx == exf.count():
             expsessinfo['finished'] = True
