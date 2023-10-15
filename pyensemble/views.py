@@ -557,6 +557,7 @@ def serve_form(request, experiment_id=None):
 
     # Get the index of the form we're on
     form_idx = expsessinfo['curr_form_idx']
+    form_idx_str = str(form_idx)
 
     # Update our first form flag
     context.update({'first_form': expsessinfo['first_form']})
@@ -691,9 +692,9 @@ def serve_form(request, experiment_id=None):
                         })
 
                 # Update our visit count
-                num_visits = expsessinfo['visit_count'].get(form_idx,0)
+                num_visits = expsessinfo['visit_count'].get(form_idx_str,0)
                 num_visits +=1
-                expsessinfo['visit_count'][form_idx] = num_visits
+                expsessinfo['visit_count'][form_idx_str] = num_visits
 
                 # Determine our next form index
                 expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
@@ -793,9 +794,9 @@ def serve_form(request, experiment_id=None):
                     set_groupuser_state(request,'UNKNOWN')
 
             # Update our visit count for this form
-            num_visits = expsessinfo['visit_count'].get(form_idx,0)
+            num_visits = expsessinfo['visit_count'].get(form_idx_str,0)
             num_visits +=1
-            expsessinfo['visit_count'][form_idx] = num_visits
+            expsessinfo['visit_count'][form_idx_str] = num_visits
 
             # Determine our next form index
             expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
