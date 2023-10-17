@@ -67,6 +67,9 @@ def process_stimulus_table(data):
         # Get the column headers
         columns = next(reader)
 
+        # Strip leading and trailing whitespace from column names
+        columns = [c.strip() for c in columns]
+
         # NOTE: Microsoft Excel might preprend junk to the first column name when saving out to a .csv file, which will prevent the information from the column being written to the stimulus table. If exporting from Excel to a .csv file, open the .csv file in a basic text editor and save it out again to get rid of the hidden characters.
 
         # Verify that we have location and name columns

@@ -26,6 +26,9 @@ INSTANCE_LABEL = 'pyensemble/'
 # Specify the path to password and settings files
 PASS_DIR = os.path.dirname(os.path.join('/var/www/private', INSTANCE_LABEL))
 
+# For development purposes, utilize pyensemble.settings.local
+# PASS_DIR = os.path.join(BASE_DIR, 'pyensemble/settings/local')
+
 # Specify the directory where experiments will be located
 EXPERIMENT_DIR = os.path.join(BASE_DIR,'pyensemble/experiments')
 
@@ -53,6 +56,7 @@ INSTALLED_APPS = [
     'encrypted_model_fields',
     'captcha',
     'crispy_forms',
+    'storages',
     'pyensemble',
     'pyensemble.group',
     'pyensemble.integrations',
@@ -177,16 +181,47 @@ USE_L10N = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
+
+
+# AWS related stuff
+USE_AWS_STORAGE = False
+if 'aws' in config.sections():
+    aws_params = config['aws']
+
+    USE_AWS_STORAGE = True
+
+    AWS_ACCESS_KEY_ID = aws_params['s3_client_id']
+    AWS_SECRET_ACCESS_KEY = aws_params['s3_client_secret']
+
+    AWS_STORAGE_BUCKET_NAME = aws_params['s3_static_bucket_name']
+    AWS_S3_CUSTOM_STATIC_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
+    AWS_S3_OBJECT_PARAMETERS = {}
+
+    AWS_LOCATION = INSTANCE_LABEL
+
+    STATIC_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_STATIC_DOMAIN, AWS_LOCATION)
+    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+
+    AWS_MEDIA_STORAGE_BUCKET_NAME = aws_params['s3_media_bucket_name']
+    AWS_S3_CUSTOM_MEDIA_DOMAIN = '%s.s3.amazonaws.com' % AWS_MEDIA_STORAGE_BUCKET_NAME
+
+    # MEDIA_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_MEDIA_DOMAIN, AWS_LOCATION)
+    # DEFAULT_FILE_STORAGE = 'pyensemble.storage_backends.S3MediaStorage'
+
+    AWS_DATA_STORAGE_BUCKET_NAME = aws_params['s3_data_bucket_name']
+
+else:
+    STATIC_ROOT = os.path.join('/var/www/html/static/', INSTANCE_LABEL)
+    STATIC_URL = '/static/'+INSTANCE_LABEL
+
+    MEDIA_ROOT = config['django']['media_root']
+    MEDIA_URL = config['django']['media_url']
+
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "thirdparty/"),
 ]
 
-
-STATIC_ROOT = os.path.join('/var/www/html/static/', INSTANCE_LABEL)
-STATIC_URL = '/static/'+INSTANCE_LABEL
-
-MEDIA_ROOT = config['django']['media_root']
-MEDIA_URL = config['django']['media_url']
 
 # SITE stuff
 SITE_ID = 1
@@ -212,6 +247,7 @@ if 'email' in config.sections():
     EMAIL_USE_TLS = email_params['use_tls']
     DEFAULT_FROM_EMAIL = email_params['default_from_email']
     SERVER_EMAIL = EMAIL_HOST_USER
+
 
 # Logging
 
