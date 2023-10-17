@@ -31,7 +31,9 @@ except ImportError:
     from backports import zoneinfo
 
 from django.core.files.storage import FileSystemStorage
-from pyensemble.storage_backends import S3MediaStorage
+
+if settings.USE_AWS_STORAGE:
+    from pyensemble.storage_backends import S3MediaStorage
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 from pyensemble import tasks
