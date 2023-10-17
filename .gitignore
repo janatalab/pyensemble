@@ -119,6 +119,7 @@ FLUSH
 
 # debug logs
 django-debug.txt
+log/
 
 # node modules
 node_modules/
@@ -131,7 +132,7 @@ python/src
 thirdparty/
 
 # experiment directories
-pyensemble/experiments/*/
+pyensemble/experiments/*
 
 # Dev settings
 settings/*dev*.py
