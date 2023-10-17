@@ -27,7 +27,7 @@ INSTANCE_LABEL = 'pyensemble/'
 PASS_DIR = os.path.dirname(os.path.join('/var/www/private', INSTANCE_LABEL))
 
 # For development purposes, utilize pyensemble.settings.local
-PASS_DIR = os.path.join(BASE_DIR, 'pyensemble/settings/local')
+# PASS_DIR = os.path.join(BASE_DIR, 'pyensemble/settings/local')
 
 # Specify the directory where experiments will be located
 EXPERIMENT_DIR = os.path.join(BASE_DIR,'pyensemble/experiments')
