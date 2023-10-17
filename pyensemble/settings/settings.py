@@ -21,7 +21,7 @@ DEBUG = False
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # What is our label for this particular installation of PyEnsemble. This is what helps to distinguish multiple PyEnsemble instances on a single server from each other. Make sure to use a trailing slash.
-INSTANCE_LABEL = 'gem/'
+INSTANCE_LABEL = 'pyensemble/'
 
 # Specify the path to password and settings files
 PASS_DIR = os.path.dirname(os.path.join('/var/www/private', INSTANCE_LABEL))
@@ -184,8 +184,11 @@ USE_L10N = True
 
 
 # AWS related stuff
+USE_AWS_STORAGE = False
 if 'aws' in config.sections():
     aws_params = config['aws']
+
+    USE_AWS_STORAGE = True
 
     AWS_ACCESS_KEY_ID = aws_params['s3_client_id']
     AWS_SECRET_ACCESS_KEY = aws_params['s3_client_secret']
@@ -203,8 +206,8 @@ if 'aws' in config.sections():
     AWS_MEDIA_STORAGE_BUCKET_NAME = aws_params['s3_media_bucket_name']
     AWS_S3_CUSTOM_MEDIA_DOMAIN = '%s.s3.amazonaws.com' % AWS_MEDIA_STORAGE_BUCKET_NAME
 
-    MEDIA_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_MEDIA_DOMAIN, AWS_LOCATION)
-    DEFAULT_FILE_STORAGE = 'pyensemble.storage_backends.S3MediaStorage'
+    # MEDIA_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_MEDIA_DOMAIN, AWS_LOCATION)
+    # DEFAULT_FILE_STORAGE = 'pyensemble.storage_backends.S3MediaStorage'
 
     AWS_DATA_STORAGE_BUCKET_NAME = aws_params['s3_data_bucket_name']
 

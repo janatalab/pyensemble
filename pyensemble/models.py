@@ -30,6 +30,9 @@ try:
 except ImportError:
     from backports import zoneinfo
 
+from django.core.files.storage import FileSystemStorage
+from pyensemble.storage_backends import S3MediaStorage
+
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 from pyensemble import tasks
 
@@ -377,6 +380,14 @@ class Session(AbstractSession):
 
         return self.age
 
+def use_storage():
+    if settings.USE_AWS_STORAGE:
+        storage = S3MediaStorage
+    else:
+        storage = FileSystemStorage
+
+    return storage
+
 class Stimulus(models.Model):
     name = models.CharField(max_length=200)
     description = models.CharField(max_length=30)
@@ -394,7 +405,7 @@ class Stimulus(models.Model):
     channels = models.IntegerField(blank=True, null=True)
     width = models.IntegerField(blank=True, null=True)
     height = models.IntegerField(blank=True, null=True)
-    location = models.FileField(max_length=512, blank=True)
+    location = models.FileField(storage=use_storage(), max_length=512, blank=True)
     url = models.URLField(max_length=512, blank=True)
 
     attributes = models.ManyToManyField('Attribute', through='StimulusXAttribute')

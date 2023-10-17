@@ -27,10 +27,16 @@ def select_audio(request,*args,**kwargs):
             stimidx = random.randrange(0,stimuli.count())
             stimulus = stimuli[stimidx]
 
+
     if stimulus and use_jspsych:
+        if settings.USE_AWS_STORAGE:
+            stimulus_url = stimulus.location.url
+        else:
+            stimulus_url = os.path.join(settings.MEDIA_URL, stimulus.location.url)
+
         trial = {
             'type': 'audio-keyboard-response',
-            'stimulus': os.path.join(settings.MEDIA_URL,stimulus.location.url),
+            'stimulus': stimulus_url,
             'choices': 'none',
             'click_to_start': True,
             'trial_ends_after_audio': True,
