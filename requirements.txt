@@ -5,6 +5,8 @@ async-timeout==4.0.2
 backcall==0.2.0
 backports.zoneinfo==0.2.1
 billiard==3.6.4.0
+boto3==1.28.63
+botocore==1.31.63
 cached-property==1.5.2
 celery==5.2.2
 certifi==2023.7.22
@@ -21,6 +23,7 @@ django-crispy-forms==1.13.0
 django-encrypted-model-fields==0.6.5
 django-recaptcha==3.0.0
 django-sslserver==0.22
+django-storages==1.14.2
 executing==1.2.0
 fuzzywuzzy==0.18.0
 idna==3.4
@@ -29,6 +32,7 @@ importlib-resources==5.4.0
 ipython==8.10.0
 ipython-genutils==0.2.0
 jedi==0.17.2
+jmespath==1.0.1
 kombu==5.3.2
 Levenshtein==0.20.9
 matplotlib-inline==0.1.6
@@ -54,6 +58,7 @@ pytz==2022.7.1
 rapidfuzz==2.11.1
 redis==4.4.4
 requests==2.31.0
+s3transfer==0.7.0
 six==1.16.0
 spotipy==2.23.0
 sqlparse==0.4.4
