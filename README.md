@@ -41,6 +41,7 @@ PyEnsemble is a Python-backed version of the PHP/MATLAB web-based experiment sys
         - [Using jsPsych](#using_jspsych)
     - [Participants from other sources](#participant_sources)
     - [Group sessions](#groups)
+    - [Interaction using the Django shell](#shell)
 
 - [Frequently Asked Questions (FAQs)](#faqs)
 
@@ -510,7 +511,10 @@ There are three principle ways of storing session information. The first is with
 
 The context field of the GroupSession object is conceived of as a temporary mutable cache that all sessions can read. This is a more secure means of storing information than in the global cache.
 
-
+<a name="shell"/></a>
+## Using the Django shell
+To invoke a Python shell that also loads Django-related items:
+`python manage.py shell --settings=pyensemble.settings.dev` - to load a specific settings file
 
 <a name="faqs"/></a>
 # Frequently Asked Questions (FAQs)
