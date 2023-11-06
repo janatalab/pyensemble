@@ -154,6 +154,7 @@ def process_stimulus_table(data):
 
         result['num_submitted'] = nstim
 
+
     return result
 
 # The import_stimuli_from_dir must be called on a server where the stimuli are locally stored.
