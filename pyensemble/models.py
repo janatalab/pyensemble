@@ -607,9 +607,10 @@ class StimulusXAttribute(models.Model):
     def save(self, *args, **kwargs):
         m = hashlib.md5()
         m.update(self.stimulus.name.encode('utf-8'))
+        m.update(str(self.stimulus.location).encode('utf-8'))
         m.update(self.attribute.name.encode('utf-8'))
-        m.update(str(self.attribute_value_double).encode('utf-8'))
-        m.update(self.attribute_value_text.encode('utf-8'))
+        # m.update(str(self.attribute_value_double).encode('utf-8'))
+        # m.update(self.attribute_value_text.encode('utf-8'))
         self.unique_hash = m.hexdigest()
         super(StimulusXAttribute, self).save(*args, **kwargs)
 

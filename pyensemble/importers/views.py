@@ -6,7 +6,7 @@ from django.shortcuts import render
 
 from pyensemble.models import Experiment, Form, Question, ExperimentXForm, FormXQuestion, DataFormat
 
-from .forms import ImportForm
+from .forms import ImportForm, ImportStimuliForm
 from pyensemble.importers import tasks
 
 import pdb
@@ -239,11 +239,33 @@ def import_experiment_structure(request):
     return render(request, template, context)
 
 
+def import_stimuli(request):
+    template = 'pyensemble/importers/import_stimuli.html'
+
+    if request.method == 'POST':
+        form = ImportStimuliForm(request.POST, request.FILES)
+
+        if form.is_valid():
+            result = form.extract_and_save_stimuli()
+
+            context = {
+                'result': result,
+            }
+
+            return render(request, 'pyensemble/importers/import_results.html', context)
+    else:
+        form = ImportStimuliForm()
+
+    context = {'form': form}
+
+    return render(request, template, context)
+
+
 def import_stimulus_table(request):
     template = 'pyensemble/importers/import_stimuli.html'
 
     if request.method == 'POST':
-        form = ImportForm(request.POST, request.FILES)
+        form = ImportStimuliForm(request.POST, request.FILES)
 
         if form.is_valid():
             result = tasks.process_stimulus_table(form.cleaned_data)
@@ -254,7 +276,7 @@ def import_stimulus_table(request):
 
             return render(request, 'pyensemble/importers/import_results.html', context)
     else:
-        form = ImportForm()
+        form = ImportStimuliForm()
 
     context = {'form': form}
 
