@@ -1,8 +1,11 @@
 # cleaners.py
 
-from pyensemble.models import Question, DataFormat
+from pyensemble.models import Question, DataFormat, Stimulus
 
 import ast
+import os
+
+import pdb
 
 # Convert questions hashes that were stored as byte codes to hex strings
 def fix_question_hashes():
@@ -61,3 +64,18 @@ def fix_text_df():
 
         # Save
         q.save()
+
+# Removing leading path separators from stimulus location entries
+def fix_stimulus_location():
+    bad_path_stimuli = Stimulus.objects.filter(location__startswith=os.path.sep)
+    num_found = bad_path_stimuli.count()
+
+    for stimulus in bad_path_stimuli:
+        stimulus.location.name = stimulus.location.name[1:]
+
+    # Bulk update
+    Stimulus.objects.bulk_update(bad_path_stimuli, ['location'])
+
+    print(f'Found {num_found} stimuli with location path beginning with {os.path.sep}.')
+
+    return
