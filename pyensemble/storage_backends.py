@@ -13,4 +13,4 @@ class S3MediaStorage(S3Boto3Storage):
 class S3DataStorage(S3Boto3Storage):
     bucket_name = settings.AWS_DATA_STORAGE_BUCKET_NAME
     location = settings.INSTANCE_LABEL
-    file_overwrite = False
+    file_overwrite = True
