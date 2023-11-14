@@ -5,6 +5,7 @@
 import hashlib
 import json
 import urllib
+import pandas as pd
 
 from django.conf import settings
 
@@ -203,6 +204,66 @@ class Experiment(models.Model):
 
         return self._loop_info
 
+class ResponseQuerySet(models.QuerySet):
+    # Method to export response data to a Pandas DataFrame
+    def to_dataframe(self):
+        # Initialize an empty dataframe
+        df = pd.DataFrame()
+
+        # We have to iterate over question types so that we export the correct data type for each variable
+        data_types = self.values_list('question__data_format__df_type', 'question__html_field_type').distinct()
+
+        for dtype in data_types:
+            # Get the subset corresponding to this data type
+            response_subset = self.filter(question__data_format__df_type= dtype[0])
+
+            # Get a list of the fields whose values we want to extract
+            extract_fields = [
+                'subject_id',
+                'response_order',
+                'form__name',
+                'question__text',
+                'trial_info',
+                'jspsych_data',
+                'misc_info',
+            ]
+
+            # Determine which field carries the response value
+            if (dtype[0] == 'enum') and (dtype[1] != 'checkbox'):
+                value_field = 'response_enum'
+                agg_func="mean"
+            else:
+                value_field = 'response_text'
+                agg_func=lambda x: ",".join(x)
+
+            # Add the response value field to the list of fields to extract
+            extract_fields.append(value_field)
+
+            # Extract the data
+            response_data = response_subset.values(*extract_fields)
+
+            # Convert to dataframe
+            resp_df = pd.DataFrame(response_data)
+
+            # Pivot the dataframe to get questions into columns
+            resp_df = resp_df.pivot_table(
+                index= 'subject_id',
+                columns= ['form__name','question__text'],
+                values= value_field,
+                aggfunc= agg_func)
+
+            # Merge with existing dataframe
+            if df.empty:
+                df = resp_df
+            else:
+                df = df.merge(resp_df, left_index=True, right_index=True)
+
+        return df
+
+class ResponseManager(models.Manager):
+    def get_queryset(self):
+        return ResponseQuerySet(self.model, using=self._db)
+
 class Response(models.Model):
     date_time = models.DateTimeField(auto_now_add=True)
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
@@ -227,6 +288,8 @@ class Response(models.Model):
     misc_info = models.TextField(blank=True)
 
     trial_info = models.JSONField(null=True) # field for storing trial information/context
+
+    objects = ResponseManager()
 
     def response_value(self):
         if self.question.data_format.df_type == 'enum':
@@ -1078,6 +1141,9 @@ class Notification(models.Model):
         self.sent = timezone.now()
         self.save()
 
+'''
+    Models for saving files associated with Sessions and Experiments
+'''
 
 def session_filepath(instance, filename):
     return os.path.join('experiment', instance.session.experiment.title, 'session', str(instance.session.id), filename)
@@ -1108,3 +1174,34 @@ class SessionFileAttribute(models.Model):
         m.update(self.attribute_value_text.encode('utf-8'))
         self.unique_hash = m.hexdigest()
         super(SessionFileAttribute, self).save(*args, **kwargs)
+
+
+def experiment_filepath(instance, filename):
+    return os.path.join('experiment', instance.title, filename)
+
+
+class ExperimentFile(models.Model):
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+    file = models.FileField(upload_to=experiment_filepath, max_length=512)
+
+    class Meta:
+        unique_together = (("experiment","file"),)
+
+
+class ExperimentFileAttribute(models.Model):
+    unique_hash = models.CharField(max_length=32, unique=True)
+
+    file = models.ForeignKey('ExperimentFile', db_constraint=True, on_delete=models.CASCADE)
+    attribute = models.ForeignKey('pyensemble.Attribute', db_constraint=True, on_delete=models.CASCADE)
+
+    attribute_value_double = models.FloatField(blank=True, null=True)
+    attribute_value_text = models.TextField(blank=True)
+
+    def save(self, *args, **kwargs):
+        m = hashlib.md5()
+        m.update(self.file.encode('utf-8'))
+        m.update(self.attribute.name.encode('utf-8'))
+        m.update(str(self.attribute_value_double).encode('utf-8'))
+        m.update(self.attribute_value_text.encode('utf-8'))
+        self.unique_hash = m.hexdigest()
+        super(ExperimentFileAttribute, self).save(*args, **kwargs)
