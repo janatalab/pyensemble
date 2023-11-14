@@ -9,7 +9,7 @@ from django.core.files.storage import FileSystemStorage
 
 def use_storage():
     if settings.USE_AWS_STORAGE:
-        import pyensemble.storage_backends
+        from pyensemble.storage_backends import S3MediaStorage
         storage = S3MediaStorage
 
     else:
