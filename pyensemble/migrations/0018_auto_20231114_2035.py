@@ -5,6 +5,13 @@ import django.db.models.deletion
 import pyensemble.models
 import pyensemble.storage_backends
 
+def use_storage():
+    if settings.USE_AWS_STORAGE:
+        storage = S3MediaStorage
+    else:
+        storage = FileSystemStorage
+
+    return storage
 
 class Migration(migrations.Migration):
 
@@ -27,7 +34,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='stimulus',
             name='location',
-            field=models.FileField(blank=True, max_length=512, storage=pyensemble.storage_backends.S3MediaStorage, upload_to=''),
+            field=models.FileField(blank=True, max_length=512, storage=use_storage(), upload_to=''),
         ),
         migrations.CreateModel(
             name='ExperimentFileAttribute',
