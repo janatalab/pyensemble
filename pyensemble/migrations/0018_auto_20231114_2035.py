@@ -3,11 +3,14 @@
 from django.db import migrations, models
 import django.db.models.deletion
 import pyensemble.models
-import pyensemble.storage_backends
+
+from django.core.files.storage import FileSystemStorage
 
 def use_storage():
     if settings.USE_AWS_STORAGE:
+        import pyensemble.storage_backends
         storage = S3MediaStorage
+
     else:
         storage = FileSystemStorage
 
