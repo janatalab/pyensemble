@@ -2,6 +2,7 @@
 #
 # Specifies the core Ensemble models
 #
+import os
 import hashlib
 import json
 import urllib
@@ -34,7 +35,7 @@ except ImportError:
 from django.core.files.storage import FileSystemStorage
 
 if settings.USE_AWS_STORAGE:
-    from pyensemble.storage_backends import S3MediaStorage
+    from pyensemble.storage_backends import S3MediaStorage, S3DataStorage
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 from pyensemble import tasks
@@ -445,7 +446,7 @@ class Session(AbstractSession):
 
         return self.age
 
-def use_storage():
+def use_media_storage():
     if settings.USE_AWS_STORAGE:
         storage = S3MediaStorage
     else:
@@ -470,7 +471,7 @@ class Stimulus(models.Model):
     channels = models.IntegerField(blank=True, null=True)
     width = models.IntegerField(blank=True, null=True)
     height = models.IntegerField(blank=True, null=True)
-    location = models.FileField(storage=use_storage(), max_length=512, blank=True)
+    location = models.FileField(storage=use_media_storage(), max_length=512, blank=True)
     url = models.URLField(max_length=512, blank=True)
 
     attributes = models.ManyToManyField('Attribute', through='StimulusXAttribute')
@@ -1145,13 +1146,21 @@ class Notification(models.Model):
     Models for saving files associated with Sessions and Experiments
 '''
 
+def use_data_storage():
+    if settings.USE_AWS_STORAGE:
+        storage = S3DataStorage
+    else:
+        storage = FileSystemStorage
+
+    return storage
+
 def session_filepath(instance, filename):
     return os.path.join('experiment', instance.session.experiment.title, 'session', str(instance.session.id), filename)
 
 
 class SessionFile(models.Model):
     session = models.ForeignKey('Session', db_constraint=True, on_delete=models.CASCADE)
-    file = models.FileField(upload_to=session_filepath, max_length=512)
+    file = models.FileField(storage=use_data_storage(), upload_to=session_filepath, max_length=512)
 
     class Meta:
         unique_together = (("session","file"),)
@@ -1177,12 +1186,12 @@ class SessionFileAttribute(models.Model):
 
 
 def experiment_filepath(instance, filename):
-    return os.path.join('experiment', instance.title, filename)
+    return os.path.join('experiment', instance.experiment.title, filename)
 
 
 class ExperimentFile(models.Model):
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
-    file = models.FileField(upload_to=experiment_filepath, max_length=512)
+    file = models.FileField(storage=use_data_storage(), upload_to=experiment_filepath, max_length=512)
 
     class Meta:
         unique_together = (("experiment","file"),)
