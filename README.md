@@ -39,7 +39,7 @@ PyEnsemble is a Python-backed version of the PHP/MATLAB web-based experiment sys
         - [Method evaluation](#method_evaluate)
     - [jsPsych](#jspsych)
         - [Using jsPsych](#using_jspsych)
-    - [Importing stimuli](#`importing_stimuli`)
+    - [Importing stimuli](#importing_stimuli)
     - [Participants from other sources](#participant_sources)
     - [Group sessions](#groups)
     - [Interaction using the Django shell](#shell)
