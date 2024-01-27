@@ -678,7 +678,8 @@ def serve_form(request, experiment_id=None):
                 session.save()
 
                 # Now that we've saved our updated session it is safe to delete the temporary subject
-                tmp_subject.delete()
+                if tmp_subject != subject:
+                    tmp_subject.delete()
 
             elif handler_name == 'form_consent':
                 question = formset.forms[0]
