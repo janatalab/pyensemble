@@ -226,7 +226,7 @@ if 'aws' in config.sections():
 
 else:
     STATIC_ROOT = os.path.join('/var/www/html/static/', INSTANCE_LABEL)
-    STATIC_URL = f"'/static/'{INSTANCE_LABEL}/"
+    STATIC_URL = f"/static/{INSTANCE_LABEL}/"
 
     MEDIA_ROOT = config['django']['media_root']
     MEDIA_URL = config['django']['media_url']
