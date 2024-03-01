@@ -20,21 +20,31 @@ DEBUG = False
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# What is our label for this particular installation of PyEnsemble. This is what helps to distinguish multiple PyEnsemble instances on a single server from each other. Make sure to use a trailing slash.
-INSTANCE_LABEL = 'pyensemble/'
+"""
+Specify the label for this particular installation of PyEnsemble. 
+This is effectively the namespace that distinguishes multiple PyEnsemble instances on a single server from each other. 
+"""
+INSTANCE_LABEL = 'pyensemble'
+ 
+"""
+Specify the path to password and settings files.
 
-# Specify the path to password and settings files
-PASS_DIR = os.path.dirname(os.path.join('/var/www/private', INSTANCE_LABEL))
+The local directory (pyensemble.settings.local) is excluded from git commits and thus a reasonable space to store secrets and credentials associated with this instance.
+"""
+PASS_DIR = os.path.join(BASE_DIR, 'pyensemble/settings/local')
 
-# For development purposes, utilize pyensemble.settings.local
-# PASS_DIR = os.path.join(BASE_DIR, 'pyensemble/settings/local')
+"""
+An example of an alternative location at which to store credentials. Might be useful in production server contexts.
+"""
+# PASS_DIR = os.path.dirname(os.path.join('/var/www/private', INSTANCE_LABEL))
+
+# Specify the file that contains our various custom settings and secrets
+SITE_CONFIG_FILE = os.path.join(PASS_DIR, 'pyensemble_params.ini')
 
 # Specify the directory where experiments will be located
 EXPERIMENT_DIR = os.path.join(BASE_DIR,'pyensemble/experiments')
 
 # Open our configuration file
-SITE_CONFIG_FILE = os.path.join(PASS_DIR, 'pyensemble_params.ini')
-
 config = ConfigParser()
 config.read(SITE_CONFIG_FILE)
 
@@ -99,6 +109,12 @@ CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
 WSGI_APPLICATION = 'pyensemble.wsgi.application'
 
+
+if config['django-db']['ssl_certpath']:
+    ssl_certpath = config['django-db']['ssl_certpath']
+else:
+    ssl_certpath = PASS_DIR
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
@@ -109,7 +125,7 @@ DATABASES = {
         'PORT': '3306', # 3306 is the default mysql port
         'OPTIONS': {
             'ssl': {
-                'ca': config['django-db']['ssl_certpath'],
+                'ca': os.path.join(ssl_certpath, config['django-db']['ssl_certname']),
             },
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
         }
@@ -206,14 +222,11 @@ if 'aws' in config.sections():
     AWS_MEDIA_STORAGE_BUCKET_NAME = aws_params['s3_media_bucket_name']
     AWS_S3_CUSTOM_MEDIA_DOMAIN = '%s.s3.amazonaws.com' % AWS_MEDIA_STORAGE_BUCKET_NAME
 
-    # MEDIA_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_MEDIA_DOMAIN, AWS_LOCATION)
-    # DEFAULT_FILE_STORAGE = 'pyensemble.storage_backends.S3MediaStorage'
-
     AWS_DATA_STORAGE_BUCKET_NAME = aws_params['s3_data_bucket_name']
 
 else:
     STATIC_ROOT = os.path.join('/var/www/html/static/', INSTANCE_LABEL)
-    STATIC_URL = '/static/'+INSTANCE_LABEL
+    STATIC_URL = f"'/static/'{INSTANCE_LABEL}/"
 
     MEDIA_ROOT = config['django']['media_root']
     MEDIA_URL = config['django']['media_url']
