@@ -26,7 +26,7 @@ django-sslserver==0.22
 django-storages==1.14.2
 executing==1.2.0
 fuzzywuzzy==0.18.0
-idna==3.4
+idna==3.7
 importlib-metadata==4.8.3
 importlib-resources==5.4.0
 ipython==8.10.0
