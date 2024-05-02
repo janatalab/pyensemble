@@ -42,6 +42,8 @@ class ImportStimuliForm(forms.Form):
         self.helper.form_class = 'importform'
         self.helper.form_method = 'post'
 
+        self.allowable_media_extensions = ['.mp3','.wav','.aiff','.m4v','.jpg','.jpeg','.tiff','.gif']
+
         self.helper.add_input(Submit('submit', 'Submit'))
         super(ImportStimuliForm, self).__init__(*args, **kwargs)
 
@@ -88,8 +90,6 @@ class ImportStimuliForm(forms.Form):
             storage = S3MediaStorage()
         else:
             storage = FileSystemStorage()
-
-        allowable_media_extensions = ['.mp3','.wav','.aiff','.m4v','.jpg','.jpeg','.tiff','.gif']
 
         result = {
             'num_submitted': 0,
@@ -220,7 +220,7 @@ class ImportStimuliForm(forms.Form):
                         elif not file_info.filename.endswith('.csv'):
                             # Get our filename and extension
                             fstub, fext = os.path.splitext(file_info.filename)                
-                            if fext in allowable_media_extensions:
+                            if fext in self.allowable_media_extensions:
                                 media_files.append(file_info.filename)            
                             continue 
 
@@ -352,7 +352,7 @@ class ImportStimuliForm(forms.Form):
                 raise forms.ValidationError('The uploaded file is not a valid ZIP file.')
 
 
-        elif fext in allowable_media_extensions:
+        elif fext in self.allowable_media_extensions:
             # Import and upload a single media file
 
             # Prepend our location_root to our location information
