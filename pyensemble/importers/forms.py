@@ -34,13 +34,15 @@ class ImportForm(forms.Form):
 
 
 class ImportStimuliForm(forms.Form):
-    file = forms.FileField(label='Select a .zip, .csv or .json file to import')
+    file = forms.FileField(label='File:')
     location_root = forms.CharField(label='Directory path to prepend to location (optional)', required=False)
 
     def __init__(self, *args, **kwargs):
         self.helper = FormHelper()
         self.helper.form_class = 'importform'
         self.helper.form_method = 'post'
+
+        self.allowable_media_extensions = ['.mp3','.wav','.aiff','.m4v','.jpg','.jpeg','.tiff','.gif']
 
         self.helper.add_input(Submit('submit', 'Submit'))
         super(ImportStimuliForm, self).__init__(*args, **kwargs)
@@ -88,8 +90,6 @@ class ImportStimuliForm(forms.Form):
             storage = S3MediaStorage()
         else:
             storage = FileSystemStorage()
-
-        allowable_extensions = ['.mp3','.wav','.aiff','.m4v','.jpg','.jpeg','.tiff','.gif']
 
         result = {
             'num_submitted': 0,
@@ -220,7 +220,7 @@ class ImportStimuliForm(forms.Form):
                         elif not file_info.filename.endswith('.csv'):
                             # Get our filename and extension
                             fstub, fext = os.path.splitext(file_info.filename)                
-                            if fext in allowable_extensions:
+                            if fext in self.allowable_media_extensions:
                                 media_files.append(file_info.filename)            
                             continue 
 
@@ -350,6 +350,32 @@ class ImportStimuliForm(forms.Form):
 
             else:
                 raise forms.ValidationError('The uploaded file is not a valid ZIP file.')
+
+
+        elif fext in self.allowable_media_extensions:
+            # Import and upload a single media file
+
+            # Prepend our location_root to our location information
+            location = os.path.join(self.cleaned_data['location_root'], file.name) 
+
+            # Get or create the basic Stimulus object based on the name and location information that constitute the unique key for the stimulus
+            db_entry, created = Stimulus.objects.get_or_create(
+                name=fstub, 
+                location=location
+            )
+            
+            # Save the entry
+            db_entry.save()
+
+            # Copy the stimulus file if necessary    
+            if not db_entry.location.storage.exists(str(db_entry.location)):
+                storage.save(location, file.file)
+                result['num_uploaded'] += 1
+
+            if created:
+                result['num_written'] += 1
+            else:
+                result['num_existing'] += 1
 
 
         return result
