@@ -38,7 +38,7 @@ Levenshtein==0.20.9
 matplotlib-inline==0.1.6
 mod-wsgi==4.9.4
 mysqlclient==2.1.1
-numpy==1.25.0
+numpy==1.26.4
 packaging==21.3
 pandas==2.2.1
 parso==0.7.1
