@@ -87,8 +87,24 @@ class StimulusListView(LoginRequiredMixin, ListView):
     paginate_by = 25
 
     def get_queryset(self):
+        # Get our default queryset
         queryset = super(StimulusListView, self).get_queryset()
-        pdb.set_trace()
+
+        # Get search criteria that were submitted
+        params = self.request.GET
+
+        query_params = {}
+        for key in params.keys():
+            if key.endswith("[]"):
+                query_params.update({f"{key[:-2]}__in":params.getlist(key)})
+            else:
+                value = params[key]
+
+                if value:
+                    query_params.update({key:value})
+
+        # Filter based on our criteria
+        queryset = queryset.filter(**query_params)
 
         return queryset
 
@@ -97,7 +113,7 @@ class StimulusListView(LoginRequiredMixin, ListView):
 
         context.update(get_stimulus_search_options(self.queryset))
 
-        pdb.set_trace()
+        # pdb.set_trace()
         return context
 
 #
