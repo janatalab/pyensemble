@@ -23,6 +23,7 @@ from django.views.generic import RedirectView, TemplateView
 
 from . import views
 from . import reporting
+from . import integrity
 
 import pyensemble.errors as error
 from pyensemble import importers
@@ -95,6 +96,9 @@ reporting_patterns = [
 
 ]
 
+integrity_patterns = [
+    path('verify_response_form_question_match/', integrity.VerifyResponseFormQuestionMatchView.as_view(), name='response_form_question_match'),
+]
 
 # Collect our final set of patterns in the expected urlpatterns
 
@@ -106,6 +110,7 @@ urlpatterns = [
     path('reporting/', include(reporting_patterns)),
     path('import/', include(importer_urls, namespace='importers')),
     path('integrations/', include(integrations_urls, namespace='integrations')),
+    path('integrity/', include(integrity_patterns)),
 ]
 
 if settings.DEBUG:
