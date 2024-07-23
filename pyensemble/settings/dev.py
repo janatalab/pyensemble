@@ -6,6 +6,14 @@ DEBUG=True
 
 INSTALLED_APPS += ['sslserver']
 
+# Allow one to connect to an instance running on one's local computer
+ALLOWED_HOSTS += ['localhost','127.0.0.1']
+
+# We have to override the possibility that storage of static files is taking place elsewhere, such as AWS S3
+STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR,'static/')
+
 home = os.environ.get('HOME', None)
 if not home:
     home = os.environ.get('HOMEPATH', None)
