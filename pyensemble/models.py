@@ -32,10 +32,7 @@ try:
 except ImportError:
     from backports import zoneinfo
 
-from django.core.files.storage import FileSystemStorage
-
-if settings.USE_AWS_STORAGE:
-    from pyensemble.storage_backends import S3MediaStorage, S3DataStorage
+from pyensemble.storage_backends import use_media_storage, use_data_storage
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 from pyensemble import tasks
@@ -446,13 +443,6 @@ class Session(AbstractSession):
 
         return self.age
 
-def use_media_storage():
-    if settings.USE_AWS_STORAGE:
-        storage = S3MediaStorage
-    else:
-        storage = FileSystemStorage
-
-    return storage
 
 class Stimulus(models.Model):
     name = models.CharField(max_length=200)
@@ -1145,14 +1135,6 @@ class Notification(models.Model):
 '''
     Models for saving files associated with Sessions and Experiments
 '''
-
-def use_data_storage():
-    if settings.USE_AWS_STORAGE:
-        storage = S3DataStorage
-    else:
-        storage = FileSystemStorage
-
-    return storage
 
 def session_filepath(instance, filename):
     return os.path.join('experiment', instance.session.experiment.title, 'session', str(instance.session.id), filename)

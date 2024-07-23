@@ -25,7 +25,7 @@ Specify the label for this particular installation of PyEnsemble.
 This is effectively the namespace that distinguishes multiple PyEnsemble instances on a single server from each other. 
 """
 INSTANCE_LABEL = 'pyensemble'
- 
+
 """
 Specify the path to password and settings files.
 
@@ -218,9 +218,9 @@ if 'aws' in config.sections():
     STATIC_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_STATIC_DOMAIN, AWS_LOCATION)
     STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 
-
     AWS_MEDIA_STORAGE_BUCKET_NAME = aws_params['s3_media_bucket_name']
     AWS_S3_CUSTOM_MEDIA_DOMAIN = '%s.s3.amazonaws.com' % AWS_MEDIA_STORAGE_BUCKET_NAME
+    MEDIA_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_MEDIA_DOMAIN, AWS_LOCATION)
 
     AWS_DATA_STORAGE_BUCKET_NAME = aws_params['s3_data_bucket_name']
 
