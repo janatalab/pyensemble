@@ -318,10 +318,15 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': True,
         },
-        'experiments': {
+        'pyensemble.experiments': {
             'handlers': ['experiment-debug-file'],
             'level': 'DEBUG',
             'propagate': True,
-        }
+        },
+        'pyensemble': {
+            'handlers': ['debug-file', 'error-file'],
+            'level': 'DEBUG',
+        },
+
     },
 }
