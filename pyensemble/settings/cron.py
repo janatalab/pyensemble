@@ -2,19 +2,25 @@
 
 from .settings import *
 
-LOGGING['handlers'] = {
-        'debug-file': {
-            'level': 'DEBUG',
+LOGGING['handlers'].update({
+        'cron-info-file': {
+            'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': os.path.join(LOG_DIR,'cron-debug.txt'),
+            'filename': os.path.join(LOG_DIR,'cron-info.txt'),
+            'formatter': 'timestamped',
+        },
+        'cron-error-file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOG_DIR,'cron-error.txt'),
             'formatter': 'timestamped',
         }
-    }
+    })
 
-LOGGING['loggers'] = {
-    'django.request': {
-            'handlers': ['debug-file'],
-            'level': 'DEBUG',
+LOGGING['loggers'].update({
+    'cron-tasks': {
+            'handlers': ['cron-info-file', 'cron-error-file'],
+            'level': 'INFO',
             'propagate': True,
         }
-    }
+    })

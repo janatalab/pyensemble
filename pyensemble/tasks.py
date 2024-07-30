@@ -11,6 +11,9 @@ from django.utils.html import strip_tags
 
 from django.utils import timezone
 
+import logging
+logger = logging.getLogger(__name__)
+
 import pdb
 
 
@@ -152,8 +155,13 @@ def dispatch_notifications():
     for notification in notification_list:
         notification.dispatch()
 
+    return notification_list.count()
+
+
 def execute_postsession_callbacks():
     from pyensemble.models import Session 
+
+    error_count = 0
 
     # Get a list of completed Sessions for which the Experiment has a post_session_callback
     sessions = Session.objects.exclude(experiment__post_session_callback__exact = "").exclude(end_datetime__isnull = True)
@@ -161,9 +169,13 @@ def execute_postsession_callbacks():
     # Get those that have not yet been executed
     sessions = sessions.filter(executed_postsession_callback = False)
 
-    # TODO: Get a list of the different post_session_callback values and iterate the list, isolating each call in a try-except block so that a buggy callback doesn't cause the whole stack to fail.
-
     for session in sessions:
-        session.run_post_session()
+        try:
+            session.run_post_session()
 
+        except Exception as err:
+            error_count += 1
 
+            logger.error(f'postsession_callback execution failed for Session: {session.id}\nExperiment: {session.experiment}\nSubject: {session.subject.subject_id}\nError: {err}')
+
+    return error_count
