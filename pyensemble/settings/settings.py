@@ -304,13 +304,7 @@ LOGGING = {
     },
     'loggers': {
         'django.request': {
-            'handlers': ['error-file'],
-            'level': 'ERROR',
-            'propagate': True,
-        },
-        'django.request': {
-            'handlers': ['debug-file'],
-            'level': 'DEBUG',
+            'handlers': ['debug-file','error-file'],
             'propagate': True,
         },
         'django.template': {
@@ -318,15 +312,14 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': True,
         },
-        'pyensemble.experiments': {
-            'handlers': ['experiment-debug-file'],
-            'level': 'DEBUG',
-            'propagate': True,
-        },
         'pyensemble': {
             'handlers': ['debug-file', 'error-file'],
             'level': 'DEBUG',
         },
-
+        'pyensemble.experiments': {
+            'handlers': ['experiment-debug-file'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
     },
 }
