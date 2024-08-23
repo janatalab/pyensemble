@@ -31,7 +31,6 @@ def main():
     error_status = 'without'
     errors_present = 'WITH'
 
-    logger.info("\n")
     logger.info(timezone.localtime())
 
     # Execute our tasks
@@ -51,7 +50,7 @@ def main():
         logger.error(f"dispatch_notifications: Unexpected {err}, {type(err)}")
         error_status = errors_present
 
-    logger.info(f'Finished cron tasks {error_status} errors!')
+    logger.info(f'Finished cron tasks {error_status} errors!\n')
 
     return
 
