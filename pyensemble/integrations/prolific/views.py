@@ -4,12 +4,20 @@ from django.conf import settings
 
 import requests
 
-# Grab ourselves a session
-s = requests.Session()
-s.headers.update({
-    'Authorization': f"Token {settings.PROLIFIC_TOKEN}",
-    })
+
 api = settings.PROLIFIC_API
+
+def get_prolific_api_session():
+    # Grab ourselves a session
+    s = requests.Session()
+
+    # Set our authorization token
+    s.headers.update({
+        'Authorization': f"Token {settings.PROLIFIC_TOKEN}",
+        })
+
+    return s
+    
 
 def get_or_create_participant_group(group_name, description=""):
     group = None
