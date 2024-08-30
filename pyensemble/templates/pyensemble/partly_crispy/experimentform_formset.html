@@ -93,7 +93,7 @@
                                         {% endif %}
                                     {% endfor %}
 
-                                    <td class="text-left small align-middle">{{form.instance.form.name}}</td>
+                                    <td class="text-left small align-middle"><a class="alert-link" href="{% url 'form_present' form.instance.form.pk %}" target="_blank">{{form.instance.form.name}}</a></td>
 
                                     {% for field in form %}
                                         {% if field.name != 'ORDER' %}
