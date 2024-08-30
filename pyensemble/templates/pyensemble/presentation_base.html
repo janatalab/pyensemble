@@ -60,6 +60,10 @@
             {% block document_ready_js_content %}
                 $('#questions').removeClass('d-none');
             {% endblock %}
+
+            {% if feedback %}
+                $('#feedback').removeClass('d-none');
+            {% endif %}
         });
     </script>
 {% endblock %}
