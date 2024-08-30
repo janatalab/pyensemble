@@ -202,6 +202,14 @@ class Experiment(models.Model):
 
         return self._loop_info
 
+    # Get the last form that is presented without any conditions attached, i.e. all subjects would have responded to, that also has a question on it, i.e. for which there would be a response in the Response table.
+    def last_nonconditional_form_with_question(self):
+        last_form = self.experimentxform_set.order_by('form_order').filter(
+        form__question__isnull=False,
+        condition__exact="").last().form
+
+        return last_form
+
 class ResponseQuerySet(models.QuerySet):
     # Method to export response data to a Pandas DataFrame
     def to_dataframe(self):
