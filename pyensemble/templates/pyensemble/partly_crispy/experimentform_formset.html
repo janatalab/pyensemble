@@ -48,20 +48,21 @@
                         {{ formset.management_form|crispy }}
                     </div>
 
-                    <table id="form_table" class="table table-striped table-responsive table-compact table-bordered experiment-info">
-                        <thead>
+                    <div>
+                    <table id="form_table" class="table table-striped table-responsive table-compact table-bordered experiment-info experiment-form-table">
+                            <thead>
                             {% if formset.readonly and not formset.queryset.exists %}
                             {% else %}
                                 <tr>
                                     {% for field in formset.forms.0 %}
                                         {% if field.name == 'ORDER' and field.label and not field.is_hidden %}
-                                            <th for="{{ field.auto_id }}" class="control-label {% if field.field.required and not field|is_checkbox %}requiredField{% endif %}">
+                                            <th for="{{ field.auto_id }}" class="control-label {% if field.field.required and not field|is_checkbox %}requiredField{% endif %} order-col">
                                                 {{ field.label|safe }}{% if field.field.required and not field|is_checkbox %}<span class="asteriskField">*</span>{% endif %}
                                             </th>
                                         {% endif %}
                                     {% endfor %}
 
-                                    <th>Name</th>
+                                    <th class="name-col">Name</th>
 
                                     {% for field in formset.forms.0 %}
                                         {% if field.name != 'ORDER' and field.label and not field.is_hidden %}
@@ -89,11 +90,15 @@
                                 <tr class="{% if form.is_extra %}d-none{% endif %}">
                                     {% for field in form %}
                                         {% if field.name == 'ORDER' %}
-                                            {% include 'bootstrap/field.html' with tag="td" form_show_labels=False %}
+                                            <td class="order-col">
+                                                {% include 'bootstrap/field.html' with tag="div" form_show_labels=False %}
+                                            </td>
                                         {% endif %}
                                     {% endfor %}
 
-                                    <td class="text-left small align-middle"><a class="alert-link" href="{% url 'form_present' form.instance.form.pk %}" target="_blank">{{form.instance.form.name}}</a></td>
+                                    <td class="text-left small align-middle name-col">
+                                        <a href="{% url 'form_present' form.instance.form.pk %}" target="_blank">{{form.instance.form.name}}</a>
+                                    </td>
 
                                     {% for field in form %}
                                         {% if field.name != 'ORDER' %}
@@ -104,6 +109,7 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                    </div>
                 </li>
             {% endif %}
             <li class="list-group-item">

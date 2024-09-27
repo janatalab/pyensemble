@@ -126,6 +126,46 @@ input[type=number] {
 }
 
 
+table.experiment-form-table {
+    max-height: 60vh;
+}
+
+.experiment-form-table thead {
+    position: sticky; top: 0; background-color: white; z-index: 2;
+}
+
+.experiment-form-table th.order-col {
+    position: sticky; 
+    top: 0;
+    left: -1px;
+    background-color: white; 
+    z-index: 1;
+    min-width: 70px;
+}
+
+.experiment-form-table th.name-col {
+    position: sticky; 
+    top: 0;
+    left: 68px;
+    background-color: white; 
+    z-index: 1;
+}
+
+.experiment-form-table .order-col {
+    position: sticky; 
+    left: -1px; 
+    background: white; 
+    z-index: 1;
+    min-width: 70px;
+}
+
+.experiment-form-table .name-col {
+    position: sticky; 
+    left: 68px; 
+    background: white; 
+    z-index: 1;
+}
+
 #form_table .textinput {
     width: 300px;
 }
