@@ -1028,6 +1028,7 @@ class ExperimentXAttribute(models.Model):
 
 class Study(models.Model):
     title = models.CharField(unique=True, max_length=50)
+    params = models.JSONField(null=True)
 
     def __str__(self):
         return self.title
