@@ -31,7 +31,9 @@ from pyensemble.models import Ticket, Session, Experiment, Form, Question, Exper
 
 from pyensemble.forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
 
-from pyensemble.tasks import fetch_subject_id, get_or_create_prolific_subject, create_tickets
+from pyensemble.tasks import fetch_subject_id, create_tickets
+
+from pyensemble.integrations.prolific.utils import get_or_create_prolific_subject
 
 from pyensemble import errors
 
@@ -424,7 +426,7 @@ def run_experiment(request, experiment_id=None):
                 'num_user': 1, 
                 'experiment_id': experiment_id,
                 'subject': subject,
-                })[0].ticket_code
+                }).first().ticket_code
 
         # Process the ticket
         if not ticket_code:

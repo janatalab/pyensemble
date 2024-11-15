@@ -212,6 +212,7 @@ class Experiment(models.Model):
         condition__exact="").last().form
 
         return last_form
+    
 
 class ResponseQuerySet(models.QuerySet):
     # Method to export response data to a Pandas DataFrame
@@ -545,17 +546,25 @@ class Subject(models.Model):
     notes = models.TextField()
 
 class Ticket(models.Model):
+    # The full ticket code
+    ticket_code = models.CharField(max_length=32)
+
+    # Participant and experimenter codes derived from the ticket code
+    # Used in the context of group experiments
+    participant_code = models.CharField(max_length=4, blank=True, default='')
+    experimenter_code = models.CharField(max_length=4, blank=True, default='')
+
+    # The experiment that this ticket launches
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+
+    # An optional attribute
+    attribute = models.ForeignKey('Attribute', db_constraint=True, on_delete=models.CASCADE, null=True)
+
     TICKET_TYPE_CHOICES=[
         ('master','Master'),
         ('user','User'),
         ('group','Group')
     ]
-
-    ticket_code = models.CharField(max_length=32)
-    participant_code = models.CharField(max_length=4, blank=True, default='')
-    experimenter_code = models.CharField(max_length=4, blank=True, default='')
-
-    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
 
     type = models.CharField(
         max_length=6,
@@ -569,7 +578,7 @@ class Ticket(models.Model):
     expiration_datetime = models.DateTimeField(blank=True, null=True)
     timezone = models.CharField(max_length=64, blank=True, default=settings.TIME_ZONE)
 
-    subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
+    subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE, null=True)
 
     @property
     def url(self):
@@ -1033,6 +1042,9 @@ class Study(models.Model):
     title = models.CharField(unique=True, max_length=50)
     params = models.JSONField(null=True)
 
+    # Get the experiments uniquely associated with this study
+    experiments = models.ManyToManyField('Experiment', through='StudyXExperiment')
+
     def __str__(self):
         return self.title
 
@@ -1048,6 +1060,7 @@ class StudyXExperiment(models.Model):
 
     class Meta:
         unique_together = (("study","experiment", "experiment_order"),)
+        ordering = ['experiment_order']
 
     def __str__(self):
         return self.experiment.title

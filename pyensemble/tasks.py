@@ -1,8 +1,6 @@
 # tasks.py
 import hashlib
 
-# from pyensemble.celery import app
-
 from django.conf import settings
 
 from django.template import loader
@@ -45,24 +43,12 @@ def fetch_subject_id(subject, scheme='nhdl'):
     else:
         raise ValueError('unknown subject ID generator')
 
-def get_or_create_prolific_subject(request):
-    from pyensemble.models import Subject
-
-    # Get the Prolific ID
-    prolific_id = request.GET.get('PROLIFIC_PID', None)
-
-    # Make sure the parameter was actually specified
-    if not prolific_id:
-        return HttpResponseBadRequest('No Profilic ID specified')
-
-    # Get or create a subject entry
-    return Subject.objects.get_or_create(subject_id=prolific_id, id_origin='PRLFC')
 
 def create_tickets(ticket_request_data):
-    from pyensemble.models import Ticket, Experiment
+    from pyensemble.models import Ticket, Experiment, Attribute
 
     # Get the number of existing tickets
-    num_existing_tickets = Ticket.objects.all().count()
+    num_existing_tickets = Ticket.objects.count()
 
     # Initialize our new ticket list
     ticket_list = []
@@ -105,6 +91,13 @@ def create_tickets(ticket_request_data):
                     timezone = timezone,
                     subject = subject
                 )
+
+                # If an attribute is specified, add it to the ticket
+                if 'attribute' in ticket_request_data:
+                    # Get the attribute
+                    attribute = Attribute.objects.get_or_create(name=ticket_request_data['attribute'])
+                    ticket.attribute = attribute
+
                 ticket_list.append(ticket)
 
     return ticket_list

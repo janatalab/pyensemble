@@ -36,7 +36,7 @@ PASS_DIR = os.path.join(BASE_DIR, 'pyensemble/settings/local')
 """
 An example of an alternative location at which to store credentials. Might be useful in production server contexts.
 """
-# PASS_DIR = os.path.join('/var/www/private', INSTANCE_LABEL)
+PASS_DIR = os.path.join('/var/www/private', INSTANCE_LABEL)
 
 # Specify the file that contains our various custom settings and secrets
 SITE_CONFIG_FILE = os.path.join(PASS_DIR, 'pyensemble_params.ini')
