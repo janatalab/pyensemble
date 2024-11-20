@@ -12,5 +12,5 @@ urlpatterns = [
     path('', views.home, name='home'),
     path('create/experiment/', tasks.create_experiment, name='create-experiment'),
     path('group/create_experiment/', group.create_group_experiment, name='create-group-experiment'),
-    path('prolific/create_study/', prolific.create_prolific_study, name='create-prolific-study'),
+    path('prolific/create_prolific_pyensemble_integration_example/', prolific.create_prolific_pyensemble_integration_example, name='create-prolific-pyensemble-integration'),
 ]

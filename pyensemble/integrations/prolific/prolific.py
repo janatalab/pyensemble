@@ -12,6 +12,8 @@ from pyensemble.models import Study
 
 import logging
 
+import pdb
+
 # Create a Prolific class
 class Prolific():
     def __init__(self, api_key=settings.PROLIFIC_TOKEN, workspace_id=settings.PROLIFIC_WORKSPACE_ID):
@@ -248,3 +250,14 @@ class Prolific():
         study = self.session.post(curr_endpoint, data=study_params).json()
 
         return study
+    
+    # Get or create a study
+    def get_or_create_study(self, study_params, project_id=None):
+        created = False
+        study = self.get_study(study_params['study_name'], project_id=project_id)
+
+        if not study:
+            study = self.create_study(study_params, project_id=project_id)
+            created = True
+
+        return study, created

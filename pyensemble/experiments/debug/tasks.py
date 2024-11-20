@@ -106,7 +106,7 @@ def post_session(session, *args, **kwargs):
 def schedule_notifications(session, *args, **kwargs):
     # Schedule our times. Note that these will be stored in 'UTC' and the notification will be sent at the scheduled time. So, calculate things in relation to the local time that this was completed in. These will then automatically be converted to UTC for storage in the database. Regardless of which timezone the server is running in, these will be dispatched in correctly for the user's timezone
     notification_list = []
-    notifications = []
+    notifications = Notification.objects.none()
 
     # Create one notification to be sent in the next dispatch cycle
     notification_list.append({
@@ -146,7 +146,6 @@ def schedule_notifications(session, *args, **kwargs):
         )
 
         # Append to our list of notification objects
-        notifications.append(nobj)
+        notifications = notifications | Notification.objects.filter(pk=nobj.pk)
 
-    # Note: This returns a list, not a QuerySet
     return notifications

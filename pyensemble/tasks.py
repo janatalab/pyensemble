@@ -51,7 +51,7 @@ def create_tickets(ticket_request_data):
     num_existing_tickets = Ticket.objects.count()
 
     # Initialize our new ticket list
-    ticket_list = []
+    ticket_list = Ticket.objects.none()
 
     # Get our experiment
     experiment = ticket_request_data.get('experiment', None)
@@ -93,12 +93,14 @@ def create_tickets(ticket_request_data):
                 )
 
                 # If an attribute is specified, add it to the ticket
-                if 'attribute' in ticket_request_data:
+                attribute_name = ticket_request_data.get('attribute', None)
+                if attribute_name:
                     # Get the attribute
-                    attribute = Attribute.objects.get_or_create(name=ticket_request_data['attribute'])
+                    attribute, _ = Attribute.objects.get_or_create(name=attribute_name)
                     ticket.attribute = attribute
+                    ticket.save()
 
-                ticket_list.append(ticket)
+                ticket_list = ticket_list | Ticket.objects.filter(id=ticket.id)
 
     return ticket_list
 
