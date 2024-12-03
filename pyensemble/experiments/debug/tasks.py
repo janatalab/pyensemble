@@ -1,14 +1,9 @@
 # tasks.py
 
 import datetime
-
-try:
-    import zoneinfo
-
-except ImportError:
-    from backports import zoneinfo
-
+import zoneinfo
 from django.utils import timezone
+
 from django.http import HttpResponse
 
 from pyensemble.models import DataFormat, Question, Form, FormXQuestion, Experiment, ExperimentXForm, Notification
@@ -18,7 +13,7 @@ from pyensemble.tasks import create_notifications
 
 import pdb
 
-def create_experiment(request):
+def create_experiment_with_notification(request):
 
     # Create the experiment object
     eo, created = Experiment.objects.get_or_create(

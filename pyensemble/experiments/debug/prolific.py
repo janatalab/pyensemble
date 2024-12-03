@@ -46,7 +46,7 @@ def get_default_prolific_study_params():
 
 
 # Create a wrapper for the integration example
-def create_example(request):
+def create_multiday_example(request):
     response = create_prolific_pyensemble_integration_example()
 
     return response
@@ -317,6 +317,7 @@ def postsession(session, *args, **kwargs):
     # Determine the next experiment in the sequence
     #
     next_experiment = session.experiment.studyxexperiment_set.first().next()
+    next_experiment_ticket = None
 
     if next_experiment:
         #
@@ -362,65 +363,69 @@ def postsession(session, *args, **kwargs):
     # Generate our notifications
     #
 
-    # Create a list of dictionaries with notification parameters
-    notification_list = []
+    if kwargs.get('create_notifications', True):
+        # Create a list of dictionaries with notification parameters
+        notification_list = []
 
-    # Create a thank you notification, that contains a reminder about the next experiment day
-    # Create one notification to be sent in the next dispatch cycle
-    notification_list.append({
-        'session': session,
-        'template': 'debug/thank_you.html',
-        'context': {
-            'msg_subject': 'Thank you for participating!'
-        },
-        'datetime': session.end,
-    })
-
-    # Create additional notifications for the next experiment day
-    if next_experiment:
-        # Create a notification to be sent at 5:30 AM (localtime) on the next experiment day, 
-        # containing a link for starting the next experiment
-        
-        # Get our session's timezone info
-        # NOTE: Can this be moved to the Session model?
-        session_tz = session.timezone
-        if not session_tz:
-            session_tz = 'UTC'
-
-        session_tzinfo = zoneinfo.ZoneInfo(session_tz)
-
-        target_time = timezone.datetime.combine(tomorrow, earliest_start_time, tzinfo=session_tzinfo)
-
+        # Create a thank you notification, that contains a reminder about the next experiment day
+        # Create one notification to be sent in the next dispatch cycle
         notification_list.append({
             'session': session,
-            'template': 'debug/notifications/prolific_day1.html',
+            'template': 'debug/thank_you.html',
             'context': {
-                'msg_number': len(notification_list)+1,
-                'msg_subject': "DAY 2 SONA LINK AND REMINDER",
-                'prolific_study_name': next_experiment_ticket.experiment.title,
-                'day2_datetime': tomorrow.strftime(date_format_str),
+                'msg_subject': f'Thank you for participating in the study titled {session.experiment.title}!'
             },
-            'datetime': target_time,
-            'ticket': next_experiment_ticket,
+            'datetime': session.end,
         })
 
-        # Create a reminder notification to be sent at 6 PM (localtime) on the next experiment day.
-        time = datetime.time(18,00)
-        target_time = timezone.datetime.combine(tomorrow, time, tzinfo=session_tzinfo)
+        # Create additional notifications for the next experiment day
+        if next_experiment:
+            # Create a notification to be sent at 5:30 AM (localtime) on the next experiment day, 
+            # containing a link for starting the next experiment
+            
+            # Get our session's timezone info
+            # NOTE: Can this be moved to the Session model?
+            session_tz = session.timezone
+            if not session_tz:
+                session_tz = 'UTC'
 
-        # Generate the notification
-        notification_list.append({
-            'session': session,
-            'template': 'debug/notifications/prolific_day1.html',
-            'context': {
-                'msg_number': len(notification_list)+1,
-                'msg_subject': "DAY 2 FINAL PARTICIPATION REMINDER ",
-                'prolific_study_name': next_experiment_ticket.experiment.title,
-                'day2_datetime': tomorrow.strftime(date_format_str),
-            },
-            'datetime': target_time,
-            'ticket': next_experiment_ticket,
-        })
+            session_tzinfo = zoneinfo.ZoneInfo(session_tz)
 
-    # Generate the notifications
-    notifications = create_notifications(session, notification_list)
+            target_time = timezone.datetime.combine(tomorrow, earliest_start_time, tzinfo=session_tzinfo)
+
+            pdb.set_trace()
+            notification_list.append({
+                'session': session,
+                'template': 'debug/notifications/prolific.html',
+                'context': {
+                    'msg_number': len(notification_list)+1,
+                    'msg_subject': "DAY 2 SONA LINK AND REMINDER",
+                    'prolific_study_name': next_experiment_ticket.experiment.title,
+                    'day2_datetime': tomorrow.strftime(date_format_str),
+                },
+                'datetime': target_time,
+                'ticket': next_experiment_ticket,
+            })
+
+            # Create a reminder notification to be sent at 6 PM (localtime) on the next experiment day.
+            time = datetime.time(18,00)
+            target_time = timezone.datetime.combine(tomorrow, time, tzinfo=session_tzinfo)
+
+            # Generate the notification
+            notification_list.append({
+                'session': session,
+                'template': 'debug/notifications/prolific_day1.html',
+                'context': {
+                    'msg_number': len(notification_list)+1,
+                    'msg_subject': "DAY 2 FINAL PARTICIPATION REMINDER ",
+                    'prolific_study_name': next_experiment_ticket.experiment.title,
+                    'day2_datetime': tomorrow.strftime(date_format_str),
+                },
+                'datetime': target_time,
+                'ticket': next_experiment_ticket,
+            })
+
+        # Generate the notifications
+        notifications = create_notifications(session, notification_list)
+
+    return

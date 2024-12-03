@@ -17,7 +17,7 @@ from django.dispatch import receiver
 
 from django.contrib.sites.models import Site
 from django.urls import reverse
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 
 from django.core.serializers.json import DjangoJSONEncoder
 
@@ -1065,7 +1065,7 @@ class ExperimentXForm(models.Model):
         elif form_idx == exf.count():
             expsessinfo['finished'] = True
 
-            request.session[expsess_key] = expsessinfo
+            request.session[self.experiment.cache_key] = expsessinfo
             return HttpResponseRedirect(reverse('terminate_experiment'),args=(experiment_id))
         else:
             expsessinfo['curr_form_idx']+=1
