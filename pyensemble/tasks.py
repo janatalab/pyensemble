@@ -9,6 +9,8 @@ from django.utils.html import strip_tags
 
 from django.utils import timezone
 
+from pyensemble.models import Subject, Session, Ticket, Experiment, Attribute, Notification
+
 import logging
 logger = logging.getLogger(__name__)
 
@@ -16,8 +18,6 @@ import pdb
 
 
 def fetch_subject_id(subject, scheme='nhdl'):
-    from pyensemble.models import Subject
-
     subject_id=None
     exists = False
     last = subject['name_last'].lower()
@@ -45,8 +45,6 @@ def fetch_subject_id(subject, scheme='nhdl'):
 
 
 def create_tickets(ticket_request_data):
-    from pyensemble.models import Ticket, Experiment, Attribute
-
     # Get the number of existing tickets
     num_existing_tickets = Ticket.objects.count()
 
@@ -78,7 +76,7 @@ def create_tickets(ticket_request_data):
 
             # Add the ticket(s)
             for iticket in range(num_tickets):
-                unencrypted_str = '%d_%d'%(num_existing_tickets+len(ticket_list), experiment.id)
+                unencrypted_str = '%d_%d'%(num_existing_tickets+ticket_list.count(), experiment.id)
                 encrypted_str = hashlib.md5(unencrypted_str.encode('utf-8')).hexdigest()
 
                 # Add a new ticket to our list
@@ -103,6 +101,51 @@ def create_tickets(ticket_request_data):
                 ticket_list = ticket_list | Ticket.objects.filter(id=ticket.id)
 
     return ticket_list
+
+
+'''
+Define a method for generating a ticket for a subject to participate in the next experiment in the study.
+'''
+def create_next_experiment_ticket(session, **kwargs):
+    # Get the next experiment in the study
+    next_experiment = session.experiment.studyxexperiment_set.first().next()
+
+    if not next_experiment:
+        return None
+
+    # Formulate our basic ticket request
+    ticket_request = {
+        'experiment': next_experiment,
+        'subject': session.subject,
+        'num_user': 1,
+        'timezone': session.timezone,
+    }
+
+    # Update the ticket request with any additional parameters
+    ticket_request.update(kwargs)
+
+    # Create the ticket
+    ticket = create_tickets(ticket_request).first()
+
+    return ticket
+
+
+def get_or_create_next_experiment_ticket(session, **kwargs):
+    # Get the next experiment in the study
+    next_experiment = session.experiment.studyxexperiment_set.first().next()
+
+    if not next_experiment:
+        return None
+
+    # Get the existing ticket
+    ticket = Ticket.objects.filter(experiment=next_experiment, subject=session.subject).first()
+
+    # If the ticket does not exist, create it
+    if not ticket:
+        ticket = create_next_experiment_ticket(session, **kwargs)
+
+    return ticket
+
 
 def send_email(template_name, context):
     # Get our template
@@ -139,11 +182,32 @@ def send_email(template_name, context):
 
     return num_sent
 
+
+# Create notifications
+def create_notifications(session, notification_list):
+    # Initialize our Notification queryset
+    notifications = Notification.objects.none()
+
+    for n in notification_list:
+        # Create an entry in our notifications table
+        nobj = Notification.objects.create(
+            subject = session.subject,
+            experiment = session.experiment,
+            session = session,
+
+            template = n['template'],
+            datetime = n['datetime'],
+            context = n['context']
+        )
+
+        # Add the notification to our notifications QuerySet
+        notifications = notifications | Notification.objects.filter(id=nobj.id)
+
+    return notifications
+
 # This should probably be implemented as a method on a Notification queryset manager
 # @app.task()
 def dispatch_notifications():
-    from pyensemble.models import Notification
-    
     # Get a list of unsent notifications that were scheduled to be sent prior to the present time
     notification_list = Notification.objects.filter(sent__isnull=True, scheduled__lte=timezone.now())
 
@@ -154,8 +218,6 @@ def dispatch_notifications():
 
 
 def execute_postsession_callbacks():
-    from pyensemble.models import Session 
-
     error_count = 0
 
     # Get a list of completed Sessions for which the Experiment has a post_session_callback
@@ -171,6 +233,10 @@ def execute_postsession_callbacks():
         except Exception as err:
             error_count += 1
 
-            logger.error(f'postsession_callback execution failed for Session: {session.id}\nExperiment: {session.experiment}\nSubject: {session.subject.subject_id}\nError: {err}')
+            msg = f'postsession_callback execution failed for Session: {session.id}\nExperiment: {session.experiment}\nSubject: {session.subject.subject_id}\nError: {err}'
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logger.error(f'postsession_callback execution failed for Session: {session.id}\nExperiment: {session.experiment}\nSubject: {session.subject.subject_id}\nError: {err}')
 
     return error_count

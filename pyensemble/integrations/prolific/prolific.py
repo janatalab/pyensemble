@@ -141,18 +141,23 @@ class Prolific():
         curr_endpoint = self.api_endpoint+f"participant-groups/{group_id}/participants/"
 
         # Add the participant to the group
-        resp = self.session.post(curr_endpoint, data={"participant_ids": [participant_id]})
+        response = self.session.post(curr_endpoint, data={"participant_ids": [participant_id]})
 
         # Extract the response. We should only have one result.
-        result = resp.json()['results'][0]
+        response = response.json()
 
-        # Generate a message
-        msg = f"Added participant {result['participant_id']} to group {group_id} on {result['datetime_created']}"
-
-        if settings.DEBUG:
-            print(msg)
+        if 'error' in response.keys():
+            result = None
         else:
-            logging.info(msg)
+            result = response['results'][0]
+
+            # Generate a message
+            msg = f"Added participant {result['participant_id']} to group {group_id} on {result['datetime_created']}"
+
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.info(msg)
 
         return result
     

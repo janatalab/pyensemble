@@ -2,18 +2,22 @@
 #
 # Testing of PyEnsemble interactions with Prolific
 
+import datetime
+import zoneinfo
+
+from django.utils import timezone
 from django.http import HttpResponse
 
-from pyensemble.models import DataFormat, Question, Form, FormXQuestion, Experiment, ExperimentXForm, Study
+from pyensemble.models import DataFormat, Question, Form, FormXQuestion, Experiment, ExperimentXForm, Study, Notification
 from pyensemble.study import create_experiment_groupings
 
 from pyensemble.integrations.prolific.prolific import Prolific
 
-from pyensemble.models import Ticket
-from pyensemble.tasks import create_tickets
+from pyensemble.tasks import create_tickets, get_or_create_next_experiment_ticket, create_notifications
 
 import pdb
 
+date_format_str = '%A, %B %-d'
 
 def get_default_prolific_study_params():
     # Create a dictionary containing the set of required params to create a Prolific study
@@ -40,11 +44,13 @@ def get_default_prolific_study_params():
 
     return default_study_params
 
+
 # Create a wrapper for the integration example
 def create_example(request):
     response = create_prolific_pyensemble_integration_example()
 
     return response
+
 
 # Create a study
 def create_prolific_pyensemble_integration_example():
@@ -164,14 +170,11 @@ def create_prolific_pyensemble_integration_example():
         # Set additional experiment parameters
         #
 
-        # Check whether our experiment description is set
-        if not experiment.description:
-            # Add a description to the experiment
-            experiment.description = f"This is a test of a multi-day study run via Prolific. This is Day {idx}."
+        # Add a description to the experiment
+        experiment.description = f"This is a test of a multi-day study run via Prolific. This is Day {idx}."
 
         # Set our postsession callback
-        if not experiment.post_session_callback:
-            experiment.post_session_callback = f"debug.prolific.postsession_day{idx}"
+        experiment.post_session_callback = "debug.prolific.postsession"
 
         # Set expectation of a user ticket if this is Day 2 or 3 experiment
         if idx in [2, 3]:
@@ -179,7 +182,6 @@ def create_prolific_pyensemble_integration_example():
 
         # Save the experiment, even if nothing changed
         experiment.save()
-
 
         # Delete any existing ExperimentXForm entries for this experiment
         ExperimentXForm.objects.filter(experiment=experiment).delete()
@@ -299,11 +301,9 @@ def create_prolific_pyensemble_integration_example():
 
     return HttpResponse("Success")
 
-# Postsession callback for Day 1
-def postsession_day1(request, *args, **kwargs):
-    # Get the session
-    session = kwargs['session']
 
+# Create a single postsession callback that can be used for all days
+def postsession(session, *args, **kwargs):
     # Run any quality control checks
     passed_qc = True
 
@@ -313,14 +313,50 @@ def postsession_day1(request, *args, **kwargs):
         # Note that quality control failed
         return {'qc_failed': True}
     
-    # Since we are dealing with a Prolific session, 
-    # we need to add this participant to the eligibility list for the next study in the sequence.
-
-    # Create a user ticket for the next experiment
+    #
+    # Determine the next experiment in the sequence
+    #
     next_experiment = session.experiment.studyxexperiment_set.first().next()
 
     if next_experiment:
-        pass
+        #
+        # Create a user ticket for the next experiment
+        #
+
+        # Determine the valid ticket times
+        tomorrow = session.effective_end_date()+timezone.timedelta(days=1)
+        day_after_tomorrow = tomorrow+timezone.timedelta(days=1)
+        
+        earliest_start_time = datetime.time(5,30)
+        latest_start_time = datetime.time(2,0) # night after
+
+        validfrom_time = timezone.datetime.combine(tomorrow, earliest_start_time, tzinfo=zoneinfo.ZoneInfo(session.timezone))
+        expiration_datetime = timezone.datetime.combine(day_after_tomorrow, latest_start_time, tzinfo=zoneinfo.ZoneInfo(session.timezone))
+        
+        ticket_validity = {
+            'user_validfrom': validfrom_time,
+            'user_expiration': expiration_datetime
+        }
+
+        next_experiment_ticket = get_or_create_next_experiment_ticket(session, **ticket_validity)
+
+        #
+        # Since we are dealing with a Prolific session, 
+        # we need to add this participant to the eligibility list for the next study in the sequence.
+        #
+
+        # Get ourselves a Prolific API object
+        prolific = Prolific()
+
+        # Get our Prolific group for the next experiment
+        group = prolific.get_group_by_name(next_experiment_ticket.experiment.title)
+
+        # Add the participant to the group
+        result = prolific.add_participant_to_group(group['id'], session.subject.subject_id)
+
+        # Verify that the participant was added to the group
+        if not result:
+            return {'prolific_group_add_failed': True}
 
     #
     # Generate our notifications
@@ -330,23 +366,61 @@ def postsession_day1(request, *args, **kwargs):
     notification_list = []
 
     # Create a thank you notification, that contains a reminder about the next experiment day
+    # Create one notification to be sent in the next dispatch cycle
+    notification_list.append({
+        'session': session,
+        'template': 'debug/thank_you.html',
+        'context': {
+            'msg_subject': 'Thank you for participating!'
+        },
+        'datetime': session.end,
+    })
 
+    # Create additional notifications for the next experiment day
+    if next_experiment:
+        # Create a notification to be sent at 5:30 AM (localtime) on the next experiment day, 
+        # containing a link for starting the next experiment
+        
+        # Get our session's timezone info
+        # NOTE: Can this be moved to the Session model?
+        session_tz = session.timezone
+        if not session_tz:
+            session_tz = 'UTC'
 
-    # Create a notification to be sent at  6:00 AM (localtime) on the next experiment day, 
-    # containing a link for starting the next experiment
+        session_tzinfo = zoneinfo.ZoneInfo(session_tz)
 
+        target_time = timezone.datetime.combine(tomorrow, earliest_start_time, tzinfo=session_tzinfo)
 
-    # Create a reminder notification to be sent at 6 PM (localtime) on the next experiment day.
+        notification_list.append({
+            'session': session,
+            'template': 'debug/notifications/prolific_day1.html',
+            'context': {
+                'msg_number': len(notification_list)+1,
+                'msg_subject': "DAY 2 SONA LINK AND REMINDER",
+                'prolific_study_name': next_experiment_ticket.experiment.title,
+                'day2_datetime': tomorrow.strftime(date_format_str),
+            },
+            'datetime': target_time,
+            'ticket': next_experiment_ticket,
+        })
 
+        # Create a reminder notification to be sent at 6 PM (localtime) on the next experiment day.
+        time = datetime.time(18,00)
+        target_time = timezone.datetime.combine(tomorrow, time, tzinfo=session_tzinfo)
+
+        # Generate the notification
+        notification_list.append({
+            'session': session,
+            'template': 'debug/notifications/prolific_day1.html',
+            'context': {
+                'msg_number': len(notification_list)+1,
+                'msg_subject': "DAY 2 FINAL PARTICIPATION REMINDER ",
+                'prolific_study_name': next_experiment_ticket.experiment.title,
+                'day2_datetime': tomorrow.strftime(date_format_str),
+            },
+            'datetime': target_time,
+            'ticket': next_experiment_ticket,
+        })
 
     # Generate the notifications
     notifications = create_notifications(session, notification_list)
-
-
-# Postsession callback for Day 2
-def postsession_day2(request, *args, **kwargs):
-    pass
-
-# Postsession callback for Day 3
-def postsession_day3(request, *args, **kwargs):
-    pass

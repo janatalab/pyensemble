@@ -25,7 +25,7 @@ from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailFiel
 
 from django.utils import timezone
 
-from datetime import datetime
+import datetime
 from dateutil.relativedelta import relativedelta
 try:
     import zoneinfo
@@ -35,8 +35,6 @@ except ImportError:
 from pyensemble.storage_backends import use_media_storage, use_data_storage
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
-from pyensemble import tasks
-
 
 import pdb
 
@@ -368,6 +366,36 @@ class AbstractSession(models.Model):
             self._end = self.localtime(self.end_datetime)
             
         return self._end
+    
+    # Method to handle late-night sessions that cross over midnight or start in the wee hours of the morning
+    def effective_session_date(self, session_day_crossover_hour=datetime.time(4,0), latest_start_time=datetime.time(2,0)):
+        # Get the start date
+        start_date = self.start.date()
+
+        # Get the end date
+        end_date = self.end.date()
+
+        # # Check whether the start and end date are the same
+        if end_date - start_date != timezone.timedelta(0):
+
+            # Check whether end time is before our crossover point
+            if self.end.time() <= session_day_crossover_hour:
+                effective_date = start_date
+
+            else:
+                # This isn't ideal. Presumably the session has lasted too long and should be disqualified anyway
+                effective_date = end_date
+
+        else:
+            # Check whether the session was started in the wee hours of the morning. If it was, set the effective start date to be the day before
+            if self.start.time() < latest_start_time:
+                effective_date -= timezone.timedelta(days=1)
+
+            else:
+                effective_date = start_date
+
+        return effective_date
+
 
     '''
     Method to run the reporting script, if any, that has been associated with the experiment. Note that this method does not return a view, but rather a data dictionary, encoded as JSON, that can be used in a view.
@@ -451,7 +479,7 @@ class Session(AbstractSession):
         # Calculate the participant's age the first time the save method is called
         if not self.age:
             if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
-                self.age = relativedelta(datetime.now(), self.subject.dob).years
+                self.age = relativedelta(datetime.datetime.now(), self.subject.dob).years
                 self.save()
 
         return self.age
@@ -543,7 +571,7 @@ class Subject(models.Model):
         choices=RACE_OPTIONS,
         default='UN',
         )
-    dob = EncryptedDateField(default=datetime(1900,1,1))
+    dob = EncryptedDateField(default=datetime.datetime(1900,1,1))
     notes = models.TextField()
 
 class Ticket(models.Model):
@@ -1154,6 +1182,8 @@ class Notification(models.Model):
     ticket = models.ForeignKey('Ticket', null=True, db_constraint=True, on_delete=models.CASCADE)
 
     def dispatch(self):
+        from pyensemble.utils import send_email
+
         # Create the context that we send to the template
         context = {}
 
@@ -1169,7 +1199,7 @@ class Notification(models.Model):
         context.update(self.context)
 
         # Call the email-generating function
-        tasks.send_email(self.template, context)
+        send_email(self.template, context)
 
         # Log the time we sent the notification
         # This should be made more robust in terms of verifying that the send_mail function actually sent the email
