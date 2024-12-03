@@ -79,10 +79,10 @@ class Prolific():
 
         return groups
 
-    # Get or create a participant group
-    def get_or_create_group(self, group_name, description=""):
+
+    # Get a participant group by name
+    def get_group_by_name(self, group_name):
         group = None
-        created = False
 
         curr_endpoint = self.api_endpoint+"participant-groups"
 
@@ -95,6 +95,19 @@ class Prolific():
                 group = g
                 break
 
+        return group
+
+
+    # Get or create a participant group
+    def get_or_create_group(self, group_name, description=""):
+        group = None
+        created = False
+
+        curr_endpoint = self.api_endpoint+"participant-groups"
+
+        # Get the group if it exists
+        group = self.get_group_by_name(group_name)
+
         # Create a new group if we were unable to find it
         if not group:
             group = self.session.post(curr_endpoint, data={
@@ -106,6 +119,22 @@ class Prolific():
 
         return group, created
     
+    
+    # Check whether a participant is a member of a group
+    def is_group_member(self, group_id, participant_id):
+        curr_endpoint = self.api_endpoint+f"participant-groups/{group_id}/participants/"
+
+        # Get a list of all participants in the group
+        resp = self.session.get(curr_endpoint).json()
+
+        # Check whether the participant is in the group
+        in_group = False
+        for p in resp['results']:
+            if p['participant_id'] == participant_id:
+                in_group = True
+                break
+
+        return in_group
 
     # Add a participant to a group
     def add_participant_to_group(self, group_id, participant_id):

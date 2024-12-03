@@ -172,6 +172,7 @@ class Experiment(models.Model):
     locked = models.BooleanField(default=False)
 
     is_group = models.BooleanField(default=False, help_text="Subjects participate in groups")
+    user_ticket_expected = models.BooleanField(default=False, help_text="User ticket expected for participation")
 
     forms = models.ManyToManyField('Form', through='ExperimentXForm')
 
@@ -625,6 +626,15 @@ class Ticket(models.Model):
         return self._end
 
     @property
+    def too_early(self):
+        if self.validfrom_datetime and (self.validfrom_datetime > timezone.now()):
+            self._too_early=True
+        else:
+            self._too_early=False
+
+        return self._too_early
+
+    @property
     def expired(self):
         if self.expiration_datetime and (self.expiration_datetime < timezone.now()):
             self._expired=True
@@ -632,6 +642,15 @@ class Ticket(models.Model):
             self._expired=False
 
         return self._expired
+    
+    @property
+    def valid(self):
+        if self.used or self.too_early or self.expired:
+            self._valid=False
+        else:
+            self._valid=True
+
+        return self._valid
 
 @receiver(pre_save, sender=Ticket)
 def generate_tiny_codes(sender, instance, **kwargs):
