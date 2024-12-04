@@ -23,7 +23,12 @@
         <ul class="list-group">
             <li class="list-group-item text-left bg-light">Experiment Information</li>
             <li class="list-group-item">{{form.title.label}}{% crispy_field form.title %}</li>
-            <li class="list-group-item">Group experiment: {% crispy_field form.is_group %}</li>
+            <li class="list-group-item">
+                <div class="row">
+                    <div class="col-3">Group experiment: {% crispy_field form.is_group %}</div>
+                    <div class="col-3">{{form.user_ticket_expected.label}}: {% crispy_field form.user_ticket_expected %}</div>
+                </div>
+            </li>
             <li class="list-group-item">{{form.description.label}}{% crispy_field form.description%}</li>
             <li class="list-group-item">
                 <div class="row">

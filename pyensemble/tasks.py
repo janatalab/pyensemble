@@ -1,5 +1,6 @@
 # tasks.py
 import hashlib
+import traceback
 
 from django.conf import settings
 
@@ -196,7 +197,7 @@ def create_notifications(session, notification_list):
             session = session,
 
             template = n['template'],
-            datetime = n['datetime'],
+            scheduled = n['datetime'],
             context = n['context']
         )
 
@@ -233,10 +234,10 @@ def execute_postsession_callbacks():
         except Exception as err:
             error_count += 1
 
-            msg = f'postsession_callback execution failed for Session: {session.id}\nExperiment: {session.experiment}\nSubject: {session.subject.subject_id}\nError: {err}'
+            msg = f'postsession_callback execution failed for Session: {session.id}\nExperiment: {session.experiment}\nSubject: {session.subject.subject_id}\nError: {err}\n{traceback.format_exc()}'
             if settings.DEBUG:
                 print(msg)
             else:
-                logger.error(f'postsession_callback execution failed for Session: {session.id}\nExperiment: {session.experiment}\nSubject: {session.subject.subject_id}\nError: {err}')
+                logger.error(msg)
 
     return error_count

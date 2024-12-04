@@ -14,6 +14,8 @@ import os
 import json
 from configparser import ConfigParser
 
+import pdb
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
@@ -36,7 +38,7 @@ PASS_DIR = os.path.join(BASE_DIR, 'pyensemble/settings/local')
 """
 An example of an alternative location at which to store credentials. Might be useful in production server contexts.
 """
-PASS_DIR = os.path.join('/var/www/private', INSTANCE_LABEL)
+#PASS_DIR = os.path.join('/var/www/private', INSTANCE_LABEL)
 
 # Specify the file that contains our various custom settings and secrets
 SITE_CONFIG_FILE = os.path.join(PASS_DIR, 'pyensemble_params.ini')
@@ -109,28 +111,35 @@ CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
 WSGI_APPLICATION = 'pyensemble.wsgi.application'
 
-
-if config['django-db']['ssl_certpath']:
-    ssl_certpath = config['django-db']['ssl_certpath']
-else:
-    ssl_certpath = PASS_DIR
-
+# Database
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
+        'ENGINE': config['django-db'].get('engine', 'django.db.backends.mysql'),
         'HOST': config['django-db']['host'],
         'NAME': config['django-db']['name'],
         'USER': config['django-db']['user'],
         'PASSWORD': config['django-db']['passwd'],
         'PORT': '3306', # 3306 is the default mysql port
-        'OPTIONS': {
-            'ssl': {
-                'ca': os.path.join(ssl_certpath, config['django-db']['ssl_certname']),
-            },
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
-        }
+        'OPTIONS': {}
     }
 }
+
+# Add ssl info if we are dealing with a MySQL database
+ssl_backends = ['django.db.backends.mysql']
+
+if DATABASES['default']['ENGINE'] in ssl_backends:
+    if config['django-db'].get('ssl_certpath', None):
+        ssl_certpath = config['django-db']['ssl_certpath']
+    else:
+        ssl_certpath = PASS_DIR
+
+    DATABASES['default']['OPTIONS']['ssl'] = {
+        'ca': os.path.join(ssl_certpath, config['django-db']['ssl_certname']),
+    }
+
+# Set other mysql specific options
+if DATABASES['default']['ENGINE'] == 'django.db.backends.mysql':
+    DATABASES['default']['OPTIONS']['init_command'] = "SET sql_mode='STRICT_TRANS_TABLES'"
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 

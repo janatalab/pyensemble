@@ -1182,7 +1182,7 @@ class Notification(models.Model):
     ticket = models.ForeignKey('Ticket', null=True, db_constraint=True, on_delete=models.CASCADE)
 
     def dispatch(self):
-        from pyensemble.utils import send_email
+        from pyensemble.tasks import send_email
 
         # Create the context that we send to the template
         context = {}
