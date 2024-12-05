@@ -19,6 +19,8 @@ import pdb
 
 date_format_str = '%A, %B %-d'
 
+PROLIFIC_BUG_FIXED = False
+
 def get_default_prolific_study_params():
     # Create a dictionary containing the set of required params to create a Prolific study
     # The dictionary will contain the following
@@ -174,7 +176,7 @@ def create_prolific_pyensemble_integration_example():
         experiment.description = f"This is a test of a multi-day study run via Prolific. This is Day {idx}."
 
         # Set our postsession callback
-        experiment.post_session_callback = "debug.prolific.postsession"
+        experiment.post_session_callback = "debug.prolific.postsession()"
 
         # Set expectation of a user ticket if this is Day 2 or 3 experiment
         if idx in [2, 3]:
@@ -218,43 +220,6 @@ def create_prolific_pyensemble_integration_example():
 
     # Create each Profilic study, i.e. corresponding to each PyEnsemble experiment
     for experiment in study.experiments.all():
-        # Check whether the study already exists in Prolific in the project
-        prolific_study = prolific.get_study(experiment.title, project_id=project['id'])
-
-        if prolific_study:
-            prolific_study_ids.append(prolific_study['id'])
-            continue
-
-        # If the study does not exist, make sure we have the required parameters
-        
-        # Get the default study parameters
-        prolific_study_params = get_default_prolific_study_params()
-
-        # Update the study parameters with the experiment title
-        prolific_study_params.update({
-            'study_name': experiment.title,
-            'description': experiment.description,
-            'completion_codes': [
-                {
-                    "code": "ABC123",
-                    "code_type": "COMPLETED",
-                    "actions": [
-                        {
-                            "action": "AUTOMATICALLY_APPROVE"
-                        }
-                    ]
-                }
-            ]
-        })
-
-        # 11/16/2024: The completion codes specification is not working as expected, possibly due to a bug in the Prolific API
-        # Try setting completion codes to None. Did not work.
-        # prolific_study_params.update({
-        #     'completion_codes': [{"code": None}]
-        # })
-
-        # 11/19/2024: Created studies manually in the Prolific UI.
-
         # Get our ticket for the experiment because this is how we get the external URL
         ticket_attribute_name = 'Prolific Test'
         tickets = experiment.ticket_set.filter(attribute__name=ticket_attribute_name)
@@ -275,29 +240,63 @@ def create_prolific_pyensemble_integration_example():
         else:
             ticket = tickets.first()
 
-        # Update the study parameters with the external URL
-        pid_str = "{{%PROLIFIC_PID%}}"
-        study_id_str = "{{%STUDY_ID%}}"
-        prolific_study_params.update({
-            'external_study_url': f"{ticket.url}&PROLIFIC_PID={pid_str}&STUDY_ID={study_id_str}"
-        })
+        # Check whether the study already exists in Prolific in the project
+        prolific_study = prolific.get_study(experiment.title, project_id=project['id'])
 
-        # Create the study
-        prolific_study, _ = prolific.get_or_create_study(prolific_study_params, project_id=project['id'])
+        if prolific_study:
+            prolific_study_ids.append(prolific_study['id'])
 
-        # Append the study ID to our list
-        prolific_study_ids.append(prolific_study['id'])
+        # If the study does not exist, make sure we have the required parameters before we try to create it.
+        # NOTE: 11/16/2024: The completion codes specification is not working as expected, possibly due to a bug in the Prolific API
+        # 11/19/2024: Created studies manually in the Prolific UI.
+        # 12/04/2024: Automated study creation is still not working due to the completion codes issue and the 
+        # fact that the completion codes are required for the study creation.
+
+        if PROLIFIC_BUG_FIXED:               
+            # Get the default study parameters
+            prolific_study_params = get_default_prolific_study_params()
+
+            # Update the study parameters with the experiment title
+            prolific_study_params.update({
+                'study_name': experiment.title,
+                'description': experiment.description,
+                'completion_codes': [
+                    {
+                        "code": "ABC123",
+                        "code_type": "COMPLETED",
+                        "actions": [
+                            {
+                                "action": "AUTOMATICALLY_APPROVE"
+                            }
+                        ]
+                    }
+                ]
+            })
+
+            # Update the study parameters with the external URL
+            pid_str = "{{%PROLIFIC_PID%}}"
+            study_id_str = "{{%STUDY_ID%}}"
+            prolific_study_params.update({
+                'external_study_url': f"{ticket.url}&PROLIFIC_PID={pid_str}&STUDY_ID={study_id_str}"
+            })
+
+            # Create the study
+            prolific_study, _ = prolific.get_or_create_study(prolific_study_params, project_id=project['id'])
+
+            # Append the study ID to our list
+            prolific_study_ids.append(prolific_study['id'])
 
         # Create a participant group for the next study, if applicable
         # Get the next experiment in the sequence
-        next_experiment = experiment.studyxexperiment_set.first().next()
+        next_experiment = experiment.studyxexperiment_set.first().next_experiment()
 
         if next_experiment:
             # Create the participant group if necessary for the next experiment
             prolific.get_or_create_group(next_experiment.title)
 
-    # Create the study collection 
-    prolific.get_or_create_study_collection(pyensemble_study_title, prolific_study_ids)
+    # Create the study collection if we, in fact, have our full set of studies
+    if len(prolific_study_ids) == study.num_experiments:
+        prolific.get_or_create_study_collection(pyensemble_study_title, prolific_study_ids)
 
     return HttpResponse("Success")
 
@@ -316,7 +315,7 @@ def postsession(session, *args, **kwargs):
     #
     # Determine the next experiment in the sequence
     #
-    next_experiment = session.experiment.studyxexperiment_set.first().next()
+    next_experiment = session.experiment.studyxexperiment_set.first().next_experiment()
     next_experiment_ticket = None
 
     if next_experiment:

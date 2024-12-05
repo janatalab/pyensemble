@@ -109,7 +109,7 @@ Define a method for generating a ticket for a subject to participate in the next
 '''
 def create_next_experiment_ticket(session, **kwargs):
     # Get the next experiment in the study
-    next_experiment = session.experiment.studyxexperiment_set.first().next()
+    next_experiment = session.experiment.studyxexperiment_set.first().next_experiment()
 
     if not next_experiment:
         return None
@@ -133,7 +133,7 @@ def create_next_experiment_ticket(session, **kwargs):
 
 def get_or_create_next_experiment_ticket(session, **kwargs):
     # Get the next experiment in the study
-    next_experiment = session.experiment.studyxexperiment_set.first().next()
+    next_experiment = session.experiment.studyxexperiment_set.first().next_experiment()
 
     if not next_experiment:
         return None

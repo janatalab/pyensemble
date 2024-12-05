@@ -1113,26 +1113,26 @@ class StudyXExperiment(models.Model):
         return self.experiment.title
 
     # Method to return the previous experiment in the series
-    def prev(self):
+    def prev_experiment(self):
         experiment = None
 
         if self.experiment_order > 1:
             experiment = StudyXExperiment.objects.get(
                 study=self.study,
                 experiment_order=self.experiment_order-1
-                )
+                ).experiment
 
         return experiment     
 
     # Method to return the next experiment in the series
-    def next(self):
+    def next_experiment(self):
         experiment = None
 
         if self.experiment_order < self.study.num_experiments:
             experiment = StudyXExperiment.objects.get(
                 study=self.study,
                 experiment_order=self.experiment_order+1
-                )
+                ).experiment
 
         return experiment
 
