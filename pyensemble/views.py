@@ -416,7 +416,7 @@ def run_experiment(request, experiment_id=None):
         ticket_code = request.GET.get('tc', None)
 
         # Check whether we have a Prolific subject ID as a parameter.
-        # If we do, we have to handle a bunch of prolific integration stuff.
+        # If we do, we have to handle a bunch of Prolific integration stuff.
         prolific_pid = prolific.utils.get_participant_id(request)
 
         if prolific_pid:

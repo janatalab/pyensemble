@@ -19,6 +19,7 @@ import pdb
 
 date_format_str = '%A, %B %-d'
 
+# Ultimately, remove this when the Prolific API bug is fixed
 PROLIFIC_BUG_FIXED = False
 
 def get_default_prolific_study_params():
@@ -176,7 +177,7 @@ def create_prolific_pyensemble_integration_example():
         experiment.description = f"This is a test of a multi-day study run via Prolific. This is Day {idx}."
 
         # Set our postsession callback
-        experiment.post_session_callback = "debug.prolific.postsession()"
+        experiment.post_session_callback = "debug.prolific.postsession(create_notifications=True)"
 
         # Set expectation of a user ticket if this is Day 2 or 3 experiment
         if idx in [2, 3]:
@@ -328,7 +329,7 @@ def postsession(session, *args, **kwargs):
         day_after_tomorrow = tomorrow+timezone.timedelta(days=1)
         
         earliest_start_time = datetime.time(5,30)
-        latest_start_time = datetime.time(2,0) # night after
+        latest_start_time = datetime.time(2,0) # late-night session, after midnight, but before 2 AM
 
         validfrom_time = timezone.datetime.combine(tomorrow, earliest_start_time, tzinfo=zoneinfo.ZoneInfo(session.timezone))
         expiration_datetime = timezone.datetime.combine(day_after_tomorrow, latest_start_time, tzinfo=zoneinfo.ZoneInfo(session.timezone))
@@ -366,11 +367,15 @@ def postsession(session, *args, **kwargs):
         # Create a list of dictionaries with notification parameters
         notification_list = []
 
+        # Specify the template for all of this day's notifications
+        notification_template = f'debug/notifications/prolific_multiday.html'
+
         # Create a thank you notification, that contains a reminder about the next experiment day
         # Create one notification to be sent in the next dispatch cycle
+        curr_experiment_order = session.experiment.studyxexperiment_set.first().experiment_order
         notification_list.append({
             'session': session,
-            'template': 'debug/thank_you.html',
+            'template': notification_template,
             'context': {
                 'msg_subject': f'Thank you for participating in the study titled {session.experiment.title}!'
             },
@@ -379,6 +384,9 @@ def postsession(session, *args, **kwargs):
 
         # Create additional notifications for the next experiment day
         if next_experiment:
+            # Get the experiment order in the study of this experiment
+            next_experiment_order = next_experiment.studyxexperiment_set.first().experiment_order
+
             # Create a notification to be sent at 5:30 AM (localtime) on the next experiment day, 
             # containing a link for starting the next experiment
             
@@ -395,15 +403,15 @@ def postsession(session, *args, **kwargs):
             pdb.set_trace()
             notification_list.append({
                 'session': session,
-                'template': 'debug/notifications/prolific.html',
+                'template': notification_template,
                 'context': {
                     'msg_number': len(notification_list)+1,
-                    'msg_subject': "DAY 2 SONA LINK AND REMINDER",
+                    'msg_subject': f"Day {next_experiment_order} Study Reminder",
+                    'curr_experiment_order': curr_experiment_order,
                     'prolific_study_name': next_experiment_ticket.experiment.title,
-                    'day2_datetime': tomorrow.strftime(date_format_str),
+                    'ticket': next_experiment_ticket,
                 },
                 'datetime': target_time,
-                'ticket': next_experiment_ticket,
             })
 
             # Create a reminder notification to be sent at 6 PM (localtime) on the next experiment day.
@@ -413,15 +421,14 @@ def postsession(session, *args, **kwargs):
             # Generate the notification
             notification_list.append({
                 'session': session,
-                'template': 'debug/notifications/prolific_day1.html',
+                'template': notification_template,
                 'context': {
                     'msg_number': len(notification_list)+1,
-                    'msg_subject': "DAY 2 FINAL PARTICIPATION REMINDER ",
+                    'msg_subject': f"Day {next_experiment_order} FINAL PARTICIPATION REMINDER ",
                     'prolific_study_name': next_experiment_ticket.experiment.title,
-                    'day2_datetime': tomorrow.strftime(date_format_str),
+                    'ticket': next_experiment_ticket,
                 },
                 'datetime': target_time,
-                'ticket': next_experiment_ticket,
             })
 
         # Generate the notifications

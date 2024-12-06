@@ -24,7 +24,11 @@ def get_or_create_prolific_subject(request):
         return HttpResponseBadRequest('No Profilic ID specified')
 
     # Get or create a subject entry
-    subject = Subject.objects.get_or_create(subject_id=prolific_id, id_origin='PRLFC')
+    subject = Subject.objects.get_or_create(
+        subject_id=prolific_id, 
+        id_origin='PRLFC',
+        email=f"{prolific_id}@email.prolific.com"
+        )
 
     return subject
 
