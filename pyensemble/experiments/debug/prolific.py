@@ -8,6 +8,8 @@ import zoneinfo
 from django.utils import timezone
 from django.http import HttpResponse
 
+from django.conf import settings
+
 from pyensemble.models import DataFormat, Question, Form, FormXQuestion, Experiment, ExperimentXForm, Study, Notification
 from pyensemble.study import create_experiment_groupings
 
@@ -20,7 +22,7 @@ import pdb
 date_format_str = '%A, %B %-d'
 
 # Ultimately, remove this when the Prolific API bug is fixed
-PROLIFIC_BUG_FIXED = False
+PROLIFIC_BUG_FIXED = True
 
 def get_default_prolific_study_params():
     # Create a dictionary containing the set of required params to create a Prolific study
@@ -34,11 +36,11 @@ def get_default_prolific_study_params():
     # - estimated_completion_time: The estimated time to complete the study
     # - completion_codes: An array of completion codes that will be returned to Prolific
     default_study_params = {
-        'study_name': "",
+        'name': "",
         'description': "",
         'external_study_url': "",
         'prolific_id_option': "url_parameters",
-        'reward': 0,
+        'reward': 10,
         'total_available_places': 1,
         'estimated_completion_time': 1,
         'completion_codes': None,
@@ -245,6 +247,10 @@ def create_prolific_pyensemble_integration_example():
         prolific_study = prolific.get_study(experiment.title, project_id=project['id'])
 
         if prolific_study:
+            msg = f"Found Prolific study {prolific_study['name']} in project {project['name']}."
+            if settings.DEBUG:
+                print(msg)
+
             prolific_study_ids.append(prolific_study['id'])
 
         # If the study does not exist, make sure we have the required parameters before we try to create it.
@@ -259,7 +265,7 @@ def create_prolific_pyensemble_integration_example():
 
             # Update the study parameters with the experiment title
             prolific_study_params.update({
-                'study_name': experiment.title,
+                'name': experiment.title,
                 'description': experiment.description,
                 'completion_codes': [
                     {
@@ -285,7 +291,8 @@ def create_prolific_pyensemble_integration_example():
             prolific_study, _ = prolific.get_or_create_study(prolific_study_params, project_id=project['id'])
 
             # Append the study ID to our list
-            prolific_study_ids.append(prolific_study['id'])
+            if prolific_study:
+                prolific_study_ids.append(prolific_study['id'])
 
         # Create a participant group for the next study, if applicable
         # Get the next experiment in the sequence

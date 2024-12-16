@@ -252,7 +252,7 @@ class Prolific():
     
 
     # Check whether a study exists in a project
-    def get_study(self, study_name, project_id=None):
+    def get_study(self, name, project_id=None):
         study = None
 
         if project_id:
@@ -265,33 +265,41 @@ class Prolific():
 
         # Try to find our study
         for s in resp['results']:
-            if s['name'] == study_name:
+            if s['name'] == name:
                 study = s
                 break
 
         return study
     
     # Create a study
-    def create_study(self, study_params, project_id=None):
+    def create_study(self, study_params):
         study = None
 
-        if project_id:
-            curr_endpoint = f"{self.api_endpoint}projects/{project_id}/studies/"
-        else:
-            curr_endpoint = f"{self.api_endpoint}studies/"
+        # When creating a study, a project ID is not part of the endpoint
+        curr_endpoint = f"{self.api_endpoint}studies/"
 
         # Create the study
         study = self.session.post(curr_endpoint, data=study_params).json()
+
+        # Check for an error
+        if 'error' in study.keys():
+            msg = f"Error creating Prolific study, {study_params['name']}: {study['error']}"
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.error(msg)
+
+            study = None
 
         return study
     
     # Get or create a study
     def get_or_create_study(self, study_params, project_id=None):
         created = False
-        study = self.get_study(study_params['study_name'], project_id=project_id)
+        study = self.get_study(study_params['name'], project_id=project_id)
 
         if not study:
-            study = self.create_study(study_params, project_id=project_id)
+            study = self.create_study(study_params)
             created = True
 
         return study, created
