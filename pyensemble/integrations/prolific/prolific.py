@@ -5,6 +5,7 @@
 # Prolific API: https://docs.prolific.com/docs/api-docs/public/
 
 import requests
+import datetime
 
 from django.conf import settings
 
@@ -12,7 +13,6 @@ from pyensemble.models import Study
 
 import logging
 
-import pdb
 
 # Create a Prolific class
 class Prolific():
@@ -41,6 +41,7 @@ class Prolific():
         # Set our authorization token
         s.headers.update({
             'Authorization': f"Token {self.api_key}",
+            'Content-Type': 'application/json',
         })
 
         # Save the session
@@ -108,14 +109,51 @@ class Prolific():
         # Get the group if it exists
         group = self.get_group_by_name(group_name)
 
+        # We have to deal with the fact that Prolific doesn't delete groups, but only sets the is_deleted flag to True.
+        # The is_deleted field cannot be modified via the API. 
+        # If the group is found, but is_deleted is True, 
+        # we first need modify the name on the previous group with 'marked deleted' and a timestamp corresponding to current time UTC, 
+        # and then create a new group with the requested name.
+        if group and group['is_deleted']:
+            # Create our payload
+            payload = {
+                'name': f"{group['name']} - marked deleted - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            }
+
+            # Mark the group as deleted
+            self.session.patch(curr_endpoint+f"/{group['id']}/", json=payload)
+
+            # Set group to None so we create a new group
+            group = None
+
         # Create a new group if we were unable to find it
         if not group:
-            group = self.session.post(curr_endpoint, data={
+            # Inspite not declaring description as required in the API, it is required to be passed in the payload
+            if not description:
+                # By default, indicate the creation date
+                description = f"Created on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+            group = self.session.post(curr_endpoint, json={
                 "workspace_id": self.workspace_id,
                 "name": group_name,
                 "description": description,
                 }).json()
+            
+            if 'error' in group.keys():
+                raise Exception(group['error'])
+            
             created = True
+            status_str = "Created"
+
+        else:
+            status_str = "Found"
+
+        # Print the group name and workspace ID
+        msg = f"{status_str} participant group, {group['name']}, in workspace {self.workspace_id}"
+        if settings.DEBUG:
+            print(msg)
+        else:
+            logging.info(msg)
 
         return group, created
     
@@ -141,13 +179,20 @@ class Prolific():
         curr_endpoint = self.api_endpoint+f"participant-groups/{group_id}/participants/"
 
         # Add the participant to the group
-        response = self.session.post(curr_endpoint, data={"participant_ids": [participant_id]})
+        response = self.session.post(curr_endpoint, json={"participant_ids": [participant_id]})
 
         # Extract the response. We should only have one result.
         response = response.json()
 
         if 'error' in response.keys():
-            result = None
+            msg = f"Error adding participant {participant_id} to group {group_id}: {response['error']}"
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.error(msg)
+
+            raise Exception(msg)
+
         else:
             result = response['results'][0]
 
@@ -180,10 +225,15 @@ class Prolific():
 
         # Create a new workspace if we were unable to find it
         if not workspace:
-            workspace = self.session.post(curr_endpoint, data={
+            workspace = self.session.post(curr_endpoint, json={
                 "title": workspace_name,
                 "description": description,
                 }).json()
+            
+            # Handle error
+            if 'error' in workspace.keys():
+                raise Exception(workspace['error'])
+            
             created = True
 
         # Cache the workspace ID
@@ -206,15 +256,29 @@ class Prolific():
         for p in resp['results']:
             if p['title'] == project_name:
                 project = p
+                status_str = "Found"
                 break
 
         # Create a new project if we were unable to find it
         if not project:
-            project = self.session.post(curr_endpoint, data={
+            project = self.session.post(curr_endpoint, json={
                 "title": project_name,
                 "description": description,
                 }).json()
+            
+            # Handle error
+            if 'error' in project.keys():
+                raise Exception(project['error'])
+            
+            status_str = "Created"
             created = True
+
+        # Report on what happened
+        msg = f"{status_str} project {project['title']}: {project['id']}"
+        if settings.DEBUG:
+            print(msg)
+        else:
+            logging.info(msg)
 
         # Cache the project ID
         self.project_id = project['id']
@@ -223,7 +287,7 @@ class Prolific():
 
 
     # Get or create a study collection
-    def get_or_create_study_collection(self, collection_name, study_ids=None, description=""):
+    def get_or_create_study_collection(self, collection_name, description, study_ids=None, ):
         collection = None
         created = False
 
@@ -236,17 +300,50 @@ class Prolific():
         for c in resp['results']:
             if c['name'] == collection_name:
                 collection = c
+                status_str = "Found"
+
+                # Ostensibly the API should return the study_ids as part of the results, but it doesn't.
+                # So, explicitly grab the collection
+                collection = self.session.get(curr_endpoint+f"{c['id']}/").json()
+
+                # Check if the study IDs match
+                if study_ids and set(collection['study_ids']) != set(study_ids):
+                    # Update the study IDs
+                    collection = self.session.patch(curr_endpoint+f"{c['id']}/", json={"study_ids": study_ids}).json()
+
+                    # Handle error
+                    if 'error' in collection.keys():
+                        raise Exception(collection['error'])
+
+                    status_str = "Updated"
+
                 break
 
         # Create a new collection if we were unable to find it
         if not collection:
-            collection = self.session.post(curr_endpoint, data={
+            collection = self.session.post(curr_endpoint, json={
                 "name": collection_name,
                 "description": description,
                 "project_id": self.project_id,
                 "study_ids": study_ids,
                 }).json()
+            
+            # Handle error
+            if 'error' in collection.keys():
+                raise Exception(collection['error'])
+
             created = True
+            status_str = "Created"
+
+        # Print the collection ID and list the study IDs
+        msg = f"{status_str} study collection {collection['name']}: {collection['id']}"
+        for s in collection['study_ids']:
+            msg += f"\n\tStudy ID: {s}"
+
+        if settings.DEBUG:
+            print(msg)
+        else:
+            logging.info(msg)
 
         return collection, created
     
@@ -272,14 +369,15 @@ class Prolific():
         return study
     
     # Create a study
-    def create_study(self, study_params):
-        study = None
-
+    def create_study(self, study_params, project_id=None):
         # When creating a study, a project ID is not part of the endpoint
         curr_endpoint = f"{self.api_endpoint}studies/"
 
+        if project_id:
+            study_params['project'] = project_id
+
         # Create the study
-        study = self.session.post(curr_endpoint, data=study_params).json()
+        study = self.session.post(curr_endpoint, json=study_params).json()
 
         # Check for an error
         if 'error' in study.keys():
@@ -289,7 +387,13 @@ class Prolific():
             else:
                 logging.error(msg)
 
-            study = None
+            raise Exception(msg)
+        else:
+            msg = f"Created Prolific study, {study_params['name']}, id={study['id']}"
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.info(msg)
 
         return study
     
@@ -299,7 +403,17 @@ class Prolific():
         study = self.get_study(study_params['name'], project_id=project_id)
 
         if not study:
-            study = self.create_study(study_params)
+            study = self.create_study(study_params, project_id=project_id)
             created = True
+            status_str = "Created"
+        else:
+            status_str = "Found"
+
+        # Report on what happened
+        msg = f"{status_str} study {study['name']}: {study['id']}"
+        if settings.DEBUG:
+            print(msg)
+        else:
+            logging.info(msg)
 
         return study, created
