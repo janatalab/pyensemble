@@ -16,7 +16,7 @@ import logging
 
 # Create a Prolific class
 class Prolific():
-    def __init__(self, api_key=settings.PROLIFIC_TOKEN, workspace_id=settings.PROLIFIC_WORKSPACE_ID):
+    def __init__(self, api_key=getattr(settings,'PROLIFIC_TOKEN',None), workspace_id=getattr(settings,'PROLIFIC_WORKSPACE_ID',None)):
         self.api_endpoint = settings.PROLIFIC_API
         self.api_key = api_key
         self.workspace_id = workspace_id
