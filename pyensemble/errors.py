@@ -1,10 +1,8 @@
 # errors.py
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest
+from django.http import HttpResponseBadRequest
 from django.shortcuts import render
 
 from django.template.loader import get_template
-
-import pdb
 
 
 def feature_not_enabled(request,feature_string):
@@ -17,6 +15,7 @@ def feature_not_enabled(request,feature_string):
     request.session['next'] = None
 
     return render(request,'pyensemble/error.html',context)
+
 
 def ticket_error(request, ticket, error_type):
     # Load the template

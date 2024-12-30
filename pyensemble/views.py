@@ -11,37 +11,39 @@ from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 
-from django.views.generic import ListView, DetailView
+from django.views.generic import ListView
 from django.views.generic.base import TemplateView
 from django.views.decorators.http import require_http_methods
 
-import django.forms as forms
-from django.db import transaction, IntegrityError
+from django.db import transaction
 from django.db.models import Q
 
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, JsonResponse, HttpResponseGone
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseGone
 
 from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
 
 from django.conf import settings
-from django.views.generic.edit import CreateView, UpdateView, FormView
+from django.views.generic.edit import CreateView, UpdateView
 
 from pyensemble.models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
 
 from pyensemble.forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
 
-from pyensemble.tasks import fetch_subject_id, get_or_create_prolific_subject, create_tickets
+from pyensemble.tasks import fetch_subject_id, create_tickets
+
+from pyensemble.integrations import prolific
 
 from pyensemble import errors
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
-from pyensemble import experiments 
 
 from pyensemble.group.models import GroupSession, GroupSessionSubjectSession
 from pyensemble.group.views import get_group_session, set_groupuser_state, get_groupuser_state, init_group_trial
 
 from crispy_forms.layout import Submit
+
+import logging
 
 import pdb
 
@@ -413,18 +415,54 @@ def run_experiment(request, experiment_id=None):
         # Pull out our ticket code
         ticket_code = request.GET.get('tc', None)
 
-        # Check whether we have a Prolific subject ID as a parameter
-        prolific_pid = request.GET.get('PROLIFIC_PID',None)
-        if prolific_pid:
-            # Create a subject entry for this participant if necessary
-            subject, created = get_or_create_prolific_subject(request)
+        # Check whether we have a Prolific subject ID as a parameter.
+        # If we do, we have to handle a bunch of Prolific integration stuff.
+        prolific_pid = prolific.utils.get_participant_id(request)
 
-            # Generate a user ticket and grab its code
-            ticket_code = create_tickets({
-                'num_user': 1, 
-                'experiment_id': experiment_id,
-                'subject': subject,
-                })[0].ticket_code
+        if prolific_pid:
+            # Make sure there is a Prolific study ID in the request parameters
+            prolific_study_id = prolific.utils.get_study_id(request)
+
+            if not prolific_study_id:
+                return prolific.errors.prolific_error(request, 'NO_STUDY_ID')
+            
+            # Validate the participant. 
+            # If the Prolific study has a participant group associated with it, 
+            # the participant must be part of that group.
+            pid_is_valid = prolific.utils.is_valid_participant(request)
+
+            if not pid_is_valid:
+                return prolific.errors.prolific_error(request, 'INVALID_PID')
+
+            # Create a PyEnsemble subject entry for this participant if necessary
+            subject, _ = prolific.utils.get_or_create_prolific_subject(request)
+
+            # Check whether there is a user ticket associated with this subject and experiment
+            user_tickets = Ticket.objects.filter(subject=subject, experiment=experiment, type='user')
+
+            # If we have no ticket, and if there is no expectation of a ticket, we need to create one.
+            if not user_tickets.exists():
+                # Determine whether an existing user ticket is expected
+                if experiment.user_ticket_expected:
+                    return errors.ticket_error(request, None, 'TICKET_MISSING')
+
+                # Create a ticket and grab its code
+                ticket_code = create_tickets({
+                    'num_user': 1, 
+                    'experiment_id': experiment_id,
+                    'subject': subject,
+                    }).first().ticket_code
+
+            # If we have multiple tickets, log a warning and use the first one
+            elif user_tickets.count() > 1:
+                msg = f"Multiple tickets found for subject {subject.subject_id} in experiment {experiment_id}. Using the first one."
+                if settings.DEBUG:
+                    print(msg)
+                else:
+                    logging.warning(msg)
+
+            # Get the ticket code
+            ticket_code = user_tickets.first().ticket_code
 
         # Process the ticket
         if not ticket_code:
@@ -475,7 +513,7 @@ def run_experiment(request, experiment_id=None):
             if not request.session.session_key:
                 request.session.save()
 
-            subject, created = Subject.objects.get_or_create(subject_id=request.session.session_key)
+            subject, _ = Subject.objects.get_or_create(subject_id=request.session.session_key)
 
             tmp_subject = True
 

@@ -17,7 +17,7 @@ from django.dispatch import receiver
 
 from django.contrib.sites.models import Site
 from django.urls import reverse
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponseRedirect
 
 from django.core.serializers.json import DjangoJSONEncoder
 
@@ -25,7 +25,7 @@ from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailFiel
 
 from django.utils import timezone
 
-from datetime import datetime
+import datetime
 from dateutil.relativedelta import relativedelta
 try:
     import zoneinfo
@@ -35,8 +35,6 @@ except ImportError:
 from pyensemble.storage_backends import use_media_storage, use_data_storage
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
-from pyensemble import tasks
-
 
 import pdb
 
@@ -172,6 +170,7 @@ class Experiment(models.Model):
     locked = models.BooleanField(default=False)
 
     is_group = models.BooleanField(default=False, help_text="Subjects participate in groups")
+    user_ticket_expected = models.BooleanField(default=False, help_text="User ticket expected for participation")
 
     forms = models.ManyToManyField('Form', through='ExperimentXForm')
 
@@ -212,6 +211,7 @@ class Experiment(models.Model):
         condition__exact="").last().form
 
         return last_form
+    
 
 class ResponseQuerySet(models.QuerySet):
     # Method to export response data to a Pandas DataFrame
@@ -366,6 +366,36 @@ class AbstractSession(models.Model):
             self._end = self.localtime(self.end_datetime)
             
         return self._end
+    
+    # Method to handle late-night sessions that cross over midnight or start in the wee hours of the morning
+    def effective_session_date(self, session_day_crossover_hour=datetime.time(4,0), latest_start_time=datetime.time(2,0)):
+        # Get the start date
+        start_date = self.start.date()
+
+        # Get the end date
+        end_date = self.end.date()
+
+        # # Check whether the start and end date are the same
+        if end_date - start_date != timezone.timedelta(0):
+
+            # Check whether end time is before our crossover point
+            if self.end.time() <= session_day_crossover_hour:
+                effective_date = start_date
+
+            else:
+                # This isn't ideal. Presumably the session has lasted too long and should be disqualified anyway
+                effective_date = end_date
+
+        else:
+            # Check whether the session was started in the wee hours of the morning. If it was, set the effective start date to be the day before
+            if self.start.time() < latest_start_time:
+                effective_date -= timezone.timedelta(days=1)
+
+            else:
+                effective_date = start_date
+
+        return effective_date
+
 
     '''
     Method to run the reporting script, if any, that has been associated with the experiment. Note that this method does not return a view, but rather a data dictionary, encoded as JSON, that can be used in a view.
@@ -449,7 +479,7 @@ class Session(AbstractSession):
         # Calculate the participant's age the first time the save method is called
         if not self.age:
             if self.subject and self.subject.dob != Subject.dob.field.get_default().date():
-                self.age = relativedelta(datetime.now(), self.subject.dob).years
+                self.age = relativedelta(datetime.datetime.now(), self.subject.dob).years
                 self.save()
 
         return self.age
@@ -541,21 +571,29 @@ class Subject(models.Model):
         choices=RACE_OPTIONS,
         default='UN',
         )
-    dob = EncryptedDateField(default=datetime(1900,1,1))
+    dob = EncryptedDateField(default=datetime.datetime(1900,1,1))
     notes = models.TextField()
 
 class Ticket(models.Model):
+    # The full ticket code
+    ticket_code = models.CharField(max_length=32)
+
+    # Participant and experimenter codes derived from the ticket code
+    # Used in the context of group experiments
+    participant_code = models.CharField(max_length=4, blank=True, default='')
+    experimenter_code = models.CharField(max_length=4, blank=True, default='')
+
+    # The experiment that this ticket launches
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+
+    # An optional attribute
+    attribute = models.ForeignKey('Attribute', db_constraint=True, on_delete=models.CASCADE, null=True)
+
     TICKET_TYPE_CHOICES=[
         ('master','Master'),
         ('user','User'),
         ('group','Group')
     ]
-
-    ticket_code = models.CharField(max_length=32)
-    participant_code = models.CharField(max_length=4, blank=True, default='')
-    experimenter_code = models.CharField(max_length=4, blank=True, default='')
-
-    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
 
     type = models.CharField(
         max_length=6,
@@ -569,7 +607,7 @@ class Ticket(models.Model):
     expiration_datetime = models.DateTimeField(blank=True, null=True)
     timezone = models.CharField(max_length=64, blank=True, default=settings.TIME_ZONE)
 
-    subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE,null=True)
+    subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE, null=True)
 
     @property
     def url(self):
@@ -616,6 +654,15 @@ class Ticket(models.Model):
         return self._end
 
     @property
+    def too_early(self):
+        if self.validfrom_datetime and (self.validfrom_datetime > timezone.now()):
+            self._too_early=True
+        else:
+            self._too_early=False
+
+        return self._too_early
+
+    @property
     def expired(self):
         if self.expiration_datetime and (self.expiration_datetime < timezone.now()):
             self._expired=True
@@ -623,6 +670,15 @@ class Ticket(models.Model):
             self._expired=False
 
         return self._expired
+    
+    @property
+    def valid(self):
+        if self.used or self.too_early or self.expired:
+            self._valid=False
+        else:
+            self._valid=True
+
+        return self._valid
 
 @receiver(pre_save, sender=Ticket)
 def generate_tiny_codes(sender, instance, **kwargs):
@@ -1009,7 +1065,7 @@ class ExperimentXForm(models.Model):
         elif form_idx == exf.count():
             expsessinfo['finished'] = True
 
-            request.session[expsess_key] = expsessinfo
+            request.session[self.experiment.cache_key] = expsessinfo
             return HttpResponseRedirect(reverse('terminate_experiment'),args=(experiment_id))
         else:
             expsessinfo['curr_form_idx']+=1
@@ -1033,6 +1089,9 @@ class Study(models.Model):
     title = models.CharField(unique=True, max_length=50)
     params = models.JSONField(null=True)
 
+    # Get the experiments uniquely associated with this study
+    experiments = models.ManyToManyField('Experiment', through='StudyXExperiment')
+
     def __str__(self):
         return self.title
 
@@ -1048,31 +1107,32 @@ class StudyXExperiment(models.Model):
 
     class Meta:
         unique_together = (("study","experiment", "experiment_order"),)
+        ordering = ['experiment_order']
 
     def __str__(self):
         return self.experiment.title
 
     # Method to return the previous experiment in the series
-    def prev(self):
+    def prev_experiment(self):
         experiment = None
 
         if self.experiment_order > 1:
             experiment = StudyXExperiment.objects.get(
                 study=self.study,
                 experiment_order=self.experiment_order-1
-                )
+                ).experiment
 
         return experiment     
 
     # Method to return the next experiment in the series
-    def next(self):
+    def next_experiment(self):
         experiment = None
 
         if self.experiment_order < self.study.num_experiments:
             experiment = StudyXExperiment.objects.get(
                 study=self.study,
                 experiment_order=self.experiment_order+1
-                )
+                ).experiment
 
         return experiment
 
@@ -1122,6 +1182,8 @@ class Notification(models.Model):
     ticket = models.ForeignKey('Ticket', null=True, db_constraint=True, on_delete=models.CASCADE)
 
     def dispatch(self):
+        from pyensemble.tasks import send_email
+
         # Create the context that we send to the template
         context = {}
 
@@ -1137,7 +1199,7 @@ class Notification(models.Model):
         context.update(self.context)
 
         # Call the email-generating function
-        tasks.send_email(self.template, context)
+        send_email(self.template, context)
 
         # Log the time we sent the notification
         # This should be made more robust in terms of verifying that the send_mail function actually sent the email

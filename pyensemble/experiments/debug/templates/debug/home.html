@@ -2,14 +2,19 @@
 
 {% block main %}
     <div class="text-left">
-        <div class="h3 text-center">Possible actions</div>
+        <div class="h3 text-center">Experiment creation</div>
         <ul>
             <li>
-                <a href="{% url 'experiments:debug:create-experiment' %}">Create a basic experiment</a>
+                <a href="{% url 'experiments:debug:create-experiment-with-notification' %}">Create an experiment in which an email address is obtained and notification is created</a>
             </li>
             <li>
                 <a href="{% url 'experiments:debug:create-group-experiment' %}">Create a basic group experiment</a>
             </li>
+            {% if have_prolific %}
+                <li>
+                    <a href="{% url 'experiments:debug:create-prolific-multiday' %}">Create a multi-experiment PyEnsemble study and associated Prolific studies</a>
+                </li>
+            {% endif %}
         </ul>
     </div>
 {% endblock %}

@@ -1,22 +1,19 @@
 # tasks.py
 
 import datetime
-
-try:
-    import zoneinfo
-except ImportError:
-    from backports import zoneinfo
-
+import zoneinfo
 from django.utils import timezone
-from django.http import HttpResponse
 
-from pyensemble.utils import defaults
+from django.http import HttpResponse
 
 from pyensemble.models import DataFormat, Question, Form, FormXQuestion, Experiment, ExperimentXForm, Notification
 
+from pyensemble.utils import defaults
+from pyensemble.tasks import create_notifications
+
 import pdb
 
-def create_experiment(request):
+def create_experiment_with_notification(request):
 
     # Create the experiment object
     eo, created = Experiment.objects.get_or_create(
@@ -99,18 +96,17 @@ def create_experiment(request):
 def post_session(session, *args, **kwargs):
 
     # Deal with scheduling notifications
-    scheduled = schedule_notifications(session, *args, **kwargs)
+    notifications = schedule_notifications(session, *args, **kwargs)
 
     return True
 
 def schedule_notifications(session, *args, **kwargs):
     # Schedule our times. Note that these will be stored in 'UTC' and the notification will be sent at the scheduled time. So, calculate things in relation to the local time that this was completed in. These will then automatically be converted to UTC for storage in the database. Regardless of which timezone the server is running in, these will be dispatched in correctly for the user's timezone
     notification_list = []
-    notifications = []
 
     # Create one notification to be sent in the next dispatch cycle
     notification_list.append({
-        'template': 'debug/thank_you.html',
+        'template': 'debug/notifications/thank_you.html',
         'context': {
             'msg_subject': 'Thank you for participating!'
         },
@@ -126,27 +122,14 @@ def schedule_notifications(session, *args, **kwargs):
     target_time = timezone.datetime.combine(tomorrow, time, tzinfo=zoneinfo.ZoneInfo(session.timezone))
 
     notification_list.append({
-        'template': 'debug/reminder.html',
+        'template': 'debug/notifications/reminder.html',
         'context': {
             'msg_subject': "Reminder about today's experiment",
         },
         'datetime': target_time,    
     })
 
-    for n in notification_list:
-        # Create an entry in our notifications table
-        nobj = Notification.objects.create(
-            subject = session.subject,
-            experiment = session.experiment,
-            session = session,
+    # Create the notifications
+    notifications = create_notifications(session, notification_list)
 
-            template = n['template'],
-            context = n['context'],
-            scheduled = n['datetime'],
-        )
-
-        # Append to our list of notification objects
-        notifications.append(nobj)
-
-    # Note: This returns a list, not a QuerySet
     return notifications
