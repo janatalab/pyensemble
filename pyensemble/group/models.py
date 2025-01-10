@@ -1,11 +1,12 @@
 import os
+import hashlib
 
 from django.db import models
 from django.conf import settings
 
 from django.utils import timezone
 
-from pyensemble.models import AbstractSession
+from pyensemble.models import AbstractSession, Response
 
 if settings.USE_AWS_STORAGE:
     from pyensemble.storage_backends import S3DataStorage
@@ -90,7 +91,7 @@ class GroupSession(AbstractSession):
     @property
     def modifiable(self):
         self._modifiable=True
-        if self.state in terminal_states:
+        if self.state in self.terminal_states:
             self._modifiable=False
 
         return self._modifiable
