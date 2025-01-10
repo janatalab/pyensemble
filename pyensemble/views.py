@@ -1,11 +1,8 @@
 # views.py
 import os, re
 import json
-import hashlib
 
 from django.utils import timezone
-
-from django.core.cache import cache
 
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
@@ -18,6 +15,8 @@ from django.views.decorators.http import require_http_methods
 from django.db import transaction
 from django.db.models import Q
 
+from django.utils.crypto import get_random_string
+
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseGone
 
 from django.shortcuts import render
@@ -26,11 +25,11 @@ from django.urls import reverse, reverse_lazy
 from django.conf import settings
 from django.views.generic.edit import CreateView, UpdateView
 
-from pyensemble.models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
+from pyensemble.models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, EmailVerification
 
-from pyensemble.forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
+from pyensemble.forms import RegisterSubjectForm, RegisterSubjectUsingEmailForm, LoginSubjectUsingEmailForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
 
-from pyensemble.tasks import fetch_subject_id, create_tickets
+from pyensemble.tasks import fetch_subject_id, create_tickets, send_email
 
 from pyensemble.integrations import prolific
 
@@ -38,8 +37,8 @@ from pyensemble import errors
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 
-from pyensemble.group.models import GroupSession, GroupSessionSubjectSession
-from pyensemble.group.views import get_group_session, set_groupuser_state, get_groupuser_state, init_group_trial
+from pyensemble.group.models import Group, GroupSubject, GroupSession, GroupSessionSubjectSession
+from pyensemble.group.views import attach_subject_to_group, get_group_session, set_groupuser_state, get_groupuser_state, init_group_trial
 
 from crispy_forms.layout import Submit
 
@@ -51,6 +50,99 @@ def logout_view(request):
     logout(request)
 
     return HttpResponseRedirect(reverse('home'))
+
+
+def register_participant(request, group_id=None):
+    template = 'pyensemble/register_by_email.html'
+
+    if request.method == 'POST':
+        form = RegisterSubjectUsingEmailForm(request.POST)
+        if form.is_valid():
+            subject = form.save(commit=False)
+
+            # Fetch the subject ID
+            subject_id, exists = fetch_subject_id(subject, scheme='email')
+
+            # Get our subject instance
+            if exists:
+                subject = Subject.objects.get(subject_id=subject_id)
+
+                # Check whether the passphrase changed
+                if subject.passphrase != form.cleaned_data['passphrase']:
+                    subject.passphrase = form.cleaned_data['passphrase']
+                    subject.allowed = False
+                    subject.save()
+
+            # Create the entry if it doesn't exist
+            else:
+                subject.subject_id = subject_id
+                subject.passphrase = form.cleaned_data['passphrase']
+                subject.allowed = False
+                subject.save()
+
+                subject = Subject.objects.get(subject_id=subject_id)
+
+            # Attach to group if provided
+            if group_id:
+                attach_subject_to_group(subject, group_id)
+
+            # If the subject is not allowed, send a verification email
+            if not subject.allowed:
+                # Generate verification token
+                token = get_random_string(length=32)
+
+                # Check whether we have an existing verification entry
+                if EmailVerification.objects.filter(subject=subject).exists():
+                    EmailVerification.objects.filter(subject=subject).delete()
+
+                # Create a new verification entry
+                EmailVerification.objects.create(subject=subject, token=token)
+
+                # Send verification email
+                verification_link = request.build_absolute_uri(
+                    reverse('verify_email', args=[subject.pk, token])
+                )
+
+                # Send the email
+                email_template = 'pyensemble/email/verify_email.html'
+
+                context = {
+                    'to_email': subject.email,
+                    'msg_subject': 'Verify your email address for PyEnsemble',
+                    'verification_link': verification_link,
+                }
+
+                send_email(email_template, context)
+
+                return render(request, template, {'check_verification_email': True})
+            
+            else:
+                return render(request, template, {'account_exists': True, 'subject': subject})
+
+    else:
+        form = RegisterSubjectUsingEmailForm()
+
+    return render(request, template, {'form': form})
+
+
+def verify_email(request, user_id, token):
+    try:
+        subject = Subject.objects.get(pk=user_id)
+        verification = EmailVerification.objects.get(subject=subject, token=token)
+        if not verification.is_verified:
+            verification.is_verified = True
+            verification.save()
+            subject.allowed = True
+            subject.save()
+
+        template = 'pyensemble/register_by_email.html'  
+        context = {'account_exists': True, 'subject': subject}
+
+        return render(request, template, context)
+
+    except (Subject.DoesNotExist, EmailVerification.DoesNotExist):
+        return HttpResponse('Invalid verification link.')
+
 
 class PyEnsembleHomeView(LoginRequiredMixin,TemplateView):
     template_name = 'pyensemble/pyensemble_home.html'
@@ -652,6 +744,9 @@ def serve_form(request, experiment_id=None):
         if handler_name == 'form_subject_register':
             formset = RegisterSubjectForm(request.POST)
 
+        elif handler_name == 'form_login_w_email':
+            formset = LoginSubjectUsingEmailForm(request.POST)
+
         elif handler_name == 'form_subject_email':
             formset = SubjectEmailForm(request.POST)
 
@@ -690,31 +785,60 @@ def serve_form(request, experiment_id=None):
         context.update({'stimulus': stimulus})
 
         if passes_captcha and formset.is_valid():
+            # Assume that we are going to progress to the next form
+            progress_to_next_form = True
+
             #
             # Write data to the database. With only a couple of exceptions, based on form_handler, this will be to the Response table
             #
-            if handler_name == 'form_subject_register':
-                # Generate our subject ID
-                subject_id, exists = fetch_subject_id(formset.cleaned_data, scheme='nhdl')
+            if handler_name in ['form_subject_register','form_login_w_email']:
+                if handler_name == 'form_subject_register':
+                    # Generate our subject ID
+                    subject_id, exists = fetch_subject_id(formset.cleaned_data, scheme='nhdl')
 
-                # Get or create our subject entry (might already exist from previous session)
-                if exists:
-                    subject = Subject.objects.get(subject_id=subject_id)
-                else:
-                    subject = Subject.objects.create(
-                        subject_id = subject_id,
-                        name_first = formset.cleaned_data['name_first'],
-                        name_last = formset.cleaned_data['name_last'],
-                        dob = formset.cleaned_data['dob'],
-                    )
+                    # Get or create our subject entry (might already exist from previous session)
+                    if exists:
+                        subject = Subject.objects.get(subject_id=subject_id)
+                    else:
+                        subject = Subject.objects.create(
+                            subject_id = subject_id,
+                            name_first = formset.cleaned_data['name_first'],
+                            name_last = formset.cleaned_data['name_last'],
+                            dob = formset.cleaned_data['dob'],
+                        )
 
-                # Update the demographic info
-                subject.sex = formset.cleaned_data['sex']
-                subject.race = formset.cleaned_data['race']
-                subject.ethnicity = formset.cleaned_data['ethnicity']
+                    # Update the demographic info
+                    subject.sex = formset.cleaned_data['sex']
+                    subject.race = formset.cleaned_data['race']
+                    subject.ethnicity = formset.cleaned_data['ethnicity']
 
-                # Save the subject
-                subject.save()
+                    # Save the subject
+                    subject.save()
+
+                elif handler_name == 'form_login_w_email':
+                    # Extract our email address
+                    email = formset.cleaned_data['email']
+
+                    # Get our subject ID
+                    subject_id, exists = fetch_subject_id(Subject(email=email), scheme='email')
+
+                    # Search for the subject with this email address
+                    if exists:
+                        subject = Subject.objects.get(pk=subject_id)
+
+                        # Check the password
+                        if subject.passphrase != formset.cleaned_data['passphrase']:
+                            # We need to flag the passphrase field as incorrect
+                            formset.add_error('passphrase','Incorrect password. Please try again.')
+
+                            # We don't want to progress to the next form
+                            progress_to_next_form = False
+
+                    else:
+                        # Attempt to login with unregistered email address, so redirect to account registration with email
+                        return HttpResponseRedirect(reverse('register-participant'))
+
+                # Update our session info
                 expsessinfo['subject_id'] = subject_id
 
                 # Replace the temporary subject with our actual subject in our session instance
@@ -848,17 +972,18 @@ def serve_form(request, experiment_id=None):
                 if get_groupuser_state(request) != 'EXIT_LOOP':
                     set_groupuser_state(request,'UNKNOWN')
 
-            # Update our visit count for this form
-            num_visits = expsessinfo['visit_count'].get(form_idx_str,0)
-            num_visits +=1
-            expsessinfo['visit_count'][form_idx_str] = num_visits
+            if progress_to_next_form:
+                # Update our visit count for this form
+                num_visits = expsessinfo['visit_count'].get(form_idx_str,0)
+                num_visits +=1
+                expsessinfo['visit_count'][form_idx_str] = num_visits
 
-            # Determine our next form index
-            expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
-            request.session.modified=True
+                # Determine our next form index
+                expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
+                request.session.modified=True
 
-            # Move to the next form by calling ourselves
-            return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
+                # Move to the next form by calling ourselves
+                return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
         # If the form was not valid and we have to present it again, skip the trial running portion of it, so that we only present the questions
         context.update({'skip_trial':True})
@@ -1003,6 +1128,9 @@ def serve_form(request, experiment_id=None):
         #
         if handler_name == 'form_subject_register':
             formset = RegisterSubjectForm(initial={'dob':None})
+        
+        elif handler_name == 'form_login_w_email':
+            formset = LoginSubjectUsingEmailForm()
             
         elif handler_name== 'form_subject_email':
             # Technically, this is not a formset consisting of question forms, but we want to preserve the ability to display a custom form header.

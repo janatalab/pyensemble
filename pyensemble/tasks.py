@@ -21,12 +21,13 @@ import pdb
 def fetch_subject_id(subject, scheme='nhdl'):
     subject_id=None
     exists = False
-    last = subject['name_last'].lower()
-    first = subject['name_first'].lower()
-    dob = subject['dob']
 
     # We have to first create our subject root and then check for existing matches in the database. The reason we have to do it in this order is because of the encryption of the subject table.
     if scheme=='nhdl':
+        last = subject['name_last'].lower()
+        first = subject['name_first'].lower()
+        dob = subject['dob']
+
         subject_id_root = '%02d%s%s%02d'%(dob.month, str(last[0]+last[-1:]+first[0]), str(dob.year)[-2:], dob.day)
 
         # Get a list of all subjects with the same root
@@ -40,6 +41,26 @@ def fetch_subject_id(subject, scheme='nhdl'):
         # If we found no match, create a new entry
         subject_id = subject_id_root+str(subjects.count()+1)
         return subject_id, False
+
+    elif scheme=='email':
+        # Create a hash of the email address and limit the length to 32 characters
+        email = subject.email.lower()
+
+        subject_id = hashlib.md5(email.encode('utf-8')).hexdigest()[:32]
+
+        # Check for an existing subject with the same hash
+        exists = Subject.objects.filter(subject_id=subject_id).exists()
+
+        # Check whether the emails match
+        if exists:
+            emails_match = Subject.objects.get(subject_id=subject_id).email == email
+
+            # If the subject does not exist, create a new entry.
+            # Do this by appending a number to the end of the email and hashing it again.
+            if not emails_match:
+                raise ValueError('email hash collision')
+
+        return subject_id, exists
 
     else:
         raise ValueError('unknown subject ID generator')
@@ -165,14 +186,17 @@ def send_email(template_name, context):
     msg_subject = context.get("msg_subject","No subject")
 
     # Get the subject's email
-    to_email = [context['session'].subject.email]
+    to_email = context.get("to_email", None)
+
+    if not to_email:
+        to_email = context['session'].subject.email
 
     # Construct the basic message
     message = EmailMultiAlternatives(
         msg_subject,
         text_content,
         from_email,
-        to_email
+        [to_email]
     )
 
     # Add the HTML-formatted version

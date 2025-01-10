@@ -38,11 +38,13 @@ app_name = 'pyensemble'
 app_patterns = [
     # path('', RedirectView.as_view(pattern_name='login',permanent=False)),
     path('', views.PyEnsembleHomeView.as_view(), name='home'),
+    path('admin/', admin.site.urls),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
     path('accounts/logout/', views.logout_view, name='logout'),
-    path('admin/', admin.site.urls),
-    path('editor/', views.EditorView.as_view(template_name='pyensemble/editor_base.html'), name='editor'),
-
+    path('register/participant/', views.register_participant, name='register-participant'),
+    path('register/participant/<int:group_id>/', views.register_participant, name='register_with_group'),
+    path('verify-email/<str:user_id>/<str:token>/', views.verify_email, name='verify_email'),
+    
     path('stimulus/', views.StimulusView.as_view(template_name='pyensemble/stimulus_base.html'), name='stimulus'),
     path('stimulus/search/', views.StimulusSearchView.as_view(template_name='pyensemble/stimulus_search.html'), name='stimulus-search'),
     path('stimulus/list/', views.StimulusListView.as_view(template_name='pyensemble/stimulus_list_paginated.html'), name='stimulus-list'),
@@ -58,6 +60,7 @@ app_patterns = [
 ]
 
 editor_patterns = [
+    path('', views.EditorView.as_view(template_name='pyensemble/editor_base.html'), name='editor'),
     path('experiments/', views.ExperimentListView.as_view(), name='experiment_list'),
     path('experiments/create/', views.ExperimentCreateView.as_view(), name='experiment_create'),
     path('experiments/copy/<int:experiment_id>/', views.copy_experiment, name='experiment_copy'),

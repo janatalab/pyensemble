@@ -1,16 +1,12 @@
 import os
+import hashlib
 
 from django.db import models
 from django.conf import settings
 
 from django.utils import timezone
 
-try:
-    import zoneinfo
-except ImportError:
-    from backports import zoneinfo
-
-from pyensemble.models import AbstractSession
+from pyensemble.models import AbstractSession, Response
 
 if settings.USE_AWS_STORAGE:
     from pyensemble.storage_backends import S3DataStorage
@@ -28,6 +24,8 @@ class Group(models.Model):
     name = models.CharField(max_length=255, unique=True, blank=False)
     description = models.TextField(max_length=1024, blank=True)
 
+    subjects = models.ManyToManyField('pyensemble.Subject', through='GroupSubject')
+
     def __str__(self):
         return self.name
 
@@ -36,8 +34,12 @@ class GroupSubject(models.Model):
     group = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
     subject = models.ForeignKey('pyensemble.Subject', db_constraint=True, on_delete=models.CASCADE)
 
+    class Meta:
+        unique_together = (('group', 'subject'),)
+
     def __str__(self):
         return f'{self.group.name}: {self.subject.name_first} {self.subject.name_last}'
+
 
 def init_session_context():
     return {'state': ''}
@@ -89,7 +91,7 @@ class GroupSession(AbstractSession):
     @property
     def modifiable(self):
         self._modifiable=True
-        if self.state in terminal_states:
+        if self.state in self.terminal_states:
             self._modifiable=False
 
         return self._modifiable
