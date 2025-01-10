@@ -1,11 +1,8 @@
 # views.py
 import os, re
 import json
-import hashlib
 
 from django.utils import timezone
-
-from django.core.cache import cache
 
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
@@ -18,6 +15,8 @@ from django.views.decorators.http import require_http_methods
 from django.db import transaction
 from django.db.models import Q
 
+from django.utils.crypto import get_random_string
+
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseGone
 
 from django.shortcuts import render
@@ -26,11 +25,11 @@ from django.urls import reverse, reverse_lazy
 from django.conf import settings
 from django.views.generic.edit import CreateView, UpdateView
 
-from pyensemble.models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat
+from pyensemble.models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, EmailVerification
 
-from pyensemble.forms import RegisterSubjectForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
+from pyensemble.forms import RegisterSubjectForm, RegisterSubjectUsingEmailForm, LoginSubjectUsingEmailForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
 
-from pyensemble.tasks import fetch_subject_id, create_tickets
+from pyensemble.tasks import fetch_subject_id, create_tickets, send_email
 
 from pyensemble.integrations import prolific
 
@@ -38,8 +37,8 @@ from pyensemble import errors
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 
-from pyensemble.group.models import GroupSession, GroupSessionSubjectSession
-from pyensemble.group.views import get_group_session, set_groupuser_state, get_groupuser_state, init_group_trial
+from pyensemble.group.models import Group, GroupSubject, GroupSession, GroupSessionSubjectSession
+from pyensemble.group.views import attach_subject_to_group, get_group_session, set_groupuser_state, get_groupuser_state, init_group_trial
 
 from crispy_forms.layout import Submit
 
@@ -51,6 +50,86 @@ def logout_view(request):
     logout(request)
 
     return HttpResponseRedirect(reverse('home'))
+
+
+def register_participant(request, group_id=None):
+    template = 'pyensemble/register_by_email.html'
+
+    if request.method == 'POST':
+        form = RegisterSubjectUsingEmailForm(request.POST)
+        if form.is_valid():
+            subject = form.save(commit=False)
+            subject.passphrase = form.cleaned_data['passphrase']
+            subject.allowed = False
+
+            # Fetch the subject ID
+            subject_id, exists = fetch_subject_id(subject, scheme='email')
+
+            # Get our subject instance
+            if exists:
+                subject = Subject.objects.get(subject_id=subject_id)
+
+            # Create the entry if it doesn't exist
+            else:
+                subject.subject_id = subject_id
+                subject.save()
+
+                subject = Subject.objects.get(subject_id=subject_id)
+
+            # Attach to group if provided
+            if group_id:
+                attach_subject_to_group(subject, group_id)
+
+            if not exists:
+                # Generate verification token
+                token = get_random_string(length=32)
+                EmailVerification.objects.create(subject=subject, token=token)
+
+                # Send verification email
+                verification_link = request.build_absolute_uri(
+                    reverse('verify_email', args=[subject.pk, token])
+                )
+
+                # Send the email
+                email_template = 'pyensemble/email/verify_email.html'
+
+                context = {
+                    'to_email': subject.email,
+                    'msg_subject': 'Verify your email address for PyEnsemble',
+                    'verification_link': verification_link,
+                }
+
+                send_email(email_template, context)
+
+                return render(request, template, {'check_verification_email': True})
+            
+            else:
+                return render(request, template, {'account_exists': True, 'subject': subject})
+
+    else:
+        form = RegisterSubjectUsingEmailForm()
+
+    return render(request, template, {'form': form})
+
+
+def verify_email(request, user_id, token):
+    try:
+        subject = Subject.objects.get(pk=user_id)
+        verification = EmailVerification.objects.get(subject=subject, token=token)
+        if not verification.is_verified:
+            verification.is_verified = True
+            verification.save()
+            subject.allowed = True
+            subject.save()
+
+        template = 'pyensemble/register_by_email.html'  
+        context = {'account_exists': True, 'subject': subject}
+
+        return render(request, template, context)
+
+    except (Subject.DoesNotExist, EmailVerification.DoesNotExist):
+        return HttpResponse('Invalid verification link.')
+
 
 class PyEnsembleHomeView(LoginRequiredMixin,TemplateView):
     template_name = 'pyensemble/pyensemble_home.html'
@@ -651,6 +730,9 @@ def serve_form(request, experiment_id=None):
 
         if handler_name == 'form_subject_register':
             formset = RegisterSubjectForm(request.POST)
+
+        elif handler_name == 'form_login_w_email':
+            formset = LoginSubjectUsingEmailForm(request.POST)
 
         elif handler_name == 'form_subject_email':
             formset = SubjectEmailForm(request.POST)

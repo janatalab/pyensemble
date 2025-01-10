@@ -4,6 +4,7 @@ from django.utils import timezone
 from django.conf import settings
 
 from django.views.generic.edit import CreateView
+from django.views.generic import ListView
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -28,6 +29,37 @@ class GroupCreateView(LoginRequiredMixin,CreateView):
     def get_success_url(self):
         return reverse_lazy('pyensemble-group:start_groupsession')
 
+
+def attach_subject_to_group(subject, group_id):
+    # Get our group
+    group = Group.objects.get(pk=group_id)
+
+    # Attach the subject to the group
+    group.subjects.add(subject)
+
+    return group
+
+
+class GroupMemberListView(LoginRequiredMixin, ListView):
+    model = Group
+    template_name = 'group/membership.html'
+    context_object_name = 'subjects'
+
+    def get_queryset(self):
+        id = self.kwargs.get('id', None)
+        group = Group.objects.get(id=id)
+
+        return group.subjects.all()
+    
+    def get_context_data(self, **kwargs):
+        data = super().get_context_data(**kwargs)
+
+        id = self.kwargs.get('id', None)
+        group = Group.objects.get(id=id)
+
+        data['group'] = group
+
+        return data
 
 def get_session_id(request):
     session_id = None

@@ -5,11 +5,6 @@ from django.conf import settings
 
 from django.utils import timezone
 
-try:
-    import zoneinfo
-except ImportError:
-    from backports import zoneinfo
-
 from pyensemble.models import AbstractSession
 
 if settings.USE_AWS_STORAGE:
@@ -28,6 +23,8 @@ class Group(models.Model):
     name = models.CharField(max_length=255, unique=True, blank=False)
     description = models.TextField(max_length=1024, blank=True)
 
+    subjects = models.ManyToManyField('pyensemble.Subject', through='GroupSubject')
+
     def __str__(self):
         return self.name
 
@@ -36,8 +33,12 @@ class GroupSubject(models.Model):
     group = models.ForeignKey('Group', db_constraint=True, on_delete=models.CASCADE)
     subject = models.ForeignKey('pyensemble.Subject', db_constraint=True, on_delete=models.CASCADE)
 
+    class Meta:
+        unique_together = (('group', 'subject'),)
+
     def __str__(self):
         return f'{self.group.name}: {self.subject.name_first} {self.subject.name_last}'
+
 
 def init_session_context():
     return {'state': ''}

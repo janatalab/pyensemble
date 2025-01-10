@@ -24,13 +24,9 @@ from django.core.serializers.json import DjangoJSONEncoder
 from encrypted_model_fields.fields import EncryptedCharField, EncryptedEmailField, EncryptedTextField, EncryptedDateField
 
 from django.utils import timezone
-
 import datetime
 from dateutil.relativedelta import relativedelta
-try:
-    import zoneinfo
-except ImportError:
-    from backports import zoneinfo
+import zoneinfo
 
 from pyensemble.storage_backends import use_media_storage, use_data_storage
 
@@ -538,6 +534,7 @@ class Subject(models.Model):
     ]
 
     subject_id = models.CharField(primary_key=True, max_length=32)
+    allowed = models.BooleanField(default=True)
     id_origin = models.CharField(max_length=12, choices=ID_ORIGINS, default='PYENS')
     date_entered = models.DateField(auto_now_add=True)
     name_last = EncryptedCharField(max_length=24)
@@ -573,6 +570,15 @@ class Subject(models.Model):
         )
     dob = EncryptedDateField(default=datetime.datetime(1900,1,1))
     notes = models.TextField()
+
+
+# Model for registering subjects via email
+class EmailVerification(models.Model):
+    subject = models.OneToOneField(Subject, on_delete=models.CASCADE)
+    token = models.CharField(max_length=100, unique=True)
+    is_verified = models.BooleanField(default=False)
+
+
 
 class Ticket(models.Model):
     # The full ticket code
@@ -766,6 +772,7 @@ class ExperimentXForm(models.Model):
         ('form_end_session','form_end_session'),
         ('form_consent','form_consent'),
         ('form_subject_register','form_subject_register'),
+        ('form_login_w_email','form_login_w_email'),
         ('form_subject_email','form_subject_email'),
         ('group_trial','group_trial'),
     ]
@@ -1198,7 +1205,7 @@ class Notification(models.Model):
         # Now add the context stored in a JSON field
         context.update(self.context)
 
-        # Call the email-generating function
+        # Call our email-generating function
         send_email(self.template, context)
 
         # Log the time we sent the notification

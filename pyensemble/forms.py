@@ -318,6 +318,15 @@ class RegisterSubjectForm(forms.ModelForm):
             'dob': forms.DateInput(format='%m/%d/%Y', attrs={'placeholder':'MM/DD/YYYY'}),
         }
 
+
+class RegisterSubjectUsingEmailForm(forms.ModelForm):
+    email = forms.EmailField()
+
+    class Meta:
+        model = Subject
+        fields = ['email', 'passphrase']
+
+
 class SubjectEmailForm(forms.ModelForm):
     class Meta:
         model = Subject
@@ -341,6 +350,26 @@ class SubjectEmailForm(forms.ModelForm):
         self.helper.form_method = 'post'
 
         self.helper.add_input(Submit('submit', 'Submit'))
+
+
+class LoginSubjectUsingEmailForm(forms.ModelForm):
+    email = forms.EmailField()
+
+    class Meta:
+        model = Subject
+        fields = ['email', 'passphrase']
+
+    def __init__(self, *args, **kwargs):
+        super(LoginSubjectUsingEmailForm, self).__init__(*args, **kwargs)
+
+        self.fields['email'].required = True
+        self.fields['passphrase'].required = True
+
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+
+        self.helper.add_input(Submit('submit', 'Submit'))
+
 
 class CaptchaForm(forms.Form):
     captcha = ReCaptchaField()
@@ -379,7 +408,6 @@ class ExperimentSelectForm(forms.Form):
     helper = FormHelper()
     helper.form_class = 'reporting-selector-form'
     helper.add_input(Submit('submit', 'Submit'))
-
 
 
 class ExperimentResponsesForm(forms.Form):
