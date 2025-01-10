@@ -59,8 +59,6 @@ def register_participant(request, group_id=None):
         form = RegisterSubjectUsingEmailForm(request.POST)
         if form.is_valid():
             subject = form.save(commit=False)
-            subject.passphrase = form.cleaned_data['passphrase']
-            subject.allowed = False
 
             # Fetch the subject ID
             subject_id, exists = fetch_subject_id(subject, scheme='email')
@@ -69,9 +67,17 @@ def register_participant(request, group_id=None):
             if exists:
                 subject = Subject.objects.get(subject_id=subject_id)
 
+                # Check whether the passphrase changed
+                if subject.passphrase != form.cleaned_data['passphrase']:
+                    subject.passphrase = form.cleaned_data['passphrase']
+                    subject.allowed = False
+                    subject.save()
+
             # Create the entry if it doesn't exist
             else:
                 subject.subject_id = subject_id
+                subject.passphrase = form.cleaned_data['passphrase']
+                subject.allowed = False
                 subject.save()
 
                 subject = Subject.objects.get(subject_id=subject_id)
@@ -80,9 +86,16 @@ def register_participant(request, group_id=None):
             if group_id:
                 attach_subject_to_group(subject, group_id)
 
-            if not exists:
+            # If the subject is not allowed, send a verification email
+            if not subject.allowed:
                 # Generate verification token
                 token = get_random_string(length=32)
+
+                # Check whether we have an existing verification entry
+                if EmailVerification.objects.filter(subject=subject).exists():
+                    EmailVerification.objects.filter(subject=subject).delete()
+
+                # Create a new verification entry
                 EmailVerification.objects.create(subject=subject, token=token)
 
                 # Send verification email
@@ -772,31 +785,60 @@ def serve_form(request, experiment_id=None):
         context.update({'stimulus': stimulus})
 
         if passes_captcha and formset.is_valid():
+            # Assume that we are going to progress to the next form
+            progress_to_next_form = True
+
             #
             # Write data to the database. With only a couple of exceptions, based on form_handler, this will be to the Response table
             #
-            if handler_name == 'form_subject_register':
-                # Generate our subject ID
-                subject_id, exists = fetch_subject_id(formset.cleaned_data, scheme='nhdl')
+            if handler_name in ['form_subject_register','form_login_w_email']:
+                if handler_name == 'form_subject_register':
+                    # Generate our subject ID
+                    subject_id, exists = fetch_subject_id(formset.cleaned_data, scheme='nhdl')
 
-                # Get or create our subject entry (might already exist from previous session)
-                if exists:
-                    subject = Subject.objects.get(subject_id=subject_id)
-                else:
-                    subject = Subject.objects.create(
-                        subject_id = subject_id,
-                        name_first = formset.cleaned_data['name_first'],
-                        name_last = formset.cleaned_data['name_last'],
-                        dob = formset.cleaned_data['dob'],
-                    )
+                    # Get or create our subject entry (might already exist from previous session)
+                    if exists:
+                        subject = Subject.objects.get(subject_id=subject_id)
+                    else:
+                        subject = Subject.objects.create(
+                            subject_id = subject_id,
+                            name_first = formset.cleaned_data['name_first'],
+                            name_last = formset.cleaned_data['name_last'],
+                            dob = formset.cleaned_data['dob'],
+                        )
 
-                # Update the demographic info
-                subject.sex = formset.cleaned_data['sex']
-                subject.race = formset.cleaned_data['race']
-                subject.ethnicity = formset.cleaned_data['ethnicity']
+                    # Update the demographic info
+                    subject.sex = formset.cleaned_data['sex']
+                    subject.race = formset.cleaned_data['race']
+                    subject.ethnicity = formset.cleaned_data['ethnicity']
 
-                # Save the subject
-                subject.save()
+                    # Save the subject
+                    subject.save()
+
+                elif handler_name == 'form_login_w_email':
+                    # Extract our email address
+                    email = formset.cleaned_data['email']
+
+                    # Get our subject ID
+                    subject_id, exists = fetch_subject_id(Subject(email=email), scheme='email')
+
+                    # Search for the subject with this email address
+                    if exists:
+                        subject = Subject.objects.get(pk=subject_id)
+
+                        # Check the password
+                        if subject.passphrase != formset.cleaned_data['passphrase']:
+                            # We need to flag the passphrase field as incorrect
+                            formset.add_error('passphrase','Incorrect password. Please try again.')
+
+                            # We don't want to progress to the next form
+                            progress_to_next_form = False
+
+                    else:
+                        # Attempt to login with unregistered email address, so redirect to account registration with email
+                        return HttpResponseRedirect(reverse('register-participant'))
+
+                # Update our session info
                 expsessinfo['subject_id'] = subject_id
 
                 # Replace the temporary subject with our actual subject in our session instance
@@ -930,17 +972,18 @@ def serve_form(request, experiment_id=None):
                 if get_groupuser_state(request) != 'EXIT_LOOP':
                     set_groupuser_state(request,'UNKNOWN')
 
-            # Update our visit count for this form
-            num_visits = expsessinfo['visit_count'].get(form_idx_str,0)
-            num_visits +=1
-            expsessinfo['visit_count'][form_idx_str] = num_visits
+            if progress_to_next_form:
+                # Update our visit count for this form
+                num_visits = expsessinfo['visit_count'].get(form_idx_str,0)
+                num_visits +=1
+                expsessinfo['visit_count'][form_idx_str] = num_visits
 
-            # Determine our next form index
-            expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
-            request.session.modified=True
+                # Determine our next form index
+                expsessinfo['curr_form_idx'] = currform.next_form_idx(request)
+                request.session.modified=True
 
-            # Move to the next form by calling ourselves
-            return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
+                # Move to the next form by calling ourselves
+                return HttpResponseRedirect(reverse('serve_form', args=(experiment_id,)))
 
         # If the form was not valid and we have to present it again, skip the trial running portion of it, so that we only present the questions
         context.update({'skip_trial':True})
@@ -1085,6 +1128,9 @@ def serve_form(request, experiment_id=None):
         #
         if handler_name == 'form_subject_register':
             formset = RegisterSubjectForm(initial={'dob':None})
+        
+        elif handler_name == 'form_login_w_email':
+            formset = LoginSubjectUsingEmailForm()
             
         elif handler_name== 'form_subject_email':
             # Technically, this is not a formset consisting of question forms, but we want to preserve the ability to display a custom form header.

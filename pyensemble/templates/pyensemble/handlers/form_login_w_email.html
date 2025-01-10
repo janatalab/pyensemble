@@ -1,0 +1,16 @@
+{% extends "pyensemble/presentation_base.html" %}
+{% load static %}
+
+{% load crispy_forms_tags %}
+
+{% block main %}
+    <div class="container mt-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <h3>Please login with your email address</h3>
+                    {% crispy formset %}
+                    Forgot password? <a href="{% url 'register-participant' %}">Reset password</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}

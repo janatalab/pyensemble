@@ -365,6 +365,9 @@ class LoginSubjectUsingEmailForm(forms.ModelForm):
         self.fields['email'].required = True
         self.fields['passphrase'].required = True
 
+        # Have the passphrase field be a password field
+        self.fields['passphrase'].widget = forms.PasswordInput()
+
         self.helper = FormHelper()
         self.helper.form_method = 'post'
 

@@ -38,7 +38,6 @@ def create_experiment_with_notification(request):
     for q in question_data:
         qo, created = Question.objects.get_or_create(**q)
 
-
     # Define form data, including data that we will populate ExperimentXForm with
     form_data = [
         {
@@ -64,32 +63,8 @@ def create_experiment_with_notification(request):
         }
     ]
 
-    # Delete any existing ExperimentXForm entries for this experiment
-    ExperimentXForm.objects.filter(experiment=eo).delete()
-
-    for fidx, f in enumerate(form_data, start=1):
-        fo, created = Form.objects.get_or_create(name=f['name'])
-
-        for idx, q in enumerate(f['questions'], start=1):
-            fqo, created = FormXQuestion.objects.get_or_create(form=fo, question=q, form_question_num=idx)
-
-        # Link the form into the experiment, implementing some looping logic along the way
-        goto = None
-        repeat = None
-        condition_script = ''
-
-        if f['name'] == 'Participant Email':
-            condition_script = 'debug.conditions.desire_further_participation()'
-
-        efo, created = ExperimentXForm.objects.get_or_create(
-            experiment = eo,
-            form = fo,
-            form_order = fidx,
-            form_handler = f['form_handler'],
-            goto = goto, # want to make this more dynamic if we add more forms to this example
-            repeat = repeat,
-            condition_script = condition_script
-        )
+    # Add the forms to the experiment
+    add_forms_to_experiment(eo, form_data)
 
     return HttpResponse('create_experiment: success')
 
@@ -133,3 +108,83 @@ def schedule_notifications(session, *args, **kwargs):
     notifications = create_notifications(session, notification_list)
 
     return notifications
+
+def create_experiment_with_email_login(request):
+    # Create the experiment object
+    eo, created = Experiment.objects.get_or_create(
+        title = 'Debug Login With Email',
+        post_session_callback = 'debug.tasks.post_session()'
+        )
+
+    # Create basic data format entries
+    defaults.create_default_dataformat_entries()
+
+    dfo = DataFormat.objects.get(df_type='enum', enum_values='"Yes","No"')
+
+    # Define some question data as a list of dictionaries
+    question_data = [
+        {
+            'text': 'I would like to be prompted with another participation opportunity.',
+            'data_format': dfo,
+            'html_field_type': 'radiogroup'
+        }
+    ]
+
+    for q in question_data:
+        qo, created = Question.objects.get_or_create(**q)
+
+    # Define form data, including data that we will populate ExperimentXForm with
+    form_data = [
+        {
+            'name': 'Start Session',
+            'questions': [],
+            'form_handler': 'form_login_w_email'
+        },
+        {
+            'name': 'Desire Further Participation',
+            'questions': [qo],
+            'form_handler': 'form_generic'
+        },
+        {
+            'name': 'End Session',
+            'header': 'Thank you for your participation',
+            'questions': [],
+            'form_handler': 'form_end_session'
+        }
+    ]
+    
+    # Add the forms to the experiment
+    add_forms_to_experiment(eo, form_data)
+
+    return HttpResponse('create_experiment: success')
+
+
+def add_forms_to_experiment(experiment, form_data):
+    # Delete any existing ExperimentXForm entries for this experiment
+    ExperimentXForm.objects.filter(experiment=experiment).delete()
+
+    for fidx, f in enumerate(form_data, start=1):
+        fo, created = Form.objects.get_or_create(name=f['name'])
+
+        for idx, q in enumerate(f['questions'], start=1):
+            fqo, created = FormXQuestion.objects.get_or_create(form=fo, question=q, form_question_num=idx)
+
+        # Link the form into the experiment, implementing some looping logic along the way
+        goto = None
+        repeat = None
+        condition_script = ''
+
+        if f['name'] == 'Participant Email':
+            condition_script = 'debug.conditions.desire_further_participation()'
+
+        efo, created = ExperimentXForm.objects.get_or_create(
+            experiment = experiment,
+            form = fo,
+            form_order = fidx,
+            form_handler = f['form_handler'],
+            goto = goto, # want to make this more dynamic if we add more forms to this example
+            repeat = repeat,
+            condition_script = condition_script
+        )
+
+    return True
