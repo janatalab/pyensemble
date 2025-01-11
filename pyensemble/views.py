@@ -17,7 +17,7 @@ from django.db.models import Q
 
 from django.utils.crypto import get_random_string
 
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseGone
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseGone, JsonResponse
 
 from django.shortcuts import render
 from django.urls import reverse, reverse_lazy
@@ -41,6 +41,8 @@ from pyensemble.group.models import Group, GroupSubject, GroupSession, GroupSess
 from pyensemble.group.views import attach_subject_to_group, get_group_session, set_groupuser_state, get_groupuser_state, init_group_trial
 
 from crispy_forms.layout import Submit
+
+from pyensemble.utils.serializers import ExperimentSerializer, FormSerializer, QuestionSerializer
 
 import logging
 
@@ -244,6 +246,8 @@ class ExperimentUpdateView(LoginRequiredMixin,UpdateView):
         # Get the form for our ticket creation modal
         context['ticket_form'] = TicketCreationForm(initial={'experiment_id':context['experiment'].id})        
 
+        context['object_type'] = context['object'].__class__.__name__.lower()
+
         return context
 
     def form_valid(self, form):
@@ -353,6 +357,8 @@ class FormUpdateView(LoginRequiredMixin,UpdateView):
         else:
             context['formset'] = FormQuestionFormset(instance=self.object, queryset=self.object.formxquestion_set.order_by('form_question_num'))
         
+        context['object_type'] = context['object'].__class__.__name__.lower()
+
         return context
 
     def form_valid(self, form):
@@ -459,6 +465,12 @@ class QuestionPresentView(LoginRequiredMixin,UpdateView):
     model = Question
     form_class = QuestionPresentForm
     template_name = 'pyensemble/question_present.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['object_type'] = context['object'].__class__.__name__.lower()
+
+        return context
 
 #
 # Views for enumerated response options
@@ -1273,3 +1285,26 @@ def record_timezone(request):
             session.save()
 
         return HttpResponse("ok")
+
+def export_experiment_json(request, id):
+    experiment = Experiment.objects.get(pk=id)
+    serializer = ExperimentSerializer(experiment)
+    response = JsonResponse(serializer.data, safe=False)
+    response['Content-Disposition'] = f'attachment; filename=experiment_{experiment.title}.json'
+    return response
+
+
+def export_form_json(request, id):
+    form = Form.objects.get(pk=id)
+    serializer = FormSerializer(form)
+    response = JsonResponse(serializer.data, safe=False)
+    response['Content-Disposition'] = f'attachment; filename=form_{form.name}.json'
+    return response
+
+
+def export_question_json(request, id):
+    question = Question.objects.get(pk=id)
+    serializer = QuestionSerializer(question)
+    response = JsonResponse(serializer.data, safe=False)
+    response['Content-Disposition'] = f'attachment; filename=question_{id}.json'
+    return response

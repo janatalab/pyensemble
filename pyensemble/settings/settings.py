@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     'captcha',
     'crispy_forms',
     'storages',
+    'rest_framework',
     'pyensemble',
     'pyensemble.group',
     'pyensemble.integrations',
