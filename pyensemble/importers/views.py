@@ -11,6 +11,9 @@ from pyensemble.importers import tasks
 
 import pdb
 
+def import_home(request):
+    return render(request, 'pyensemble/importers/import_home.html')
+
 
 def import_experiment_structure(request):
     # This method imports legacy Ensemble experiments for which information is exported using the following query.
@@ -283,3 +286,124 @@ def import_stimulus_table(request):
     return render(request, template, context)
 
 
+# Experiment importer that uses the ExperimentSerializer
+def import_experiment_json(request):
+    # Define our GET method
+    if request.method == 'POST':
+        # Create a new form instance
+        form = ImportForm(request.POST, request.FILES)
+
+        # Check if the form is valid
+        if form.is_valid():
+            # Get the file
+            file = request.FILES['file']
+
+            # Get the file extension
+            _, file_extension = os.path.splitext(file.name)
+
+            # Check if the file is a JSON file
+            if file_extension == '.json':
+                # Load the JSON file
+                json_data = json.load(file)
+
+                # Determine the model class of the JSON data
+                model_class = json_data.get('model_class', None)
+
+                pdb.set_trace()
+
+                if model_class == 'Experiment':
+                    # Create an Experiment instance
+                    experiment = Experiment.objects.create(
+                        title=json_data['title'],
+                        description=json_data['description'],
+                        start_date=json_data['start_date'],
+                        end_date=json_data['end_date'],
+                        irb_id=json_data['irb_id'],
+                        language=json_data['language'],
+                        params=json_data['params'],
+                        locked=json_data['locked'],
+                        is_group=json_data['is_group'],
+                        user_ticket_expected=json_data['user_ticket_expected'],
+                        sona_url=json_data['sona_url'],
+                        session_reporting_script=json_data['session_reporting_script'],
+                        post_session_callback=json_data['post_session_callback'])
+                    
+                    # Iterate over the ExperimentXForm instances
+                    for exf_data in json_data['exf_instances']:
+                        # Get the form data
+                        form_data = exf_data['form']
+
+                        # Create a new Form instance
+                        form, created = Form.objects.get_or_create(
+                            name=form_data['name'],
+                            category=form_data['category'],
+                            header=form_data['header'],
+                            footer=form_data['footer'],
+                            header_audio_path=form_data['header_audio_path'],
+                            footer_audio_path=form_data['footer_audio_path'],
+                            version=form_data['version'],
+                            locked=form_data['locked'],
+                            visit_once=form_data['visit_once']
+                        )
+
+                        # Iterate over the FormXQuestion instances
+                        for fxq_data in form_data['fxq_instances']:
+                            # Get the question data
+                            question_data = fxq_data['question']
+
+                            # Create a new DataFormat instance
+                            data_format, created = DataFormat.objects.get_or_create(
+                                df_type=question_data['data_format']['df_type'],
+                                enum_values=question_data['data_format']['enum_values'],
+                                _range_hash=question_data['data_format']['_range_hash'],
+                                range_data=question_data['data_format']['range_data'],
+                            )
+
+                            # Create a new Question instance
+                            question, created = Question.objects.get_or_create(
+                                _unique_hash=question_data['_unique_hash'],
+                                text=question_data['text'],
+                                category=question_data['category'],
+                                locked=question_data['locked'],
+                                value_range=question_data['value_range'],
+                                value_default=question_data['value_default'],
+                                html_field_type=question_data['html_field_type'],
+                                audio_path=question_data['audio_path'],
+                                data_format=data_format
+                            )
+
+                            # Create a new Form X Question instance
+                            FormXQuestion.objects.create(
+                                form=form,
+                                question=question,
+                                form_question_num=fxq_data['form_question_num'],
+                                question_iteration=fxq_data['question_iteration'],
+                                required=fxq_data['required']
+                            )
+
+                        # Create a new ExperimentXForm instance
+                        ExperimentXForm.objects.create(
+                            experiment=experiment,
+                            form=form,
+                            form_order=exf_data['form_order'],
+                            form_handler=exf_data['form_handler'],
+                            goto=exf_data['goto'],
+                            repeat=exf_data['repeat'],
+                            condition=exf_data['condition'],
+                            condition_script=exf_data['condition_script'],
+                            stimulus_script=exf_data['stimulus_script'],
+                            record_response_script=exf_data['record_response_script'],
+                            break_loop_button=exf_data['break_loop_button'],
+                            break_loop_button_text=exf_data['break_loop_button_text'],
+                            continue_button_text=exf_data['continue_button_text'],
+                            use_clientside_validation=exf_data['use_clientside_validation'],
+                            )
+
+
+    elif request.method == 'GET':
+        # Create a new form
+        form = ImportForm()
+
+        # Render the form
+        return render(request, 'pyensemble/importers/import_generic.html', {'form': form})
+    

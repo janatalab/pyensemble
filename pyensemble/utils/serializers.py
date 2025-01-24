@@ -12,8 +12,7 @@
 
 
 from rest_framework import serializers
-from rest_framework.renderers import JSONRenderer
-from pyensemble.models import Experiment, Form, Question, DataFormat
+from pyensemble.models import Experiment, Form, Question, DataFormat, FormXQuestion, ExperimentXForm
 
 # Define a custom modelserializer
 class CustomModelSerializer(serializers.ModelSerializer):
@@ -22,11 +21,13 @@ class CustomModelSerializer(serializers.ModelSerializer):
         ret['model_class'] = instance.__class__.__name__
         return ret
 
+
 class DataFormatSerializer(CustomModelSerializer):
     class Meta:
         model = DataFormat
         fields = '__all__'
         
+
 class QuestionSerializer(CustomModelSerializer):
     data_format = DataFormatSerializer(many=False)
 
@@ -34,21 +35,39 @@ class QuestionSerializer(CustomModelSerializer):
         model = Question
         fields = '__all__'
 
+
+class FormXQuestionSerializer(CustomModelSerializer):
+    question = QuestionSerializer(many=False)
+
+    class Meta:
+        model = FormXQuestion
+        fields = '__all__'
+
+
 class FormSerializer(CustomModelSerializer):
-    questions = QuestionSerializer(many=True)
+    fxq_instances = FormXQuestionSerializer(many=True, source='formxquestion_set')
 
     class Meta:
         model = Form
         # fields = '__all__'
         exclude = ['id','experiments']
 
+
+class ExperimentXFormSerializer(CustomModelSerializer):
+    form = FormSerializer(many=False)
+
+    class Meta:
+        model = ExperimentXForm
+        fields = '__all__'
+
+
 class ExperimentSerializer(CustomModelSerializer):
-    forms = FormSerializer(many=True)
+    exf_instances = ExperimentXFormSerializer(many=True, source='experimentxform_set')
 
     class Meta:
         model = Experiment
         # fields = '__all__'
-        exclude = ['id']
+        exclude = ['id','forms']
 
 
 

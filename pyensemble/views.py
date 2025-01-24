@@ -1287,24 +1287,38 @@ def record_timezone(request):
         return HttpResponse("ok")
 
 def export_experiment_json(request, id):
-    experiment = Experiment.objects.get(pk=id)
-    serializer = ExperimentSerializer(experiment)
-    response = JsonResponse(serializer.data, safe=False)
-    response['Content-Disposition'] = f'attachment; filename=experiment_{experiment.title}.json'
+    if request.method == 'GET':
+        experiment = Experiment.objects.get(pk=id)
+        serializer = ExperimentSerializer(experiment)
+        response = JsonResponse(serializer.data, safe=False)
+        response['Content-Disposition'] = f'attachment; filename=experiment_{experiment.title}.json'
+
+    else:
+        response = HttpResponseBadRequest('Invalid request method')
+
     return response
 
 
 def export_form_json(request, id):
-    form = Form.objects.get(pk=id)
-    serializer = FormSerializer(form)
-    response = JsonResponse(serializer.data, safe=False)
-    response['Content-Disposition'] = f'attachment; filename=form_{form.name}.json'
+    if request.method == 'GET':
+        form = Form.objects.get(pk=id)
+        serializer = FormSerializer(form)
+        response = JsonResponse(serializer.data, safe=False)
+        response['Content-Disposition'] = f'attachment; filename=form_{form.name}.json'
+
+    else:
+        response = HttpResponseBadRequest('Invalid request method')
+
     return response
 
 
 def export_question_json(request, id):
-    question = Question.objects.get(pk=id)
-    serializer = QuestionSerializer(question)
-    response = JsonResponse(serializer.data, safe=False)
-    response['Content-Disposition'] = f'attachment; filename=question_{id}.json'
+    if request.method == 'GET':
+        question = Question.objects.get(pk=id)
+        serializer = QuestionSerializer(question)
+        response = JsonResponse(serializer.data, safe=False)
+        response['Content-Disposition'] = f'attachment; filename=question_{id}.json'
+    else:
+        response = HttpResponseBadRequest('Invalid request method')
+
     return response
