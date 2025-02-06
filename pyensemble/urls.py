@@ -27,7 +27,7 @@ import pyensemble.errors as error
 
 from pyensemble.experiments import urls as experiment_urls
 from pyensemble.importers import urls as importer_urls
-from pyensemble.integrations import urls as integrations_urls
+from pyensemble.integrations import urls as integration_urls
 
 # from django.contrib.auth.decorators import login_required
 
@@ -116,7 +116,7 @@ urlpatterns = [
     path('experiments/', include(experiment_urls, namespace='experiments')),
     path('reporting/', include(reporting_patterns)),
     path('import/', include(importer_urls, namespace='importers')),
-    path('integrations/', include(integrations_urls, namespace='integrations')),
+    path('integrations/', include(integration_urls, namespace='integrations')),
     path('integrity/', include(integrity_patterns)),
     path('export/', include(export_patterns)),
 ]

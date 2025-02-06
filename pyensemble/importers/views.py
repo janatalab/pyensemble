@@ -287,7 +287,7 @@ def import_stimulus_table(request):
 
 
 # Experiment importer that uses the ExperimentSerializer
-def import_experiment_json(request):
+def import_json(request):
     # Define our GET method
     if request.method == 'POST':
         # Create a new form instance
@@ -309,96 +309,23 @@ def import_experiment_json(request):
                 # Determine the model class of the JSON data
                 model_class = json_data.get('model_class', None)
 
-                pdb.set_trace()
-
                 if model_class == 'Experiment':
-                    # Create an Experiment instance
-                    experiment = Experiment.objects.create(
-                        title=json_data['title'],
-                        description=json_data['description'],
-                        start_date=json_data['start_date'],
-                        end_date=json_data['end_date'],
-                        irb_id=json_data['irb_id'],
-                        language=json_data['language'],
-                        params=json_data['params'],
-                        locked=json_data['locked'],
-                        is_group=json_data['is_group'],
-                        user_ticket_expected=json_data['user_ticket_expected'],
-                        sona_url=json_data['sona_url'],
-                        session_reporting_script=json_data['session_reporting_script'],
-                        post_session_callback=json_data['post_session_callback'])
-                    
-                    # Iterate over the ExperimentXForm instances
-                    for exf_data in json_data['exf_instances']:
-                        # Get the form data
-                        form_data = exf_data['form']
+                    new_experiment = import_json_experiment(json_data)
 
-                        # Create a new Form instance
-                        form, created = Form.objects.get_or_create(
-                            name=form_data['name'],
-                            category=form_data['category'],
-                            header=form_data['header'],
-                            footer=form_data['footer'],
-                            header_audio_path=form_data['header_audio_path'],
-                            footer_audio_path=form_data['footer_audio_path'],
-                            version=form_data['version'],
-                            locked=form_data['locked'],
-                            visit_once=form_data['visit_once']
-                        )
+                elif model_class == 'Form':
+                    new_form = import_json_form(json_data)
 
-                        # Iterate over the FormXQuestion instances
-                        for fxq_data in form_data['fxq_instances']:
-                            # Get the question data
-                            question_data = fxq_data['question']
+                elif model_class == 'Question':
+                    new_question = import_json_question(json_data)
 
-                            # Create a new DataFormat instance
-                            data_format, created = DataFormat.objects.get_or_create(
-                                df_type=question_data['data_format']['df_type'],
-                                enum_values=question_data['data_format']['enum_values'],
-                                _range_hash=question_data['data_format']['_range_hash'],
-                                range_data=question_data['data_format']['range_data'],
-                            )
-
-                            # Create a new Question instance
-                            question, created = Question.objects.get_or_create(
-                                _unique_hash=question_data['_unique_hash'],
-                                text=question_data['text'],
-                                category=question_data['category'],
-                                locked=question_data['locked'],
-                                value_range=question_data['value_range'],
-                                value_default=question_data['value_default'],
-                                html_field_type=question_data['html_field_type'],
-                                audio_path=question_data['audio_path'],
-                                data_format=data_format
-                            )
-
-                            # Create a new Form X Question instance
-                            FormXQuestion.objects.create(
-                                form=form,
-                                question=question,
-                                form_question_num=fxq_data['form_question_num'],
-                                question_iteration=fxq_data['question_iteration'],
-                                required=fxq_data['required']
-                            )
-
-                        # Create a new ExperimentXForm instance
-                        ExperimentXForm.objects.create(
-                            experiment=experiment,
-                            form=form,
-                            form_order=exf_data['form_order'],
-                            form_handler=exf_data['form_handler'],
-                            goto=exf_data['goto'],
-                            repeat=exf_data['repeat'],
-                            condition=exf_data['condition'],
-                            condition_script=exf_data['condition_script'],
-                            stimulus_script=exf_data['stimulus_script'],
-                            record_response_script=exf_data['record_response_script'],
-                            break_loop_button=exf_data['break_loop_button'],
-                            break_loop_button_text=exf_data['break_loop_button_text'],
-                            continue_button_text=exf_data['continue_button_text'],
-                            use_clientside_validation=exf_data['use_clientside_validation'],
-                            )
-
+                else:
+                    raise ValueError('Invalid model class')
+               
+            else:
+                raise ValueError('Invalid file type')
+            
+            # Return a success message
+            return render(request, 'pyensemble/message.html', {'msg': 'Successfully imported the file contents'})
 
     elif request.method == 'GET':
         # Create a new form
@@ -407,3 +334,118 @@ def import_experiment_json(request):
         # Render the form
         return render(request, 'pyensemble/importers/import_generic.html', {'form': form})
     
+
+def import_json_experiment(json_data):
+    # Create an Experiment instance
+    experiment, created = Experiment.objects.get_or_create(
+        title=json_data['title'],
+        description=json_data['description'],
+        start_date=json_data['start_date'],
+        end_date=json_data['end_date'],
+        irb_id=json_data['irb_id'],
+        language=json_data['language'],
+        params=json_data['params'],
+        locked=json_data['locked'],
+        is_group=json_data['is_group'],
+        user_ticket_expected=json_data['user_ticket_expected'],
+        sona_url=json_data['sona_url'],
+        session_reporting_script=json_data['session_reporting_script'],
+        post_session_callback=json_data['post_session_callback'])
+    
+    # Clobber existing ExperimentXForm instances
+    if not created:
+        experiment.experimentxform_set.all().delete()
+
+    # Iterate over the ExperimentXForm instances
+    for exf_data in json_data['exf_instances']:
+        # Get the form data
+        form_data = exf_data['form']
+
+        form = import_json_form(form_data)
+
+        # Create a new ExperimentXForm instance
+        ExperimentXForm.objects.create(
+            experiment=experiment,
+            form=form,
+            form_order=exf_data['form_order'],
+            form_handler=exf_data['form_handler'],
+            goto=exf_data['goto'],
+            repeat=exf_data['repeat'],
+            condition=exf_data['condition'],
+            condition_script=exf_data['condition_script'],
+            stimulus_script=exf_data['stimulus_script'],
+            record_response_script=exf_data['record_response_script'],
+            break_loop_button=exf_data['break_loop_button'],
+            break_loop_button_text=exf_data['break_loop_button_text'],
+            continue_button_text=exf_data['continue_button_text'],
+            use_clientside_validation=exf_data['use_clientside_validation'],
+            )
+        
+    return experiment
+
+
+def import_json_form(json_data):
+    # Create a new Form instance
+    form, created = Form.objects.get_or_create(
+        name=json_data['name'],
+        category=json_data['category'],
+        header=json_data['header'],
+        footer=json_data['footer'],
+        header_audio_path=json_data['header_audio_path'],
+        footer_audio_path=json_data['footer_audio_path'],
+        version=json_data['version'],
+        locked=json_data['locked'],
+        visit_once=json_data['visit_once']
+    )
+
+    # We're forcing an overwrite of the existing FormXQuestion instances
+    # Delete the existing FormXQuestion instances
+    form.formxquestion_set.all().delete()
+
+    # Iterate over the FormXQuestion instances
+    for fxq_data in json_data['fxq_instances']:
+        # Get the question data
+        question_data = fxq_data['question']
+
+        question = import_json_question(question_data)
+
+        # Create a new Form X Question instance
+        FormXQuestion.objects.create(
+            form=form,
+            question=question,
+            form_question_num=fxq_data['form_question_num'],
+            question_iteration=fxq_data['question_iteration'],
+            required=fxq_data['required']
+        )
+
+    return form
+
+
+def import_json_question(json_data):
+    # Check whether the data format already exists
+    # We have to do this with get_or_create on only the fields that are unique
+    data_format, created = DataFormat.objects.get_or_create(
+        df_type=json_data['data_format']['df_type'],
+        enum_values=json_data['data_format']['enum_values'])
+    
+    # If we created it, set the remaining fields
+    if created:
+        data_format.update(
+            _range_hash=json_data['data_format']['_range_hash'],
+            range_data=json_data['data_format']['range_data'],
+        )
+
+    # Create a new Question instance
+    question, created = Question.objects.get_or_create(
+        _unique_hash=json_data['_unique_hash'],
+        text=json_data['text'],
+        category=json_data['category'],
+        locked=json_data['locked'],
+        value_range=json_data['value_range'],
+        value_default=json_data['value_default'],
+        html_field_type=json_data['html_field_type'],
+        audio_path=json_data['audio_path'],
+        data_format=data_format
+    )
+
+    return question
