@@ -18,18 +18,16 @@ from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import path, include, reverse
-from django.views.generic import RedirectView, TemplateView
 
-from . import views
-from . import reporting
-from . import integrity
+from pyensemble import views
+from pyensemble import reporting
+from pyensemble import integrity
 
 import pyensemble.errors as error
-from pyensemble import importers
 
-from .experiments import urls as experiment_urls
-from .importers import urls as importer_urls
-from .integrations import urls as integrations_urls
+from pyensemble.experiments import urls as experiment_urls
+from pyensemble.importers import urls as importer_urls
+from pyensemble.integrations import urls as integration_urls
 
 # from django.contrib.auth.decorators import login_required
 
@@ -102,6 +100,13 @@ integrity_patterns = [
     path('verify_response_form_question_match/', integrity.VerifyResponseFormQuestionMatchView.as_view(), name='response_form_question_match'),
 ]
 
+export_patterns = [
+    path('experiment/<int:id>/', views.export_experiment_json, name='export_experiment_json'),
+    path('form/<int:id>/', views.export_form_json, name='export_form_json'),
+    path('question/<int:id>/', views.export_question_json, name='export_question_json'),
+
+]
+
 # Collect our final set of patterns in the expected urlpatterns
 
 urlpatterns = [
@@ -111,6 +116,7 @@ urlpatterns = [
     path('experiments/', include(experiment_urls, namespace='experiments')),
     path('reporting/', include(reporting_patterns)),
     path('import/', include(importer_urls, namespace='importers')),
-    path('integrations/', include(integrations_urls, namespace='integrations')),
+    path('integrations/', include(integration_urls, namespace='integrations')),
     path('integrity/', include(integrity_patterns)),
+    path('export/', include(export_patterns)),
 ]

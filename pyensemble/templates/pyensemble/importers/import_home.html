@@ -1,0 +1,20 @@
+{% extends 'pyensemble/pyensemble_home.html' %}
+
+{% comment %} {% block header %}
+{% endblock %} {% endcomment %}
+
+{% block main %}
+<div id="header" class="row justify-content-center mb-5">
+</div>
+<div class="row justify-content-center">
+    <div class='col-12'><h3>Import Home</h3></div>
+    <div class="col-md-6 p-3">
+        <ul class="list-group">
+            <li class="list-group-item"><a href="{% url 'pyensemble-importers:import-stimuli' %}">Import Stimuli</a></li>
+            <li class="list-group-item"><a href="{% url 'pyensemble-importers:import-stimulus-table' %}">Import Stimulus Table</a></li>
+            <li class="list-group-item"><a href="{% url 'pyensemble-importers:import-experiment-structure' %}">Import Experiment Structure (legacy Ensemble import)</a></li>
+            <li class="list-group-item"><a href="{% url 'pyensemble-importers:import-json' %}">Import JSON (Experiment, Form, or Question)</a></li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

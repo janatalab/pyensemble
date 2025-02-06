@@ -151,6 +151,9 @@ class Form(models.Model):
     questions = models.ManyToManyField('Question', through='FormXQuestion')
     experiments = models.ManyToManyField('Experiment', through='ExperimentXForm')
 
+    def __str__(self):
+        return self.name
+
     # Add visited and can_visit properties
 
 class Experiment(models.Model):
@@ -811,6 +814,7 @@ class ExperimentXForm(models.Model):
 
     class Meta:
         unique_together = (("experiment", "form", "form_order"),)
+        ordering = ['form_order']
 
     #
     # Helper functions for taking form actions
