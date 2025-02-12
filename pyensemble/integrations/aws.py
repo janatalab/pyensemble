@@ -17,6 +17,7 @@ our custom S3 storage backends, S3MediaStorage, and S3DataStorage.
 
 queryset should either be Stimulus or GroupSessionFile objects
 '''
+
 def copy_local_to_S3_bucket(queryset, local_file_root = settings.MEDIA_ROOT):
     # Perform some integrity checks to make sure that this operation can succeed
     filetype = queryset.model._meta.model_name

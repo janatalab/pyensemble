@@ -12,6 +12,10 @@ if settings.USE_AWS_STORAGE:
     from pyensemble.storage_backends import S3DataStorage
 from django.core.files.storage import FileSystemStorage
 
+if settings.USE_AWS_STORAGE:
+    from pyensemble.storage_backends import S3DataStorage
+from django.core.files.storage import FileSystemStorage
+
 import polling2
 
 import pdb

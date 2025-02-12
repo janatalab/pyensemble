@@ -43,6 +43,9 @@ An example of an alternative location at which to store credentials. Might be us
 # Specify the file that contains our various custom settings and secrets
 SITE_CONFIG_FILE = os.path.join(PASS_DIR, 'pyensemble_params.ini')
 
+# For development purposes, utilize pyensemble.settings.local
+# PASS_DIR = os.path.join(BASE_DIR, 'pyensemble/settings/local')
+
 # Specify the directory where experiments will be located
 EXPERIMENT_DIR = os.path.join(BASE_DIR,'pyensemble/experiments')
 
@@ -229,6 +232,7 @@ if 'email' in config.sections():
     EMAIL_USE_TLS = email_params['use_tls']
     DEFAULT_FROM_EMAIL = email_params['default_from_email']
     SERVER_EMAIL = EMAIL_HOST_USER
+
 
 # Logging
 
