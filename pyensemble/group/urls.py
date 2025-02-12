@@ -8,6 +8,8 @@ app_name = 'pyensemble-group'
 
 urlpatterns = [
     path('create/', views.GroupCreateView.as_view(), name='create_group'),
+    path('members/<int:id>/', views.GroupMemberListView.as_view(), name='group_members'),
+    
     path('session/start/', views.start_groupsession, name='start_groupsession'),
     path('session/status/', views.groupsession_status, name="groupsession_status"),
     path('session/exit_loop/', views.exit_loop, name="exit_loop"),

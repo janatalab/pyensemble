@@ -17,7 +17,8 @@ our custom S3 storage backends, S3MediaStorage, and S3DataStorage.
 
 queryset should either be Stimulus or GroupSessionFile objects
 '''
-def copy_local_to_S3_bucket(queryset):
+
+def copy_local_to_S3_bucket(queryset, local_file_root = settings.MEDIA_ROOT):
     # Perform some integrity checks to make sure that this operation can succeed
     filetype = queryset.model._meta.model_name
 
@@ -26,7 +27,6 @@ def copy_local_to_S3_bucket(queryset):
         raise ValueError(f'No handling of {filetype} querysets')
 
     # Determine our local file root (assume it is in MEDIA_ROOT)
-    local_file_root = settings.MEDIA_ROOT
     if not os.path.exists(local_file_root):
         raise ValueError(f'Path to local files not present: {local_file_root}')
 
@@ -52,7 +52,12 @@ def copy_local_to_S3_bucket(queryset):
             continue
 
         # Get the local file name
-        local_fname = os.path.join(local_file_root, file.name)
+        if file.name.startswith(os.path.sep):
+            clean_name = file.name[1:]
+        else:
+            clean_name = file.name
+
+        local_fname = os.path.join(local_file_root, clean_name)
 
         # Check to make sure that the file exists locally
         if not os.path.exists(local_fname):
@@ -65,7 +70,8 @@ def copy_local_to_S3_bucket(queryset):
             continue
 
         # Copy the file
-        written_file = s3.save(file.name, file.file)
-        print(f'Copied {written_file}')
+        with open(local_fname, 'rb') as local_file:
+            written_file = s3.save(file.name, local_file)
+            print(f'Copied {written_file}')
 
     return

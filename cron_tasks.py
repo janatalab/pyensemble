@@ -7,6 +7,8 @@ import pdb
 
 from django.utils import timezone
 
+import logging
+
 def main():
     settings_file = 'pyensemble.settings.cron'
 
@@ -23,27 +25,32 @@ def main():
     # Import our tasks
     from pyensemble.tasks import dispatch_notifications, execute_postsession_callbacks
 
-    print("\n")
-    print(timezone.localtime())
+    # Get our logger
+    logger = logging.getLogger('cron-tasks')
+
+    error_status = 'without'
+    errors_present = 'WITH'
+
+    logger.info(timezone.localtime())
 
     # Execute our tasks
-    print('Running postsession callbacks ...')
+    logger.info('Running postsession callbacks ...')
+
+    error_count = execute_postsession_callbacks()
+    if error_count:
+        logger.error(f"postsession_callback: Encountered {error_count} errors!")
+        error_status = errors_present
+
+    logger.info('Dispatching notifications ...')
     try:
-        execute_postsession_callbacks()
+        num_notifications = dispatch_notifications()
+        logger.info(f'\t... sent {num_notifications}')
 
     except Exception as err:
-        print(f"Unexpected {err}, {type(err)}")
-        raise
+        logger.error(f"dispatch_notifications: Unexpected {err}, {type(err)}")
+        error_status = errors_present
 
-
-    print('Dispatching notifications ...')
-    try:
-        dispatch_notifications()
-    except Exception as err:
-        print(f"Unexpected {err}, {type(err)}")
-        raise
-
-    print('Finished cron tasks ...')
+    logger.info(f'Finished cron tasks {error_status} errors!\n')
 
     return
 

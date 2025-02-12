@@ -1,0 +1,55 @@
+{% extends "pyensemble/pyensemble_home.html" %}
+
+{% block main %}
+<div class="container mt-5">
+    <div class="h3">Integrity of response table entries</div>
+    <div class="row m-2">
+        <div class="col text-danger">#aberrant entries: {{num_aberrant_entries}}/{{total_num_responses}} responses</div>
+    </div>
+    <div class="row">
+        <div class="card mx-2" style="width: 18rem;">
+            <div class="card-header">Experiments</div>
+            <div class="card-body text-left">
+                <ul class="list-group list-group-flush">
+                {% for e in experiments %}
+                    <li class="list-group-item">{{e.experiment__id}}: {{e.experiment__title}}</li>
+                {% endfor%}
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mx-2" style="width: 18rem;">
+            <div class="card-header">Subjects</div>
+            <div class="card-body text-left">
+                <ul class="list-group list-group-flush">
+                {% for s in subjects %}
+                    <li class="list-group-item">{{s.subject}}</li>
+                {% endfor%}
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mx-2" style="width: 18rem;">
+            <div class="card-header">Sessions</div>
+            <div class="card-body text-left">
+                <ul class="list-group list-group-flush">
+                {% for s in sessions %}
+                    <li class="list-group-item"><span {% if s.session__exclude %}class="text-danger"{%endif%}>{{s.session}}</span></li>
+                {% endfor%}
+                </ul>
+            </div>
+        </div>
+
+
+        <div class="card m-2">
+            <div class="card-header">Aberrant Form & Question Combination</div>
+            <div class="card-body text-left">
+                <ul class="list-group list-group-flush">
+                {% for item in fxq %}
+                    <li class="list-group-item">{{item.form__name}}: {{item.question__text}}</li>
+                {% endfor%}
+                </ul>
+            </div>
+        </div>    </div>
+</div>
+{% endblock %}

@@ -4,10 +4,41 @@
     <main>
         <div class="container">
             Processed {{result.num_submitted}} stimul{{ result.num_submitted|pluralize:"us,i" }} ...
-            <br>
-            Found {{result.num_existing}} existing entr{{ result.num_existing|pluralize:"y,ies" }} ... 
-            <br>
-            Created {{result.num_written}} new entr{{ result.num_written|pluralize:"y,ies" }}
+
+            <p>
+                Found {{result.num_existing}} existing entr{{ result.num_existing|pluralize:"y,ies" }} ... 
+            </p>
+
+            <p>
+                Created {{result.num_written}} new entr{{ result.num_written|pluralize:"y,ies" }} ...
+            </p>
+
+            {% if 'num_attributes_existing' in result %}
+                <p>
+                    Found {{result.num_attributes_existing}} existing attribute{{ result.num_attributes_existing|pluralize:",s" }} ...
+                </p>
+            {% endif %}            
+
+            {% if 'num_attributes_written' in result %}
+                <p>
+                    Wrote {{result.num_attributes_written}} new attribute{{ result.num_attributes_written|pluralize:",s" }} ...
+                </p>
+            {% endif %}            
+
+            {% if 'num_uploaded' in result %}
+                <p>
+                    Uploaded {{result.num_uploaded}} file{{ result.num_uploaded|pluralize:",s" }} ...
+                </p>
+            {% endif %}
+
+            {% if result.failed %}
+                {{result.failed|length}} attempts failed:
+                <ol>
+                    {% for failed in result.failed %}
+                        <li>{{failed.name}}: {{failed.reason}}</li>
+                    {% endfor %}
+                </ol>
+            {% endif %}
         </div>
     </main>
 {% endblock %}

@@ -28,7 +28,7 @@ def parse_function_spec(function_str):
     kwargs={}
 
     for param in params_array:
-        keyval = re.match('^(?P<key>\w*)=[\'\"]?(?P<val>[\w\s]*)',param)
+        keyval = re.match('^[\s]*(?P<key>\w*)=[\'\"]?(?P<val>[\w\s]*)',param)
 
         if keyval:
             kwargs.update({keyval.groupdict()['key']:keyval.groupdict()['val']})

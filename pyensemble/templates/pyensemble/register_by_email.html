@@ -1,0 +1,72 @@
+{% extends "pyensemble/base.html" %}
+
+{% block main %}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                {% if check_verification_email %}
+                    <div class="card-body">
+                        <h4 class="text-center">Please check your email for a verification link!</h4>
+                    </div>
+                {% elif account_exists %}
+                    <div class="card-body">
+                        <h4 class="text-center">Your PyEnsemble account has already been registered!</h4>
+                        {% if subject.emailverification.is_verified %}
+                            <p class="text-center">Your email address has been verified!</p>
+                        {% else %}
+                            <p class="text-center">Please check your email for a verification link!</p>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="card-header text-center">
+                        <h4>Please register your PyEnsemble participant account</h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" id="registerForm">
+                            {% csrf_token %}
+                            <div class="form-group">
+                                <label for="email">Email address</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="passphrase">New Passphrase</label>
+                                <input type="password" class="form-control" id="passphrase" name="passphrase" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="passphrase2">Retype Passphrase</label>
+                                <input type="password" class="form-control" id="passphrase2" name="passphrase2" required>
+                                <div id="passwordMismatch" class="text-danger" style="display:none;">Passwords do not match</div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-block">Register</button>
+                        </form>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+document.getElementById('passphrase2').addEventListener('input', function() {
+    var password = document.getElementById('passphrase').value;
+    var password2 = document.getElementById('passphrase2').value;
+    if (password !== password2) {
+        document.getElementById('passwordMismatch').style.display = 'block';
+    } else {
+        document.getElementById('passwordMismatch').style.display = 'none';
+    }
+});
+
+document.getElementById('registerForm').addEventListener('submit', function(event) {
+    var password = document.getElementById('passphrase').value;
+    var password2 = document.getElementById('passphrase2').value;
+    if (password !== password2) {
+        event.preventDefault();
+        document.getElementById('passwordMismatch').style.display = 'block';
+    }
+});
+</script>
+{% endblock %}

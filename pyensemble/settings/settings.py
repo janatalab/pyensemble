@@ -14,17 +14,34 @@ import os
 import json
 from configparser import ConfigParser
 
+import pdb
+
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# What is our label for this particular installation of PyEnsemble. This is what helps to distinguish multiple PyEnsemble instances on a single server from each other. Make sure to use a trailing slash.
-INSTANCE_LABEL = 'pyensemble/'
+"""
+Specify the label for this particular installation of PyEnsemble. 
+This is effectively the namespace that distinguishes multiple PyEnsemble instances on a single server from each other. 
+"""
+INSTANCE_LABEL = 'pyensemble'
 
-# Specify the path to password and settings files
-PASS_DIR = os.path.dirname(os.path.join('/var/www/private', INSTANCE_LABEL))
+"""
+Specify the path to password and settings files.
+
+The local directory (pyensemble.settings.local) is excluded from git commits and thus a reasonable space to store secrets and credentials associated with this instance.
+"""
+PASS_DIR = os.path.join(BASE_DIR, 'pyensemble/settings/local')
+
+"""
+An example of an alternative location at which to store credentials. Might be useful in production server contexts.
+"""
+#PASS_DIR = os.path.join('/var/www/private', INSTANCE_LABEL)
+
+# Specify the file that contains our various custom settings and secrets
+SITE_CONFIG_FILE = os.path.join(PASS_DIR, 'pyensemble_params.ini')
 
 # For development purposes, utilize pyensemble.settings.local
 # PASS_DIR = os.path.join(BASE_DIR, 'pyensemble/settings/local')
@@ -33,8 +50,6 @@ PASS_DIR = os.path.dirname(os.path.join('/var/www/private', INSTANCE_LABEL))
 EXPERIMENT_DIR = os.path.join(BASE_DIR,'pyensemble/experiments')
 
 # Open our configuration file
-SITE_CONFIG_FILE = os.path.join(PASS_DIR, 'pyensemble_params.ini')
-
 config = ConfigParser()
 config.read(SITE_CONFIG_FILE)
 
@@ -57,6 +72,7 @@ INSTALLED_APPS = [
     'captcha',
     'crispy_forms',
     'storages',
+    'rest_framework',
     'pyensemble',
     'pyensemble.group',
     'pyensemble.integrations',
@@ -99,22 +115,35 @@ CRISPY_TEMPLATE_PACK = 'bootstrap4'
 
 WSGI_APPLICATION = 'pyensemble.wsgi.application'
 
+# Database
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
+        'ENGINE': config['django-db'].get('engine', 'django.db.backends.mysql'),
         'HOST': config['django-db']['host'],
         'NAME': config['django-db']['name'],
         'USER': config['django-db']['user'],
         'PASSWORD': config['django-db']['passwd'],
         'PORT': '3306', # 3306 is the default mysql port
-        'OPTIONS': {
-            'ssl': {
-                'ca': config['django-db']['ssl_certpath'],
-            },
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'"
-        }
+        'OPTIONS': {}
     }
 }
+
+# Add ssl info if we are dealing with a MySQL database
+ssl_backends = ['django.db.backends.mysql']
+
+if DATABASES['default']['ENGINE'] in ssl_backends:
+    if config['django-db'].get('ssl_certpath', None):
+        ssl_certpath = config['django-db']['ssl_certpath']
+    else:
+        ssl_certpath = PASS_DIR
+
+    DATABASES['default']['OPTIONS']['ssl'] = {
+        'ca': os.path.join(ssl_certpath, config['django-db']['ssl_certname']),
+    }
+
+# Set other mysql specific options
+if DATABASES['default']['ENGINE'] == 'django.db.backends.mysql':
+    DATABASES['default']['OPTIONS']['init_command'] = "SET sql_mode='STRICT_TRANS_TABLES'"
 
 DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 
@@ -124,7 +153,7 @@ FIELD_ENCRYPTION_KEY = config['django']['field_encryption_key']
 # Specify cache engine
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+        'BACKEND': 'django.core.cache.backends.memcached.PyMemcacheCache',
         'LOCATION': ['127.0.0.1:11211'],
         'TIMEOUT': 60*60*6,
         'NAME': '',
@@ -152,20 +181,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Google reCaptcha
-try:
-    NOCAPTCHA = True
-    RECAPTCHA_PUBLIC_KEY = config['google']['recaptcha_key']
-    RECAPTCHA_PRIVATE_KEY = config['google']['recaptcha_secret']
-except:
-    pass
-
-# Spotify
-try:
-    SPOTIFY_CLIENT_ID = config['spotify']['client_id']
-    SPOTIFY_CLIENT_SECRET = config['spotify']['client_secret']
-except:
-    pass
 
 # Internationalization
 # https://docs.djangoproject.com/en/2.2/topics/i18n/
@@ -182,46 +197,17 @@ USE_L10N = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/2.2/howto/static-files/
 
-
-# AWS related stuff
 USE_AWS_STORAGE = False
-if 'aws' in config.sections():
-    aws_params = config['aws']
 
-    USE_AWS_STORAGE = True
+STATIC_ROOT = os.path.join('/var/www/html/static/', INSTANCE_LABEL)
+STATIC_URL = f"/static/{INSTANCE_LABEL}/"
 
-    AWS_ACCESS_KEY_ID = aws_params['s3_client_id']
-    AWS_SECRET_ACCESS_KEY = aws_params['s3_client_secret']
-
-    AWS_STORAGE_BUCKET_NAME = aws_params['s3_static_bucket_name']
-    AWS_S3_CUSTOM_STATIC_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
-    AWS_S3_OBJECT_PARAMETERS = {}
-
-    AWS_LOCATION = INSTANCE_LABEL
-
-    STATIC_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_STATIC_DOMAIN, AWS_LOCATION)
-    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-
-
-    AWS_MEDIA_STORAGE_BUCKET_NAME = aws_params['s3_media_bucket_name']
-    AWS_S3_CUSTOM_MEDIA_DOMAIN = '%s.s3.amazonaws.com' % AWS_MEDIA_STORAGE_BUCKET_NAME
-
-    # MEDIA_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_MEDIA_DOMAIN, AWS_LOCATION)
-    # DEFAULT_FILE_STORAGE = 'pyensemble.storage_backends.S3MediaStorage'
-
-    AWS_DATA_STORAGE_BUCKET_NAME = aws_params['s3_data_bucket_name']
-
-else:
-    STATIC_ROOT = os.path.join('/var/www/html/static/', INSTANCE_LABEL)
-    STATIC_URL = '/static/'+INSTANCE_LABEL
-
-    MEDIA_ROOT = config['django']['media_root']
-    MEDIA_URL = config['django']['media_url']
+MEDIA_ROOT = config['django']['media_root']
+MEDIA_URL = config['django']['media_url']
 
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "thirdparty/"),
 ]
-
 
 # SITE stuff
 SITE_ID = 1
@@ -236,7 +222,6 @@ LOGOUT_REDIRECT_URL = '/'
 SESSION_DURATION=60*60*24 # default session duration
 
 # Email related stuff
-# dict(config.items("email"))
 if 'email' in config.sections():
     email_params = config['email']
 
@@ -291,13 +276,7 @@ LOGGING = {
     },
     'loggers': {
         'django.request': {
-            'handlers': ['error-file'],
-            'level': 'ERROR',
-            'propagate': True,
-        },
-        'django.request': {
-            'handlers': ['debug-file'],
-            'level': 'DEBUG',
+            'handlers': ['debug-file','error-file'],
             'propagate': True,
         },
         'django.template': {
@@ -305,10 +284,64 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': True,
         },
-        'experiments': {
+        'pyensemble': {
+            'handlers': ['debug-file', 'error-file'],
+            'level': 'DEBUG',
+        },
+        'pyensemble.experiments': {
             'handlers': ['experiment-debug-file'],
             'level': 'DEBUG',
-            'propagate': True,
-        }
+            'propagate': False,
+        },
     },
 }
+
+#
+# Integrations
+#
+
+# Google
+if 'google' in config.sections():
+    NOCAPTCHA = True
+    RECAPTCHA_PUBLIC_KEY = config['google']['recaptcha_key']
+    RECAPTCHA_PRIVATE_KEY = config['google']['recaptcha_secret']
+
+# AWS
+if 'aws' in config.sections():
+    aws_params = config['aws']
+
+    USE_AWS_STORAGE = True
+
+    AWS_ACCESS_KEY_ID = aws_params['s3_client_id']
+    AWS_SECRET_ACCESS_KEY = aws_params['s3_client_secret']
+
+    AWS_STORAGE_BUCKET_NAME = aws_params['s3_static_bucket_name']
+    AWS_S3_CUSTOM_STATIC_DOMAIN = '%s.s3.amazonaws.com' % AWS_STORAGE_BUCKET_NAME
+    AWS_S3_OBJECT_PARAMETERS = {}
+
+    AWS_LOCATION = INSTANCE_LABEL
+
+    STATIC_ROOT = None
+    STATIC_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_STATIC_DOMAIN, AWS_LOCATION)
+    STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+    AWS_MEDIA_STORAGE_BUCKET_NAME = aws_params['s3_media_bucket_name']
+    AWS_S3_CUSTOM_MEDIA_DOMAIN = '%s.s3.amazonaws.com' % AWS_MEDIA_STORAGE_BUCKET_NAME
+
+    MEDIA_ROOT = ""
+    MEDIA_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_MEDIA_DOMAIN, AWS_LOCATION)
+
+    AWS_DATA_STORAGE_BUCKET_NAME = aws_params['s3_data_bucket_name']
+
+
+# Spotify
+if 'spotify' in config.sections():
+    SPOTIFY_CLIENT_ID = config['spotify']['client_id']
+    SPOTIFY_CLIENT_SECRET = config['spotify']['client_secret']
+
+# Prolific
+if config.has_section('prolific'):
+    PROLIFIC_API = config['prolific']['api_endpoint']
+    PROLIFIC_TOKEN = config['prolific']['api_token']
+    PROLIFIC_WORKSPACE_ID = config['prolific']['workspace_id']
+    PROLIFIC_TESTERS = json.loads(config['prolific']['testers'])

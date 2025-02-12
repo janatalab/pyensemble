@@ -39,8 +39,10 @@ PyEnsemble is a Python-backed version of the PHP/MATLAB web-based experiment sys
         - [Method evaluation](#method_evaluate)
     - [jsPsych](#jspsych)
         - [Using jsPsych](#using_jspsych)
+    - [Importing stimuli](#importing_stimuli)
     - [Participants from other sources](#participant_sources)
     - [Group sessions](#groups)
+    - [Interaction using the Django shell](#shell)
 
 - [Frequently Asked Questions (FAQs)](#faqs)
 
@@ -441,6 +443,18 @@ The various keys in the trial dictionaries are all described in the jsPsych docu
 #### Collecting responses in jsPsych
 If one chooses to collect responses within jsPsych, rather than with one or more PyEnsemble forms containing questions pertaining to the presented stimulus/timeline, the data collected during execution of the jsPsych timeline are saved on the form upon completion of the jsPsych experiment, and transmitted to the server upon submission of the form and saved as a JSON-encoded string in the jspsych_data field of Response table.
 
+<a name="importing_stimuli"/></a>
+### Importing stimuli
+Stimulus files can be imported into PyEnsemble by clicking on ***Stimuli*** in the navigation bar, and clicking on ***Import*** in the Stimulus section's navigation bar. 
+
+To have stimuli uploaded from local disk to a storage mechanism supported by the local PyEnsemble instance (either local storage on the server running the PyEnsemble instance, or in an Amazon Web Services (AWS) S3 bucket, if one has been provisioned), prepare a .zip file which contains all of the individual media files and a file in .csv format containing a table that provides necessary and optional information about each stimulus.
+
+#### Format of the stimulus information table
+The stimulus information table must have a column named **name** which contains the name of the stimulus. This need not be the entire file name. The file name, as it appears in the directory containing the stimuli, should be provided in the **location** column. The **name** and **location** columns are mandatory. Optional column names may be any field that is part of the Stimulus model, or columns that specify how a stimulus should be linked to attributes via the StimulusXAttribute model. Attribute columns must follow this naming convention: "attribute__<<attribute_name>>\_\_<<attribute_type>>", where the name of the attribute and the type, either 'text' or 'double' (for numeric attributes) is substituted accordingly. For example, an attribute called "audio_type" for which the values are specified as "text" would referred to as attribute__audio_type__text.
+
+#### Creating only the database entries
+In the event that stimulus files already exist at the utilized storage location, and only database entries need to be created, prepare a stimulus information table in a .csv file as described above, and upload this table using the Stimulus Importer form accessed via the Import link.
+
 <a name="participant_sources"/></a>
 ### Participants from other sources
 Some support is provided for handling referrals from participant pools. SONA and Prolific are currently supported.
@@ -510,7 +524,10 @@ There are three principle ways of storing session information. The first is with
 
 The context field of the GroupSession object is conceived of as a temporary mutable cache that all sessions can read. This is a more secure means of storing information than in the global cache.
 
-
+<a name="shell"/></a>
+## Using the Django shell
+To invoke a Python shell that also loads Django-related items:
+`python manage.py shell --settings=pyensemble.settings.dev` - to load a specific settings file
 
 <a name="faqs"/></a>
 # Frequently Asked Questions (FAQs)

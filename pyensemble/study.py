@@ -1,7 +1,10 @@
 # study.py
 
+from django.conf import settings
 
 from pyensemble.models import Attribute, Study, Experiment, ExperimentXAttribute, StudyXExperiment
+
+import logging
 
 '''
 Group experiments into studies.
@@ -20,8 +23,18 @@ def create_experiment_groupings(studies={}):
         # Loop over the experiments
         for idx, title in enumerate(experiments, start=1):
             # Get the experiment object
-            print(f"Fetching experiment: {title}")
-            experiment = Experiment.objects.get(title=title)
+            experiment, created = Experiment.objects.get_or_create(title=title)
+
+            if created:
+                status = "Created"
+            else:
+                status = "Fetched"
+
+            msg = f"{status} experiment: {title}"
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.info(msg)
 
             # Create the annotation
             exa, created = ExperimentXAttribute.objects.get_or_create(
@@ -29,7 +42,11 @@ def create_experiment_groupings(studies={}):
                 attribute = grouping_attribute
                 )
 
-            print(f"Linked {experiment.title} with attribute: {grouping_attribute.name}")
+            msg = f"Linked {experiment.title} with attribute: {grouping_attribute.name}"
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.info(msg)
 
             # Create and entry in the StudyXExperiment table
             sxe, created = StudyXExperiment.objects.get_or_create(study=study_obj, experiment=experiment, experiment_order=idx)

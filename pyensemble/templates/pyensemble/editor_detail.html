@@ -11,6 +11,13 @@
             </li>
             {% block additionalDetailContentNavItems %}
             {% endblock %}
+            <li class="nav-item">
+                {% if object_type %}
+                    {% with "export_"|add:object_type|add:"_json" as target_url %}
+                    <a class="nav-link" href="{% url target_url id=form.instance.pk %}">Export to JSON</a>
+                    {% endwith %}
+                {% endif %}
+            </li>
         </ul>
     </div>
 </nav>

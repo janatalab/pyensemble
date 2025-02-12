@@ -1,0 +1,25 @@
+{% extends "pyensemble/base.html" %}
+
+{% block main %}
+<div class="container mt-4">
+    <h2>{{group.name}} membership</h2>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th scope="col">#</th>
+                <th scope="col">Subject ID</th>
+                <th scope="col">Email</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for subject in subjects %}
+            <tr>
+                <th scope="row">{{ forloop.counter }}</th>
+                <td>{{ subject.subject_id }}</td>
+                <td>{{ subject.email }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
