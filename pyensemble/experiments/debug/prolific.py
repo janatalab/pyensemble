@@ -8,8 +8,6 @@ import zoneinfo
 from django.utils import timezone
 from django.http import HttpResponse
 
-from django.conf import settings
-
 from pyensemble.models import DataFormat, Question, Form, FormXQuestion, Experiment, ExperimentXForm, Study, Notification
 from pyensemble.study import create_experiment_groupings
 
@@ -238,16 +236,6 @@ def create_prolific_pyensemble_integration_example():
         
         else:
             ticket = tickets.first()
-
-        # # Check whether the study already exists in Prolific in the project
-        # prolific_study = prolific.get_study(experiment.title, project_id=project['id'])
-
-        # if prolific_study:
-        #     msg = f"Found Prolific study {prolific_study['name']} in project {project['title']}."
-        #     if settings.DEBUG:
-        #         print(msg)
-
-        #     prolific_study_ids.append(prolific_study['id'])
 
         # Get the default study parameters
         prolific_study_params = get_default_prolific_study_params()
