@@ -22,12 +22,13 @@
 
 <script>
   $(function () {
-    $("#id_master_expiration").datetimepicker({
+    let datetimepicker_options = {
       format: 'd/m/Y H:00',
-    });
-    $("#id_user_expiration").datetimepicker({
-      format: 'd/m/Y H:00',
-    });
+      step: 5,
+    };
+
+    $("#id_master_expiration").datetimepicker(datetimepicker_options);
+    $("#id_user_expiration").datetimepicker(datetimepicker_options);
     $("#createTicketBtn").on('click', function(ev){
       ev.preventDefault();
       $("#ticketModal").modal('hide');

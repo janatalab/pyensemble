@@ -284,7 +284,7 @@ class CopyExperimentForm(forms.ModelForm):
 
 # TODO: Refactor TicketCreationForm into a ModelForm and also make use of validfrom field
 class TicketCreationForm(forms.Form):
-    input_format = '%d/%m/%Y %H:00'
+    input_format = '%d/%m/%Y %H:%M'
     num_master = forms.IntegerField(label='Number of (multiple-use) master tickets', initial=0)
     master_expiration = forms.DateTimeField(required=False, initial=None,  input_formats=[input_format])
 
