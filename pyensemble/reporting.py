@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse, HttpResponseBadRequest, HttpResponseRedirect
 
-from pyensemble.models import Study, Session, Experiment, StudyXExperiment
+from pyensemble.models import Study, Session, Experiment, Response
 from pyensemble.group.models import GroupSession
 
 from pyensemble.group import forms as group_forms
