@@ -1,35 +1,38 @@
 {% extends "pyensemble/base.html" %}
 
 {% block main %}
-    <div class="my-5">
-        <div class="alert alert-danger" role="alert">
-            {{error_msg}}
-        </div>
+    <div class="container">
+            <div class="h3 text-center">Ticket Error</div>
+            <div class="my-5">
+                <div class="alert alert-danger" role="alert">
+                    {{error_msg}}
+                </div>
 
-        <div class="text-left mt-3">
-            Dear 
-            {% if ticket.subject.name_first %}
-                {{ticket.subject.name_first}} {{ticket.subject.name_last}},
-            {% else %}
-                Participant,
-            {% endif %}<br>
+                <div class="text-left mt-3">
+                    Dear 
+                    {% if ticket.subject.name_first %}
+                        {{ticket.subject.name_first}} {{ticket.subject.name_last}},
+                    {% else %}
+                        Participant,
+                    {% endif %}<br>
 
-            Please contact the study contact person from whom you received this link if you believe you reached this page in error. To help us to correct the issue, please take a screenshot of this window and send that also. We thank you and apologize for the inconvenience.
-        </div>
+                    Please contact the study contact person from whom you received this link if you believe you reached this page in error. To help us to correct the issue, please take a screenshot of this window and send that also. We thank you and apologize for the inconvenience.
+                </div>
 
-        {% if ticket %}
-            <div id="technical_details" class="text-left text-muted mt-3">
-                {% if ticket.ticket_code %}
-                    Ticket code: {{ticket.ticket_code}}<br>
-                    Current time: {% now "r" %}<br>
-                    Expiration: {{ticket.expiration_datetime|date:"r"}}<br>
-                    Expired: {{ticket.expired}}<br>
-                    Used: {{ticket.used}}<br>
-                    {% if ticket.subject %}ID: {{ticket.subject.subject_id}} {% endif %}
-                {% else %}
-                    Ticket code: {{ticket}}
+                {% if ticket %}
+                    <div id="technical_details" class="text-left text-muted mt-3">
+                        {% if ticket.ticket_code %}
+                            Ticket code: {{ticket.ticket_code}}<br>
+                            Current time: {% now "r" %}<br>
+                            Expiration: {{ticket.expiration_datetime|date:"r"}}<br>
+                            Expired: {{ticket.expired}}<br>
+                            Used: {{ticket.used}}<br>
+                            {% if ticket.subject %}ID: {{ticket.subject.subject_id}} {% endif %}
+                        {% else %}
+                            Ticket code: {{ticket}}
+                        {% endif %}
+                    </div>
                 {% endif %}
             </div>
-        {% endif %}
     </div>
 {% endblock %}

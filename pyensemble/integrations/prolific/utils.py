@@ -6,6 +6,7 @@ from pyensemble.models import Subject
 
 from .prolific import Prolific
 
+import pdb
 
 def get_participant_id(request):
     return request.GET.get('PROLIFIC_PID', None)
@@ -24,13 +25,18 @@ def get_or_create_prolific_subject(request):
         return HttpResponseBadRequest('No Profilic ID specified')
 
     # Get or create a subject entry
-    subject = Subject.objects.get_or_create(
-        subject_id=prolific_id, 
-        id_origin='PRLFC',
-        email=f"{prolific_id}@email.prolific.com"
-        )
+    # We can't specify more info than the subject ID because the table is encrypted
+    subject, created = Subject.objects.get_or_create(subject_id=prolific_id)
 
-    return subject
+    # Update the entry with additional information if it was created
+    if created:
+        subject.id_origin='PRLFC'
+        subject.email=f"{prolific_id}@email.prolific.com"
+
+        # Now save the changes
+        subject.save()
+
+    return subject, created
 
 
 def is_valid_participant(request):
@@ -51,10 +57,7 @@ def is_valid_participant(request):
     # Get a Prolific object
     prolific = Prolific()
 
-    # Generate the study endpoint
-    api_endpoint = f"{prolific.api_endpoint}/studies/{study_id}/"
-
-    study = prolific.session.get(api_endpoint)
+    study = prolific.get_study_by_id(study_id)
 
     # Now get the participant group whose name matches that of the study
     group = prolific.get_group_by_name(study['name'])

@@ -628,7 +628,7 @@ class Ticket(models.Model):
 
             if settings.PORT:
                 # Used in debugging using runsslserver
-                url = f"{domain}{settings.PORT}{path}"
+                url = f"{domain}:{settings.PORT}{path}"
             else:
                 # Used in production
                 url = f"{domain}/{settings.INSTANCE_LABEL}/{path}"
