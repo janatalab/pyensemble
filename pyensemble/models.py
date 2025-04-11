@@ -528,6 +528,7 @@ class Subject(models.Model):
         ('B','Black or African American'),
         ('NHPI','Native Hawaiian or Other Pacific Islander'),
         ('W','White'),
+        ('MTOR','More than One Race'),
         ('UN','Undeclared')
     ]
 

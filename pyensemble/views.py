@@ -516,6 +516,10 @@ def run_experiment(request, experiment_id=None):
 
     # Check whether we have a running session, and initialize a new one if not.
     if not expsessinfo.get('running', False): 
+        # Have yet to determine a subject
+        subject = None
+        tmp_subject = False # Assume we are not using a temporary subject
+
         # Pull out our ticket code
         ticket_code = request.GET.get('tc', None)
 
@@ -548,14 +552,19 @@ def run_experiment(request, experiment_id=None):
             if not user_tickets.exists():
                 # Determine whether an existing user ticket is expected
                 if experiment.user_ticket_expected:
+                    return errors.ticket_error(request, None, 'USER_TICKET_MISSING')
+
+                # If none is expected, we just use the master ticket
+                # Check to make sure we have one
+                if not ticket_code:
                     return errors.ticket_error(request, None, 'TICKET_MISSING')
 
                 # Create a ticket and grab its code
-                ticket_code = create_tickets({
-                    'num_user': 1, 
-                    'experiment_id': experiment_id,
-                    'subject': subject,
-                    }).first().ticket_code
+                # ticket_code = create_tickets({
+                #     'num_user': 1, 
+                #     'experiment_id': experiment_id,
+                #     'subject': subject,
+                #     }).first().ticket_code
 
             # If we have multiple tickets, log a warning and use the first one
             elif user_tickets.count() > 1:
@@ -565,8 +574,8 @@ def run_experiment(request, experiment_id=None):
                 else:
                     logging.warning(msg)
 
-            # Get the ticket code
-            ticket_code = user_tickets.first().ticket_code
+                # Get the ticket code
+                ticket_code = user_tickets.first().ticket_code
 
         # Process the ticket
         if not ticket_code:
@@ -600,25 +609,22 @@ def run_experiment(request, experiment_id=None):
             return errors.ticket_error(request, ticket, 'TICKET_EXPIRED')
 
         # Handle the situation where we have a pre-assigned subject via the ticket
-        subject = subject_id = None
-
         if ticket.type == 'user' and ticket.subject:
             subject = ticket.subject
-            subject_id = subject.subject_id
 
             # Check whether this is a Prolific subject 
             if subject.id_origin == 'PRLFC':
-                prolific_pid = subject_id
+                prolific_pid = subject.subject_id
 
-            tmp_subject = False
 
-        # If the participant has not yet registered, create a new temporary entry. The id needs to be a unique hash, otherwise we run into collisions.
+        # If the participant has not yet registered or come in via Prolific, create a new temporary subject. 
+        # The id needs to be a unique hash, otherwise we run into collisions.
         if not subject:
             if not request.session.session_key:
                 request.session.save()
 
+            # Create the subject with the session key
             subject, _ = Subject.objects.get_or_create(subject_id=request.session.session_key)
-
             tmp_subject = True
 
         # See whether we were passed in an explicit session_id as a URL parameter
@@ -668,7 +674,7 @@ def run_experiment(request, experiment_id=None):
             'visit_count': {},
             'running': True,
             'sona': sona_code,
-            'subject_id': subject_id,
+            'subject_id': subject.subject_id,
             'prolific_pid': prolific_pid,
             'first_form': True, # will we be serving our first form
             })
@@ -878,7 +884,7 @@ def serve_form(request, experiment_id=None):
                 choices = question.instance.choices()
                 if choices[response][1].lower() != 'agree':
                     return render(request,'pyensemble/message.html',{
-                        'msg': 'You must agree to provided informed consent if you wish to continue with this experiment!<br> Please click <a href="%s">here</a> if you disagreed in error.<br> Thank you for considering taking part in this experiment.'%(reverse('serve_form',args=(experiment_id,))),
+                        'msg': 'If you wish to continue with this experiment, you must provide informed consent by selecting "Agree"!<br> Please click <a href="%s">here</a> if you disagreed in error.<br> Thank you for considering taking part in this experiment.'%(reverse('serve_form',args=(experiment_id,))),
                         'add_home_url':False,
                         })
 

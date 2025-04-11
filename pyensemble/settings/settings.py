@@ -66,7 +66,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'django.contrib.sites',
     'encrypted_model_fields',
-    'captcha',
+    'django_recaptcha',
     'crispy_forms',
     'storages',
     'rest_framework',

@@ -16,7 +16,8 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit
 
 
-from pyensemble.models import DataFormat, Question, Form, FormXQuestion, Experiment, ExperimentXForm, Study, Notification
+from pyensemble.models import DataFormat, Question, Form, FormXQuestion, Experiment, ExperimentXForm, Study, Notification, Session
+
 from pyensemble.study import create_experiment_groupings
 
 from pyensemble.integrations.prolific.prolific import Prolific
@@ -120,21 +121,37 @@ def create_prolific_pyensemble_integration_example():
     study.save()
 
     # Define our basic yes/no data format
-    dfo, _ = DataFormat.objects.get_or_create(
+    yes_no_dfo, _ = DataFormat.objects.get_or_create(
         df_type = 'enum',
         enum_values = '"Yes","No"'
         )
     
+    # Define our Agree/Disagree data format (for the consent form)
+    consent_dfo, _ = DataFormat.objects.get_or_create(
+        df_type = 'enum',
+        enum_values = '"Agree","Disagree"'
+        )
+ 
     # Define our question data
     question_data = [
         {
+            'text': 'I consent to participate in this study.',
+            'data_format': consent_dfo,
+            'html_field_type': 'radiogroup'
+        },
+        {
+            'text': 'I have sufficient time to participate in this study today.',
+            'data_format': yes_no_dfo,
+            'html_field_type': 'radiogroup'
+        },
+        {
             'text': 'I would like to be participate on Day 2.',
-            'data_format': dfo,
+            'data_format': yes_no_dfo,
             'html_field_type': 'radiogroup'
         },
         {
             'text': 'I would like to be participate on Day 3.',
-            'data_format': dfo,
+            'data_format': yes_no_dfo,
             'html_field_type': 'radiogroup'
         },
     ]
@@ -151,6 +168,12 @@ def create_prolific_pyensemble_integration_example():
 
     # Define our forms
     form_data = [
+        {
+            'name': 'Study Consent',
+            'header': 'Consent to Participate in Research',
+            'questions': question_instances.filter(text='I consent to participate in this study.'),
+            'form_handler': 'form_consent'
+        },
         {
             'name': 'Start Session - Day 1',
             'header': 'Welcome to the Prolific Multi-Day Study Test<br>This is Day 1',
@@ -170,13 +193,24 @@ def create_prolific_pyensemble_integration_example():
             'form_handler': 'form_generic'
         },
         {
+            'name': 'Enough Time',
+            'questions': question_instances.filter(text='I have sufficient time to participate in this study today.'),
+            'form_handler': 'form_generic'
+        },
+        {
+            'name': 'Return Later',
+            'header': 'Please return to participate in the study when you have enough time.',
+            'questions': [],
+            'form_handler': 'form_end_session'
+        },
+        {
             'name': 'Participate on Day 2',
-            'questions': question_instances.filter(text='I would like to be participate on Day 2.'),
+            'questions': question_instances.filter(text='I would like to participate on Day 2.'),
             'form_handler': 'form_generic'
         },
         {
             'name': 'Participate on Day 3',
-            'questions': question_instances.filter(text='I would like to be participate on Day 3.'),
+            'questions': question_instances.filter(text='I would like to participate on Day 3.'),
             'form_handler': 'form_generic'
         },
         {
@@ -198,6 +232,9 @@ def create_prolific_pyensemble_integration_example():
         if 'header' in f:
             fo.header = f['header']
             fo.save()
+
+        # Delete any existing FormXQuestion entries for this form
+        FormXQuestion.objects.filter(form=fo).delete()
 
         # Add the questions to the form
         for idx, q in enumerate(f['questions'], start=1):
@@ -232,11 +269,15 @@ def create_prolific_pyensemble_integration_example():
         ExperimentXForm.objects.filter(experiment=experiment).delete()
 
         # Get the form objects
+        form_list = []
         if exp_idx in [1, 2]:
-            form_list = [f'Start Session - Day {exp_idx}', f'Participate on Day {exp_idx+1}', 'End Session']
+            if exp_idx == 1:
+                form_list = ['Study Consent']
+
+            form_list += [f'Start Session - Day {exp_idx}', 'Enough Time', 'Return Later', f'Participate on Day {exp_idx+1}', 'End Session']
 
         else:
-            form_list = [f'Start Session - Day {exp_idx}', 'End Session']
+            form_list = [f'Start Session - Day {exp_idx}', 'Enough Time', 'Return Later', 'End Session']
 
 
         # Create the ExperimentXForm entries
@@ -248,12 +289,20 @@ def create_prolific_pyensemble_integration_example():
             form_handler = next((f['form_handler'] for f in form_data if f['name'] == form_name), None)
 
             # Create the ExperimentXForm entry
-            ExperimentXForm.objects.get_or_create(
+            exf, _ = ExperimentXForm.objects.get_or_create(
                 experiment = experiment,
                 form = form,
                 form_order = exf_idx,
                 form_handler = form_handler
                 )
+            
+            # Check whether the previous form was the "Enough Time" form
+            if exf_idx > 1 and form_list[exf_idx-2] == 'Enough Time':
+                # Add a callback to add to the condition script field
+                exf.condition_script = "debug.prolific.not_enough_time()"
+
+                # Save the changes
+                exf.save()
             
     """
     Deal with the Prolific side of the Prolific integration.
@@ -265,6 +314,30 @@ def create_prolific_pyensemble_integration_example():
     msg = f"\nHandling the Prolific side of the integration"
     print(msg)
 
+    # Create some completion code objects
+    cc_approve = {
+        "code": "APR",
+        "code_type": "APPROVE",
+        "actions": [
+            {
+                "action": "AUTOMATICALLY_APPROVE"
+            }
+        ]
+    }
+
+    cc_criteria_not_met = {
+        "code": "CNM",
+        "code_type": "CRITERIA_NOT_MET",
+        "actions": [
+            {
+                "action": "MANUALLY_REVIEW"
+            }
+        ]
+    }
+
+    # Get our PyEnsemble experiments
+    pyensemble_experiments = study.experiments.order_by('studyxexperiment__experiment_order')
+
     # Get ourselves a Prolific API object
     prolific = Prolific()
 
@@ -275,7 +348,8 @@ def create_prolific_pyensemble_integration_example():
     prolific_study_ids = []
 
     # Create each Profilic study, i.e. corresponding to each PyEnsemble experiment
-    for experiment in study.experiments.order_by('studyxexperiment__experiment_order'):
+    next_participant_groups = []
+    for exp_idx, experiment in enumerate(pyensemble_experiments):
         # Get our ticket for the experiment because this is how we get the external URL
         ticket_attribute_name = 'Prolific Test'
         tickets = experiment.ticket_set.filter(attribute__name=ticket_attribute_name)
@@ -296,24 +370,47 @@ def create_prolific_pyensemble_integration_example():
         else:
             ticket = tickets.first()
 
+        # Get or create the participant group for the next experiment
+        next_experiment = experiment.studyxexperiment_set.first().next_experiment()
+
+        if next_experiment:
+            # Create the participant group if necessary
+            participant_group, _ = prolific.get_or_create_group(next_experiment.title)
+
+            # Add the participant group to our list
+            next_participant_groups.append(participant_group)
+        else:
+            next_participant_groups.append(None)        
+
         # Get the default study parameters
         prolific_study_params = get_default_prolific_study_params()
+
+        # Deal with our completion codes
+        current_completion_codes = [cc_criteria_not_met]
+        if exp_idx < pyensemble_experiments.count()-1:
+            cc_follow_up = {
+                "code": "FUP",
+                "code_type": "FOLLOW_UP_STUDY",
+                "actions": [
+                    {
+                        "action": "AUTOMATICALLY_APPROVE"
+                    },
+                    {
+                        "action": "ADD_TO_PARTICIPANT_GROUP",
+                        "participant_group": next_participant_groups[exp_idx]['id']
+                    }
+                ]
+            }
+
+            current_completion_codes.append(cc_follow_up)
+        else:
+            current_completion_codes.append(cc_approve)
 
         # Update the study parameters with the experiment title
         prolific_study_params.update({
             'name': experiment.title,
             'description': experiment.description,
-            'completion_codes': [
-                {
-                    "code": "ABC123",
-                    "code_type": "COMPLETED",
-                    "actions": [
-                        {
-                            "action": "AUTOMATICALLY_APPROVE"
-                        }
-                    ]
-                }
-            ]
+            'completion_codes': current_completion_codes
         })
 
         # Update the study parameters with the external URL
@@ -330,18 +427,17 @@ def create_prolific_pyensemble_integration_example():
         if prolific_study:
             prolific_study_ids.append(prolific_study['id'])
 
-        # Create a participant group for this study, if applicable
         # See if there was a preceding experiment in the sequence
         if experiment.studyxexperiment_set.first().prev_experiment():
-            # Create the participant group if necessary
-            participant_group, _ = prolific.get_or_create_group(experiment.title)
+            # Get the participant group for this experiment
+            participant_group = next_participant_groups[exp_idx-1]
 
             # Add the participant group to this study filter
             status = prolific.add_participant_group_to_study(prolific_study, participant_group)
 
-    msg = f"Prolific integration example created successfully. <p> The Prolific project is titled {prolific_project_title}. <p> The PyEnsemble study is titled {pyensemble_study_title}. <p> The Prolific study collection is titled {pyensemble_study_title}."
-    msg += f"<p> The Prolific studies are titled:</p>"
-    for experiment in study.experiments.order_by('studyxexperiment__experiment_order'):
+    msg = f"Prolific integration example created successfully. <p> The PyEnsemble study is titled {pyensemble_study_title}. <p> The Prolific project is titled {prolific_project_title}. "
+    msg += f"The Prolific studies are titled: <br>"
+    for experiment in pyensemble_experiments:
         msg += f"{experiment.title}<br>"
 
     # Generate our response message
@@ -371,7 +467,30 @@ def publish_multiday_example(request):
 
     # Loop over the studies and publish each one
 
+    msg = f"Published the studies in the Prolific project titled {params['prolific_project_title']}."
+
     return render(request, 'pyensemble/message.html', {'msg': msg})
+
+
+# Create a callback that will be used to determine whether the participant has enough time to participate in the study
+def not_enough_time(request, *args, **kwargs):
+    # Get our session
+    session = Session.objects.get(pk=kwargs['session_id'])
+
+    # Filter the response set to get the response to the "I have sufficient time to participate in this study today." question
+    question_text = "I have sufficient time to participate in this study today."
+    response = session.response_set.filter(question__text=question_text).first().response_value()
+
+    insufficient_time = response == 'No'
+    
+    if insufficient_time:
+        # Since we are going to exit the session, mark the ticket as unused so that the participant can 
+        # participate in the study at another time
+        session.ticket.used = False
+        session.ticket.save()
+
+    return insufficient_time
+
 
 
 # Create a single postsession callback that can be used for all days and that runs after each day's session is completed.
