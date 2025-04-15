@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     'encrypted_model_fields',
     'django_recaptcha',
     'crispy_forms',
+    'crispy_bootstrap4',
     'storages',
     'rest_framework',
     'pyensemble',

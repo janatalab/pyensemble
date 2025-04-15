@@ -5,8 +5,11 @@
 import datetime
 import zoneinfo
 
+from django.conf import settings
+
 from django.utils import timezone
 from django.http import HttpResponse
+from django.urls import reverse
 
 from django.template import loader
 from django.shortcuts import render
@@ -145,12 +148,12 @@ def create_prolific_pyensemble_integration_example():
             'html_field_type': 'radiogroup'
         },
         {
-            'text': 'I would like to be participate on Day 2.',
+            'text': 'I would like to participate on Day 2.',
             'data_format': yes_no_dfo,
             'html_field_type': 'radiogroup'
         },
         {
-            'text': 'I would like to be participate on Day 3.',
+            'text': 'I would like to participate on Day 3.',
             'data_format': yes_no_dfo,
             'html_field_type': 'radiogroup'
         },
@@ -435,6 +438,25 @@ def create_prolific_pyensemble_integration_example():
             # Add the participant group to this study filter
             status = prolific.add_participant_group_to_study(prolific_study, participant_group)
 
+    # Create our test participants if they are specified in our settings
+    for test_participant in settings.PROLIFIC_TESTERS:
+        # Construct the Prolific API endpoint
+        endpoint = prolific.api_endpoint + "/researcher/participants/"
+
+        # Post the test participant email
+        response = prolific.session.post(endpoint, json={"email": test_participant})
+
+        # Check the response status code
+        if response.status_code == 200:
+            pdb.set_trace()
+        
+        else:
+            # Handle the error
+            print(f"Error: {response.status_code} - {response.text}")
+
+            pdb.set_trace()
+
+
     msg = f"Prolific integration example created successfully. <p> The PyEnsemble study is titled {pyensemble_study_title}. <p> The Prolific project is titled {prolific_project_title}. "
     msg += f"The Prolific studies are titled: <br>"
     for experiment in pyensemble_experiments:
@@ -446,8 +468,14 @@ def create_prolific_pyensemble_integration_example():
     # Load the template
     template = loader.get_template(template_name)
     
+    # Create the context for the template
+    context = {
+        'msg': msg,
+        'back_url': reverse('experiments:debug:prolific-home'),
+    }
+
     # Render the response
-    response = template.render({'msg': msg})
+    response = template.render(context)
     
     return response
 
@@ -718,10 +746,13 @@ def register_test_subject(request):
                 # Update the study with the new filter
                 study = prolific.update_study(study, filters=filters)
 
-                # Render the response through the PyEnsemble message interface
-                msg = f"Prolific ID {prolific_id} has been added to the allow list for the study titled, {study['name']}."
-            
-            return render(request, 'pyensemble/message.html', {'msg': msg})
+                context = {
+                    'msg': f"Prolific ID {prolific_id} has been added to the allow list for the study titled, {study['name']}.",
+                    'back_url': reverse('experiments:debug:prolific-home'),
+                }
+
+            # Render the response through the PyEnsemble message interface
+            return render(request, 'pyensemble/message.html', context)
 
     else:
         # Render the form to register a Prolific text subject
@@ -745,7 +776,12 @@ def delete_multiday_example(request):
 
     msg = "Deleted the studies in the Prolific project."
 
-    return render(request, 'pyensemble/message.html', {'msg': msg})
+    context = {
+        'msg': msg,
+        'back_url': reverse('experiments:debug:prolific-home'),
+    }
+
+    return render(request, 'pyensemble/message.html', context)
 
 def delete_pyensemble_example(request):
     # Get our parameters
@@ -777,12 +813,26 @@ def delete_pyensemble_example(request):
         # 'pyensemble.FormXAttribute'
         # 'pyensemble.ExperimentXForm'
 
-        pdb.set_trace()
+        # Get the form objects
+        form_instances = experiment.forms.all()
+        for form in form_instances:
+            # Get the form questions
+            form_questions = form.questions.all()
+            for fq in form_questions:
+                # Delete the FormXQuestion objects
+                fq.delete()
+             
+            # Delete the form
+            form.delete()
+
         experiment.delete()
 
     # Delete the PyEnsemble study
     Study.objects.filter(title=params['pyensemble_study_title']).delete()
 
-    msg = "Deleted the PyEnsemble study."
+    context = {
+        'msg': "Deleted the PyEnsemble study.",
+        'back_url': reverse('experiments:debug:prolific-home'),
+    }
 
-    return render(request, 'pyensemble/message.html', {'msg': msg})
+    return render(request, 'pyensemble/message.html', context)

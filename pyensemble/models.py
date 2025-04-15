@@ -517,16 +517,16 @@ class Subject(models.Model):
     ]
 
     ETHNICITY_OPTIONS = [
-        ('HL','Hispanic or Latino'),
         ('NHL','Not Hispanic or Latino'),
+        ('HL','Hispanic or Latino'),
         ('UN','Undeclared')
     ]
 
     RACE_OPTIONS = [
         ('AIAN','American Indian or Alaska Native'),
         ('A','Asian'),
-        ('B','Black or African American'),
         ('NHPI','Native Hawaiian or Other Pacific Islander'),
+        ('B','Black or African American'),
         ('W','White'),
         ('MTOR','More than One Race'),
         ('UN','Undeclared')

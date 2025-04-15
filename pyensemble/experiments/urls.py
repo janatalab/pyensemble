@@ -43,7 +43,7 @@ for experiment in experiment_dirs:
             module = import_module('pyensemble.experiments.'+experiment_name+'.urls')
 
             # Include it in the url patterns
-            urlpatterns.append(path(f'{experiment_name}/', include(module)))
+            urlpatterns.append(path(f'{experiment_name}/', include(module), name=experiment_name))
         except:
             if settings.DEBUG:
                 pdb.set_trace()
