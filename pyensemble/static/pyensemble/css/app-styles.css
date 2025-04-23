@@ -17,7 +17,8 @@ body > main {
 .form-check-input {
     position: relative;
     margin-top: 0.4rem;
-    margin-left: 0;
+    margin-left: 43%;
+    width: 20px;
 }
 
 .form-disabled {

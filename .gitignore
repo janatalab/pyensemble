@@ -67,6 +67,8 @@ django-debug.txt
 
 */settings/local/
 
+/static/
+
 # celery
 *.pid
 
