@@ -1,0 +1,39 @@
+{% extends "pyensemble/pyensemble_home.html" %}
+
+{% block main %}
+    <main>
+        <div class="container">
+            <div class="h3 text-center">Prolific Integration</div>
+            <div class="text-left">
+                <p>Prolific is a platform for recruiting participants for online studies. This page provides tools for
+                    integrating PyEnsemble with Prolific. 
+                    
+                <div class="h4">Create Multi-Day Study</div>
+                    Execute the following steps in order to create a multi-experiment PyEnsemble study and associated Prolific studies, 
+                    register a test subject, and publish the multi-experiment PyEnsemble study to Prolific that the test subject can then participate in.</p>
+            
+                <ol>
+                    <li>
+                        <a href="{% url 'experiments:debug:create-prolific-multiday' %}">Create a multi-experiment PyEnsemble study and associated Prolific studies</a>
+                    </li>
+                    <li>
+                        <a href="{% url 'experiments:debug:register-prolific-test-subject' %}">Register a test subject</a>
+                    </li>
+                    <li>
+                        <a href="{% url 'experiments:debug:publish-prolific-multiday' %}">Publish the multi-experiment PyEnsemble study to Prolific</a>
+                    </li>
+                </ol>
+
+                <div class="h4">Utility functions</div>
+                These are various utility functions.
+                <ul>
+                    <li>
+                        <a href="{% url 'experiments:debug:prolific-delete-multiday' %}">Delete Prolific studies</a> - Delete all Prolific studies associated with the current PyEnsemble study.
+                    </li>
+                    <li>
+                        <a href="{% url 'experiments:debug:prolific-delete-pyensemble' %}">Delete PyEnsemble study</a> - Delete the current PyEnsemble study, experiments, forms, and questions.
+                    </li>
+            </div>
+        </div>
+    </main>
+{% endblock %}
