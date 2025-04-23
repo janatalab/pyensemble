@@ -35,7 +35,7 @@
                     </label>
                     {% include 'bootstrap4/layout/help_text_and_errors.html' %}
                 {% else %}
-                    {% crispy_field field %}
+                    {% crispy_field field 'class' 'form-control' %}
                     {% include 'bootstrap4/layout/help_text_and_errors.html' %}
                 {% endif %}
             </div>

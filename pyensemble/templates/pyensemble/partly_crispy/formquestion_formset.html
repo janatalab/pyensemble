@@ -22,9 +22,9 @@
     <div id="formInfo" class="editor text-left form-info experiment-info">
         <ul class="list-group">
             <li class="list-group-item text-left bg-light">Form Information</li>
-            <li class="list-group-item">{{form.name.label}}{% crispy_field form.name %}</li>
-            <li class="list-group-item">{{form.header.label}}{% crispy_field form.header%}</li>
-            <li class="list-group-item">{{form.footer.label}}{% crispy_field form.footer%}</li>
+            <li class="list-group-item">{{form.name.label}}{% crispy_field form.name 'class' 'form-control' %}</li>
+            <li class="list-group-item">{{form.header.label}}{% crispy_field form.header 'class' 'form-control' %}</li>
+            <li class="list-group-item">{{form.footer.label}}{% crispy_field form.footer 'class' 'form-control' %}</li>
             <li class="list-group-item">
                 <div class="row">
                     <div class="col-4">{% crispy_field form.locked %}{{form.locked.label}}</div>

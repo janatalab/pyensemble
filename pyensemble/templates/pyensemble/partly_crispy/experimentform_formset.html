@@ -22,27 +22,27 @@
     <div id="experimentInfo" class="editor text-left experiment-info">
         <ul class="list-group">
             <li class="list-group-item text-left bg-light">Experiment Information</li>
-            <li class="list-group-item">{{form.title.label}}{% crispy_field form.title %}</li>
+            <li class="list-group-item">{{form.title.label}}{% crispy_field form.title 'class' 'form-control' %}</li>
             <li class="list-group-item">
                 <div class="row">
                     <div class="col-3">Group experiment: {% crispy_field form.is_group %}</div>
                     <div class="col-3">{{form.user_ticket_expected.label}}: {% crispy_field form.user_ticket_expected %}</div>
                 </div>
             </li>
-            <li class="list-group-item">{{form.description.label}}{% crispy_field form.description%}</li>
+            <li class="list-group-item">{{form.description.label}}{% crispy_field form.description 'class' 'form-control' %}</li>
             <li class="list-group-item">
                 <div class="row">
-                    <div class="col-4">{{form.irb_id.label | upper}}{% crispy_field form.irb_id %}</div>
-                    <div class="col-4">{{form.start_date.label}}{% crispy_field form.start_date %}</div>
-                    <div class="col-4">{{form.end_date.label}}{% crispy_field form.end_date %}</div>
+                    <div class="col-4">{{form.irb_id.label | upper}}{% crispy_field form.irb_id 'class' 'form-control' %}</div>
+                    <div class="col-4">{{form.start_date.label}}{% crispy_field form.start_date 'class' 'form-control' %}</div>
+                    <div class="col-4">{{form.end_date.label}}{% crispy_field form.end_date 'class' 'form-control'  %}</div>
 
-                    <div class="col-12">SONA Credit Callback{% crispy_field form.sona_url %}</div>
+                    <div class="col-12">SONA Credit Callback{% crispy_field form.sona_url 'class' 'form-control' %}</div>
 
-                    <div class="col-12">{{form.params.label}}{% crispy_field form.params %}</div>
+                    <div class="col-12">{{form.params.label}}{% crispy_field form.params 'class' 'form-control' %}</div>
 
-                    <div class="col">{{form.session_reporting_script.label}}{% crispy_field form.session_reporting_script %}</div>
+                    <div class="col">{{form.session_reporting_script.label}}{% crispy_field form.session_reporting_script 'class' 'form-control' %}</div>
 
-                    <div class="col">{{form.post_session_callback.label}}{% crispy_field form.post_session_callback %}</div>
+                    <div class="col">{{form.post_session_callback.label}}{% crispy_field form.post_session_callback 'class' 'form-control' %}</div>
                 </div>
             </li>
             {% if form.instance.pk %}
