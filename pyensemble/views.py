@@ -559,13 +559,6 @@ def run_experiment(request, experiment_id=None):
                 if not ticket_code:
                     return errors.ticket_error(request, None, 'TICKET_MISSING')
 
-                # Create a ticket and grab its code
-                # ticket_code = create_tickets({
-                #     'num_user': 1, 
-                #     'experiment_id': experiment_id,
-                #     'subject': subject,
-                #     }).first().ticket_code
-
             # If we have multiple tickets, log a warning and use the first one
             elif user_tickets.count() > 1:
                 msg = f"Multiple tickets found for subject {subject.subject_id} in experiment {experiment_id}. Using the first one."
@@ -770,7 +763,16 @@ def serve_form(request, experiment_id=None):
 
         elif handler_name == 'form_consent':
             captcha_form = CaptchaForm(request.POST)
-            passes_captcha = captcha_form.is_valid()
+            try:
+                passes_captcha = captcha_form.is_valid()
+            except:
+                if settings.DEBUG:
+                    print('Captcha validation failed, but proceeding anyway')
+                    passes_captcha = True
+                else:
+                    logging.warning('Captcha validation failed!')
+                    passes_captcha = False
+
             formset = QuestionModelFormSet(request.POST)
 
         else:
@@ -1060,14 +1062,22 @@ def serve_form(request, experiment_id=None):
             # Get our selection function
             method = fetch_experiment_method(funcdict['func_name'])
 
-            if handler_name in ['form_feedback','form_end_session']:
+            if handler_name == 'form_feedback':
                 presents_stimulus = False
 
                 # Call the method to generate the feedback content
+                # If this is in response to end_session and the experiment is a Prolific experiment,
+                # this is the place to generate the redirect link for the participant to click carries with it 
+                # a completion code.
                 feedback = method(request, *funcdict['args'],**funcdict['kwargs'])
 
                 # Add feedback to our context
                 context.update({'feedback': feedback})
+
+            elif handler_name in ['form_end_session']:
+                # Call the method to generate any added context
+                extra_context = method(request, *funcdict['args'],**funcdict['kwargs'])
+                context.update(extra_context)
 
             elif handler_name in ['group_trial']:
                 # Group trials may be of different types. Some may present no stimulus at all whereas others might. Yet other group trials might be controlled by an experimenter (proxy) that controls the trial.
@@ -1197,23 +1207,25 @@ def serve_form(request, experiment_id=None):
         # Check whether we have a SONA redirect to handle
         sona_code = expsessinfo['sona']
 
-        # Remove our cached session info
-        request.session.pop(expsess_key, None)
-
         # Redirect to the SONA site to grant credit if we have a code
         if sona_code:
             context['sona_url'] = Experiment.objects.get(id=experiment_id).sona_url.replace('XXXX',sona_code)
 
         # Redirect to the Prolific site to grant credit
-        if expsessinfo['prolific_pid']:
-            # Get the study-specific redirect URL from the experiment table if we have one
-            if currform.experiment.params:
-                experiment_params = json.loads(currform.experiment.params)
+        if session.subject.id_origin == 'PRLFC':
+            # Check whether our Prolific completion URL already exists in the context.
+            # It would have been populated in the callback registered in stimulus_script
+            completion_url = context.get('prolific_completion_url', None)
 
-                # Check whether params are specified in a dictionary
-                if isinstance(experiment_params,dict):
-                    context['prolific_completion_url'] = experiment_params.get('prolific_completion_url', None)
+            # If we don't have a completion URL, try to get it from the experiment params
+            if not completion_url:
+                completion_url = prolific.utils.get_completion_url(request, **{'session_id': session.id})
+
+            pdb.set_trace()
+            context['prolific_completion_url'] = completion_url
         
+        # Remove our cached session info
+        request.session.pop(expsess_key, None)
 
     if settings.DEBUG:
         print(context['timeline_json'])

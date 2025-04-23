@@ -519,20 +519,29 @@ def not_enough_time(request, *args, **kwargs):
 
     return insufficient_time
 
+def qc_check(session, *args, **kwargs):
+    # Run any quality control checks
+    passed_qc = True
 
+    # Add checks here, e.g. make sure that the participant made it through the entire experiment, 
+    # as opposed to exiting early or abandoning the experiment.
+    if not session.last_form_responded():
+        passed_qc = False
+    
+    return passed_qc
 
 # Create a single postsession callback that can be used for all days and that runs after each day's session is completed.
 # This callback needs to add the participant to the eligibility list for the next study in the sequence.
 # It also needs to generate notifications for the next study in the sequence.
 def postsession(session, *args, **kwargs):
-    # Run any quality control checks
-    passed_qc = True
+    success = True
 
-    # Add checks here
+    # Run any quality control checks
+    passed_qc = qc_check(session, *args, **kwargs)
 
     if not passed_qc:
-        # Note that quality control failed
-        return {'qc_failed': True}
+        success = False
+        return success
     
     #
     # Determine the next experiment in the sequence
@@ -653,7 +662,7 @@ def postsession(session, *args, **kwargs):
         # Generate the notifications
         notifications = create_notifications(session, notification_list)
 
-    return
+    return success
 
 
 # Create a form to register a Prolific test subject
@@ -804,14 +813,6 @@ def delete_pyensemble_example(request):
     '''
     for experiment in study.experiments.order_by('studyxexperiment__experiment_order'):
         # We need to delete the forms associated with the experiment
-        # This will delete the following objects:
-        # 'pyensemble.FormXQuestion'
-        # 'pyensemble.Form'
-        # 'pyensemble.Question'
-        # 'pyensemble.DataFormat'
-        # 'pyensemble.Response'
-        # 'pyensemble.FormXAttribute'
-        # 'pyensemble.ExperimentXForm'
 
         # Get the form objects
         form_instances = experiment.forms.all()

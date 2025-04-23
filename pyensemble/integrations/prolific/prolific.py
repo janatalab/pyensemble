@@ -620,3 +620,31 @@ class Prolific():
             raise Exception(msg)
         
         return resp
+    
+    def get_submission_by_id(self, session_id):
+        """
+        Get a submission by its ID.
+        Args:
+            session_id (str): The ID of the submission.
+        Returns:
+            dict: The submission.
+        """
+        # Generate the submission endpoint
+        curr_endpoint = f"{self.api_endpoint}submissions/{session_id}/"
+
+        # Get the submission
+        resp = self.session.get(curr_endpoint).json()
+
+        # Check for an error
+        if 'error' in resp.keys():
+            msg = f"Error getting Prolific submission, {session_id}: {resp['error']}"
+            if settings.DEBUG:
+                print(msg)
+                pdb.set_trace()
+            else:
+                logging.error(msg)
+
+            raise Exception(msg)
+        
+        # Return the submission object
+        return resp
