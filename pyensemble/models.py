@@ -205,11 +205,11 @@ class Experiment(models.Model):
     # that also has a question on it, 
     # i.e. for which there would be a response in the Response table.
     def last_nonconditional_form_with_question(self):
-        last_form = self.experimentxform_set.order_by('form_order').filter(
+        last_exf = self.experimentxform_set.order_by('form_order').filter(
         form__question__isnull=False,
-        condition__exact="").last().form
+        condition__exact="").last()
 
-        return last_form
+        return last_exf.form, last_exf.form_order
     
 
 class ResponseQuerySet(models.QuerySet):
@@ -482,6 +482,19 @@ class Session(AbstractSession):
                 self.save()
 
         return self.age
+    
+    # Method to determine whether the participant responded to the last non-conditional form in the session
+    def last_form_responded(self):
+        last_form, form_order = self.experiment.last_nonconditional_form_with_question()
+
+        # Get the last response
+        last_response = self.response_set.filter(form=last_form, form_order=form_order).last()
+
+        if last_response:
+            return last_response
+
+        return None
+
 
 
 class Stimulus(models.Model):
@@ -517,17 +530,18 @@ class Subject(models.Model):
     ]
 
     ETHNICITY_OPTIONS = [
-        ('HL','Hispanic or Latino'),
         ('NHL','Not Hispanic or Latino'),
+        ('HL','Hispanic or Latino'),
         ('UN','Undeclared')
     ]
 
     RACE_OPTIONS = [
         ('AIAN','American Indian or Alaska Native'),
         ('A','Asian'),
-        ('B','Black or African American'),
         ('NHPI','Native Hawaiian or Other Pacific Islander'),
+        ('B','Black or African American'),
         ('W','White'),
+        ('MTOR','More than One Race'),
         ('UN','Undeclared')
     ]
 
@@ -628,7 +642,7 @@ class Ticket(models.Model):
 
             if settings.PORT:
                 # Used in debugging using runsslserver
-                url = f"{domain}{settings.PORT}{path}"
+                url = f"{domain}:{settings.PORT}{path}"
             else:
                 # Used in production
                 url = f"{domain}/{settings.INSTANCE_LABEL}/{path}"

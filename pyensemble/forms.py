@@ -12,7 +12,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import LayoutObject, Layout, Field, Submit, Row, Div, Fieldset
 from crispy_forms.bootstrap import InlineRadios, InlineCheckboxes, UneditableField
 
-from captcha.fields import ReCaptchaField
+from django_recaptcha.fields import ReCaptchaField
 
 from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket, Study, Response, SessionFile
 

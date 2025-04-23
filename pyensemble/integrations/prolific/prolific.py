@@ -13,6 +13,8 @@ from pyensemble.models import Study
 
 import logging
 
+import pdb
+
 
 # Create a Prolific class
 class Prolific():
@@ -55,7 +57,7 @@ class Prolific():
         study = Study.objects.get(title=study_title)
 
         # Get the experiments in the study
-        experiments = study.experiments.all()
+        experiments = study.experiments.order_by('studyxexperiment__experiment_order')
 
         # Create a participant group for each experiment in the study
         for experiment in experiments:
@@ -207,6 +209,43 @@ class Prolific():
         return result
     
 
+    def add_participant_group_to_study(self, study, group):
+        group_filter = None
+        group_in_study = False
+
+        # Search for the participant_group_allowlist filter
+        for f in study['filters']:
+            if f['filter_id'] == 'participant_group_allowlist':
+                group_filter = f
+
+                if group['id'] in group_filter['selected_values']:
+                    group_in_study = True
+                    status = "Group already in study"
+
+                break
+
+        if not group_in_study:
+            # Make sure the group filter exists
+            if not group_filter:
+                # Create the filter
+                group_filter = {
+                    "filter_id": "participant_group_allowlist",
+                    "selected_values": [],
+                }
+
+                # Add the filter to the study
+                study['filters'].append(group_filter)
+
+            # Add the group to the filter
+            group_filter['selected_values'].append(group['id'])
+
+            # Update the study
+            study = self.update_study(study, filters=study['filters'])
+
+            status = "Added group to study"
+
+        return status
+
     # Get or create a workspace
     def get_or_create_workspace(self, workspace_name, description=""):
         workspace = None
@@ -241,11 +280,9 @@ class Prolific():
 
         return workspace, created
 
-
-    # Get or create a project
-    def get_or_create_project(self, project_name, description=""):
+    # Get a project
+    def get_project(self, project_name):
         project = None
-        created = False
 
         curr_endpoint = f"{self.api_endpoint}workspaces/{self.workspace_id}/projects/"
 
@@ -256,8 +293,20 @@ class Prolific():
         for p in resp['results']:
             if p['title'] == project_name:
                 project = p
-                status_str = "Found"
+                self.project_id = project['id']
                 break
+        
+        return project
+
+
+    # Get or create a project
+    def get_or_create_project(self, project_name, description=""):
+        project = None
+        created = False
+
+        curr_endpoint = f"{self.api_endpoint}workspaces/{self.workspace_id}/projects/"
+
+        project = self.get_project(project_name)
 
         # Create a new project if we were unable to find it
         if not project:
@@ -273,6 +322,10 @@ class Prolific():
             status_str = "Created"
             created = True
 
+        else:
+            status_str = "Found"
+
+
         # Report on what happened
         msg = f"{status_str} project {project['title']}: {project['id']}"
         if settings.DEBUG:
@@ -286,10 +339,73 @@ class Prolific():
         return project, created
 
 
-    # Get or create a study collection
-    def get_or_create_study_collection(self, collection_name, description, study_ids=None, ):
+    def delete_project_studies(self, project_name):
+        project = None
+
+        curr_endpoint = f"{self.api_endpoint}workspaces/{self.workspace_id}/projects/"
+
+        # Get a list of all our projects
+        resp = self.session.get(curr_endpoint, params={}).json()
+
+        # Try to find our project
+        for p in resp['results']:
+            if p['title'] == project_name:
+                project = p
+                break
+
+        if project:
+            # Get the studies in the project and try to delete them
+            resp = self.session.get(f"{self.api_endpoint}projects/{project['id']}/studies").json()
+
+            # Handle error
+            if 'error' in resp.keys():
+                raise Exception(resp['error'])
+            
+            # Iterate over the studies
+            for study in resp['results']:
+                # Delete the study
+                resp = self.session.delete(f"{self.api_endpoint}studies/{study['id']}/")
+
+                # Handle error
+                if not resp.ok:
+                    if settings.DEBUG:
+                        print(f"Unable to delete study {study['id']}")
+                    resp.raise_for_status()
+
+            # Get the study collections in the project
+            study_collections = self.session.get(f"{self.api_endpoint}study-collections/mutually-exclusive/", params={"project_id": project['id']}).json()
+            for sc in study_collections['results']:
+                # First, make sure the study collection is unpublished
+                if sc['status'] == 'ACTIVE':
+                    # Unpublish the study collection
+                    resp = self.session.post(f"{self.api_endpoint}study-collections/mutually-exclusive/{sc['id']}/transition/", json={'action':'CANCEL_PUBLISH'}).json()
+
+                    # Handle error
+                    if 'error' in resp.keys():
+                        raise Exception(resp['error'])
+
+                # Delete the study collection
+                resp = self.session.delete(f"{self.api_endpoint}study-collections/mutually-exclusive/{sc['id']}/").json()
+
+        return project
+
+    def get_study_collection_by_id(self, collection_id):
         collection = None
-        created = False
+
+        curr_endpoint = f"{self.api_endpoint}study-collections/mutually-exclusive/{collection_id}/"
+
+        # Get the study collection
+        collection = self.session.get(curr_endpoint).json()
+
+        # Handle error
+        if 'error' in collection.keys():
+            raise Exception(collection['error'])
+
+        return collection
+
+
+    def get_study_collection_by_name(self, collection_name):
+        collection = None
 
         curr_endpoint = f"{self.api_endpoint}study-collections/mutually-exclusive/"
 
@@ -300,27 +416,35 @@ class Prolific():
         for c in resp['results']:
             if c['name'] == collection_name:
                 collection = c
-                status_str = "Found"
-
-                # Ostensibly the API should return the study_ids as part of the results, but it doesn't.
-                # So, explicitly grab the collection
-                collection = self.session.get(curr_endpoint+f"{c['id']}/").json()
-
-                # Check if the study IDs match
-                if study_ids and set(collection['study_ids']) != set(study_ids):
-                    # Update the study IDs
-                    collection = self.session.patch(curr_endpoint+f"{c['id']}/", json={"study_ids": study_ids}).json()
-
-                    # Handle error
-                    if 'error' in collection.keys():
-                        raise Exception(collection['error'])
-
-                    status_str = "Updated"
-
                 break
 
+        return collection
+
+
+    # Get or create a study collection
+    def get_or_create_study_collection(self, collection_name, description, study_ids=None):
+        curr_endpoint = f"{self.api_endpoint}study-collections/mutually-exclusive/"
+
+        # Try to find the collection
+        collection = self.get_study_collection_by_name(collection_name)
+        
+        if collection:
+            status_str = "Found"
+            created = False
+
+            # Make sure that the study IDs match
+            if 'study_ids' not in collection.keys() or not study_ids or set(collection['study_ids']) != set(study_ids):
+                # Update the study IDs
+                collection = self.session.patch(f"{curr_endpoint}{collection['id']}/", json={"study_ids": study_ids}).json()
+
+                # Handle error
+                if 'error' in collection.keys():
+                    raise Exception(collection['error'])
+
+                status_str = "Updated"
+
         # Create a new collection if we were unable to find it
-        if not collection:
+        else:
             collection = self.session.post(curr_endpoint, json={
                 "name": collection_name,
                 "description": description,
@@ -348,8 +472,55 @@ class Prolific():
         return collection, created
     
 
+    def publish_study_collection(self, **kwargs):
+        collection = None
+        collection_id = kwargs.get('id', None)
+        collection_name = kwargs.get('name', None)
+
+        if collection_id:
+            # Get the study collection
+            collection = self.get_study_collection_by_id(collection_id)
+
+        elif collection_name:
+            # Get the study collection
+            collection = self.get_study_collection_by_name(collection_name)
+
+        else:
+            raise Exception("You must provide either a collection ID or name")
+
+        # Publish the study collection
+        curr_endpoint = f"{self.api_endpoint}study-collections/mutually-exclusive/{collection['id']}/transition/"
+        collection = self.session.post(curr_endpoint, json={'action':'PUBLISH'}).json()
+
+        # Handle error
+        if 'error' in collection.keys():
+            if settings.DEBUG:
+                pdb.set_trace()
+            raise Exception(collection['error'])
+
+        # Print the collection ID
+        msg = f"Published study collection {collection['name']}: {collection['id']}"
+        if settings.DEBUG:
+            print(msg)
+        else:
+            logging.info(msg)
+
+        return collection
+
+
+    # Retrieve a study using its ID
+    def get_study_by_id(self, study_id):
+         # Generate the study endpoint
+        curr_endpoint = f"{self.api_endpoint}studies/{study_id}/"
+
+        # Get the study
+        study = self.session.get(curr_endpoint).json()
+
+        return study
+
+
     # Check whether a study exists in a project
-    def get_study(self, name, project_id=None):
+    def get_study_by_name(self, name, project_id=None):
         study = None
 
         if project_id:
@@ -368,6 +539,7 @@ class Prolific():
 
         return study
     
+
     # Create a study
     def create_study(self, study_params, project_id=None):
         # When creating a study, a project ID is not part of the endpoint
@@ -397,10 +569,11 @@ class Prolific():
 
         return study
     
+
     # Get or create a study
     def get_or_create_study(self, study_params, project_id=None):
         created = False
-        study = self.get_study(study_params['name'], project_id=project_id)
+        study = self.get_study_by_name(study_params['name'], project_id=project_id)
 
         if not study:
             study = self.create_study(study_params, project_id=project_id)
@@ -417,3 +590,61 @@ class Prolific():
             logging.info(msg)
 
         return study, created
+    
+
+    def update_study(self, study, **kwargs):
+        """
+        Update a study in Prolific.
+
+        Args:
+            study (dict): The study to update.
+            **kwargs: The fields to update.
+
+        Returns:
+            dict: The updated study.
+        """
+        # Get the current study
+        curr_endpoint = f"{self.api_endpoint}studies/{study['id']}/"
+
+        # Update the study
+        resp = self.session.patch(curr_endpoint, json=kwargs).json()
+
+        # Check for an error
+        if 'error' in resp.keys():
+            msg = f"Error updating Prolific study, {study['name']}: {resp['error']}"
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.error(msg)
+
+            raise Exception(msg)
+        
+        return resp
+    
+    def get_submission_by_id(self, session_id):
+        """
+        Get a submission by its ID.
+        Args:
+            session_id (str): The ID of the submission.
+        Returns:
+            dict: The submission.
+        """
+        # Generate the submission endpoint
+        curr_endpoint = f"{self.api_endpoint}submissions/{session_id}/"
+
+        # Get the submission
+        resp = self.session.get(curr_endpoint).json()
+
+        # Check for an error
+        if 'error' in resp.keys():
+            msg = f"Error getting Prolific submission, {session_id}: {resp['error']}"
+            if settings.DEBUG:
+                print(msg)
+                pdb.set_trace()
+            else:
+                logging.error(msg)
+
+            raise Exception(msg)
+        
+        # Return the submission object
+        return resp

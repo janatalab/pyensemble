@@ -25,6 +25,9 @@ def ticket_error(request, ticket, error_type):
     if error_type == "TICKET_MISSING":
         error_msg = "A ticket is required to start the experiment"
 
+    elif error_type == "USER_TICKET_MISSING":
+        error_msg = "A custom ticket is required to start the experiment"
+
     elif error_type == "TICKET_NOT_FOUND":
         error_msg = "A ticket with this code was not found"
 

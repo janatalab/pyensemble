@@ -12,5 +12,10 @@
                 <a href="{% url 'editor' %}">Home</a>
             </div>
         {% endif %}
+        {% if back_url %}
+            <div>
+                <a href="{{back_url}}">Back</a>
+            </div>
+        {% endif %}
     </main>
 {% endblock %}
