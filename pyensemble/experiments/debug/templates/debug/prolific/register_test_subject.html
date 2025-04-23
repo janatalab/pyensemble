@@ -1,0 +1,24 @@
+{% extends "pyensemble/base.html" %}
+{% load crispy_forms_tags %}
+
+
+{% block main %}
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="h3">Register a test subject for the Prolific integration.</div>
+            </div>
+        </div>
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <form method="post">
+                    {% csrf_token %}
+                    {% crispy form %}
+                </form>
+            </div>
+            <div class="col-md-12 text-center mt-3">
+            <a href="{% url 'experiments:debug:prolific-home' %}">Back to Prolific Integration</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}
