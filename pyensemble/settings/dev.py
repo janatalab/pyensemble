@@ -20,9 +20,10 @@ home = os.environ.get('HOME', None)
 if not home:
     home = os.environ.get('HOMEPATH', None)
 
+# Create the log directory
 LOG_DIR = os.path.join(home, 'log', INSTANCE_LABEL)
-if not os.path.exists(LOG_DIR):
-    os.mkdir(LOG_DIR)
+Path(LOG_DIR).mkdir(parents=True, exist_ok=True)
+
 
 # Change logger filenames to reflect the potentially modified LOG_DIR
 for handler, value in LOGGING['handlers'].items():

@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/2.2/ref/settings/
 """
 
 import os
+from pathlib import Path
 import json
 from configparser import ConfigParser
 
@@ -240,6 +241,10 @@ if 'email' in config.sections():
 # Logging
 
 LOG_DIR = config['django']['logdir']
+
+# Make sure the log directory exists
+Path(LOG_DIR).mkdir(parents=True, exist_ok=True)
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
