@@ -419,8 +419,9 @@ def create_prolific_pyensemble_integration_example():
         # Update the study parameters with the external URL
         pid_str = "{{%PROLIFIC_PID%}}"
         study_id_str = "{{%STUDY_ID%}}"
+        session_id_str = "{{%SESSION_ID%}}"
         prolific_study_params.update({
-            'external_study_url': f"{ticket.url}&PROLIFIC_PID={pid_str}&STUDY_ID={study_id_str}"
+            'external_study_url': f"{ticket.url}&PROLIFIC_PID={pid_str}&STUDY_ID={study_id_str}&SESSION_ID={session_id_str}",
         })
 
         # Create the study
