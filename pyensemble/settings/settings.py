@@ -203,6 +203,15 @@ USE_L10N = True
 
 USE_AWS_STORAGE = False
 
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
 STATIC_ROOT = os.path.join('/var/www/html/static/', INSTANCE_LABEL)
 STATIC_URL = f"/static/{INSTANCE_LABEL}/"
 
@@ -329,9 +338,10 @@ if 'aws' in config.sections():
 
     AWS_LOCATION = INSTANCE_LABEL
 
-    STATIC_ROOT = None
     STATIC_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_STATIC_DOMAIN, AWS_LOCATION)
     STATICFILES_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+    STORAGES['staticfiles'] = {'BACKEND': "storages.backends.s3.S3Storage"}
 
     AWS_MEDIA_STORAGE_BUCKET_NAME = aws_params['s3_media_bucket_name']
     AWS_S3_CUSTOM_MEDIA_DOMAIN = '%s.s3.amazonaws.com' % AWS_MEDIA_STORAGE_BUCKET_NAME
