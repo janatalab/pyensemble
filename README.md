@@ -270,6 +270,9 @@ Note:
 3) The python-path variable points to the root location of your Django project
 4) WSGIScriptAlias points the endpoint on your server (relative to server root) to your Python module that starts and returns your wsgi application to mod_wsgi
 
+#### Multiple PyEnsemble installations on a single server
+It is possible to serve multiple installations of PyEnsemble on the same server at different endpoints, e.g. /pyensemble and /pyensemble-dev. However, there is only one wsgi_module that can be loaded. The implication of this is that the same version of Python must be used to run all instances of PyEnsemble on the same server.
+
 <a name="launch"/></a>
 ## Launching PyEnsemble
 These steps need to be executed both during initial launch of the webserver as well as whenever the PyEnsemble code has been updated or experiment-specific code is deployed.
