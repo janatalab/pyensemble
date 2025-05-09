@@ -213,16 +213,17 @@ def create_notifications(session, notification_list):
     # Initialize our Notification queryset
     notifications = Notification.objects.none()
 
-    for n in notification_list:
+    for notification in notification_list:
         # Create an entry in our notifications table
         nobj = Notification.objects.create(
             subject = session.subject,
             experiment = session.experiment,
             session = session,
+            ticket = notification.get('ticket', None),
 
-            template = n['template'],
-            scheduled = n['datetime'],
-            context = n['context']
+            template = notification['template'],
+            scheduled = notification['datetime'],
+            context = notification.get('context', None),
         )
 
         # Add the notification to our notifications QuerySet

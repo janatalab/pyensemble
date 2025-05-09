@@ -31,7 +31,9 @@ from pyensemble.forms import RegisterSubjectForm, RegisterSubjectUsingEmailForm,
 
 from pyensemble.tasks import fetch_subject_id, create_tickets, send_email
 
-from pyensemble.integrations import prolific
+from pyensemble.integrations.prolific.prolific import Prolific
+import pyensemble.integrations.prolific.utils as prolific_utils
+import pyensemble.integrations.prolific.errors as prolific_errors
 
 from pyensemble import errors
 
@@ -519,31 +521,32 @@ def run_experiment(request, experiment_id=None):
         # Have yet to determine a subject
         subject = None
         tmp_subject = False # Assume we are not using a temporary subject
+        origin_sessid = request.GET.get('SESSION_ID', None)
 
         # Pull out our ticket code
         ticket_code = request.GET.get('tc', None)
 
         # Check whether we have a Prolific subject ID as a parameter.
         # If we do, we have to handle a bunch of Prolific integration stuff.
-        prolific_pid = prolific.utils.get_participant_id(request)
+        prolific_pid = prolific_utils.get_participant_id(request)
 
         if prolific_pid:
             # Make sure there is a Prolific study ID in the request parameters
-            prolific_study_id = prolific.utils.get_study_id(request)
+            prolific_study_id = prolific_utils.get_study_id(request)
 
             if not prolific_study_id:
-                return prolific.errors.prolific_error(request, 'NO_STUDY_ID')
+                return prolific_errors.prolific_error(request, 'NO_STUDY_ID')
             
             # Validate the participant. 
             # If the Prolific study has a participant group associated with it, 
             # the participant must be part of that group.
-            pid_is_valid = prolific.utils.is_valid_participant(request)
+            pid_is_valid = prolific_utils.is_valid_participant(request)
 
             if not pid_is_valid:
-                return prolific.errors.prolific_error(request, 'INVALID_PID')
+                return prolific_errors.prolific_error(request, 'INVALID_PID')
 
             # Create a PyEnsemble subject entry for this participant if necessary
-            subject, _ = prolific.utils.get_or_create_prolific_subject(request)
+            subject, _ = prolific_utils.get_or_create_prolific_subject(request)
 
             # Check whether there is a user ticket associated with this subject and experiment
             user_tickets = Ticket.objects.filter(subject=subject, experiment=experiment, type='user')
@@ -559,13 +562,14 @@ def run_experiment(request, experiment_id=None):
                 if not ticket_code:
                     return errors.ticket_error(request, None, 'TICKET_MISSING')
 
-            # If we have multiple tickets, log a warning and use the first one
-            elif user_tickets.count() > 1:
-                msg = f"Multiple tickets found for subject {subject.subject_id} in experiment {experiment_id}. Using the first one."
-                if settings.DEBUG:
-                    print(msg)
-                else:
-                    logging.warning(msg)
+            else:
+                # If we have multiple tickets, log a warning and use the first one
+                if user_tickets.count() > 1:
+                    msg = f"Multiple tickets found for subject {subject.subject_id} in experiment {experiment_id}. Using the first one."
+                    if settings.DEBUG:
+                        print(msg)
+                    else:
+                        logging.warning(msg)
 
                 # Get the ticket code
                 ticket_code = user_tickets.first().ticket_code
@@ -586,20 +590,30 @@ def run_experiment(request, experiment_id=None):
             return errors.ticket_error(request, ticket_code, 'TICKET_NOT_FOUND')
 
         # Check to see that the experiment associated with this ticket code matches
+        ticket_error = ''
         if ticket.experiment.id != experiment_id:
-            return errors.ticket_error(request, ticket, 'TICKET_EXPERIMENT_MISMATCH')
+            ticket_error = 'TICKET_EXPERIMENT_MISMATCH'
 
         # Make sure ticket hasn't been used
         if ticket.type == 'user' and ticket.used:
-            return errors.ticket_error(request, ticket, 'TICKET_ALREADY_USED')
+            ticket_error = 'TICKET_ALREADY_USED'
 
         # Make sure the ticket's validity has commenced
-        if ticket.start and timezone.now() < ticket.start:
-            return errors.ticket_error(request, ticket, 'TICKET_NOT_YET_VALID')
+        if ticket.too_early:
+            ticket_error = 'TICKET_NOT_YET_VALID'
 
         # Make sure ticket hasn't expired
         if ticket.expired:
-            return errors.ticket_error(request, ticket, 'TICKET_EXPIRED')
+            ticket_error = 'TICKET_EXPIRED'
+        
+        if ticket_error:
+            # If we are dealing with a Prolific participant, we have to complete the submission
+            # with a request to return the submission
+            if prolific_pid:
+                prolific_utils.complete_submission(origin_sessid, code_type=ticket_error)
+
+            return errors.ticket_error(request, ticket, ticket_error)
+
 
         # Handle the situation where we have a pre-assigned subject via the ticket
         if ticket.type == 'user' and ticket.subject:
@@ -620,8 +634,6 @@ def run_experiment(request, experiment_id=None):
             subject, _ = Subject.objects.get_or_create(subject_id=request.session.session_key)
             tmp_subject = True
 
-        # See whether we were passed in an explicit session_id as a URL parameter
-        origin_sessid = request.GET.get('SESSION_ID', None)
 
         # Initialize a session in the PyEnsemble session table
         session = Session.objects.create(
@@ -969,7 +981,7 @@ def serve_form(request, experiment_id=None):
                         subject=Subject.objects.get(subject_id=expsessinfo['subject_id']),
                         session=session,
                         form=currform.form,
-                        form_order=form_idx,
+                        form_order=form_idx+1, # form order is 1-indexed
                         stimulus=stimulus,
                         question=question.instance,
                         form_question_num=idx,
@@ -1213,16 +1225,35 @@ def serve_form(request, experiment_id=None):
 
         # Redirect to the Prolific site to grant credit
         if session.subject.id_origin == 'PRLFC':
-            # Check whether our Prolific completion URL already exists in the context.
-            # It would have been populated in the callback registered in stimulus_script
-            completion_url = context.get('prolific_completion_url', None)
+            # The end of the session in a Prolific experiment can be handled in one of two ways:
+            # 1) The state of the submission can be updated automatically
+            # 2) The participant can be redirected to the Prolific site with a completion code
+            # 
+            # Try the first way
 
-            # If we don't have a completion URL, try to get it from the experiment params
-            if not completion_url:
-                completion_url = prolific.utils.get_completion_url(request, **{'session_id': session.id})
+            # Try to complete the submission with the default completion code. Note, the submission may have already
+            # been transitioned by the callback registered in stimulus_script.
+            # If the submission has already been transitioned, this should return 'SUBMISSION_NOT_ACTIVE'
+            prolific_submission = context.get('prolific_submission', None)
 
-            pdb.set_trace()
-            context['prolific_completion_url'] = completion_url
+            if not prolific_submission or prolific_submission['submission']['status'] == "ACTIVE":
+                submission = prolific_utils.complete_submission(session.origin_sessid)
+
+                # Update context
+                context['prolific_submission'] = submission
+
+            if prolific_submission['submission_status'] == 'SUBMISSION_NOT_COMPLETED':
+                # We we unable to transition the study to completed state, so we need to redirect the participant to the Prolific site with a completion code
+
+                # Check whether our Prolific completion URL  exists in the context.
+                # It would have been populated in the callback registered in stimulus_script
+                completion_url = context.get('prolific_completion_url', None)
+
+                # If we don't have a completion URL, try to get it from the experiment params
+                if not completion_url:
+                    completion_url = prolific_utils.get_completion_url(request, session_id=session.id)
+
+                context['prolific_completion_url'] = completion_url
         
         # Remove our cached session info
         request.session.pop(expsess_key, None)

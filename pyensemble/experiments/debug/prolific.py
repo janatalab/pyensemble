@@ -24,6 +24,7 @@ from pyensemble.models import DataFormat, Question, Form, FormXQuestion, Experim
 from pyensemble.study import create_experiment_groupings
 
 from pyensemble.integrations.prolific.prolific import Prolific
+from pyensemble.integrations.prolific.utils import default_completion_codes, complete_submission
 
 from pyensemble.tasks import create_tickets, get_or_create_next_experiment_ticket, create_notifications
 
@@ -51,8 +52,12 @@ def get_default_prolific_study_params():
         'reward': 15,
         'total_available_places': 1,
         'estimated_completion_time': 1,
-        'completion_codes': None,
+        'maximum_allowed_time': 60,
+        'completion_codes': default_completion_codes(),
         'device_compatibility': ["desktop"],
+        'submissions_config': {
+            'max_submissions_per_participant': 1000, # set to high number for testing
+        }
     }
 
     return default_study_params
@@ -306,6 +311,13 @@ def create_prolific_pyensemble_integration_example():
 
                 # Save the changes
                 exf.save()
+
+            # Attach a callback in the stimulus_script field for the 'End Session' form
+            if form_handler == 'form_end_session':
+                exf.stimulus_script = "debug.prolific.complete_prolific_session()"
+
+                # Save the changes
+                exf.save()
             
     """
     Deal with the Prolific side of the Prolific integration.
@@ -316,27 +328,6 @@ def create_prolific_pyensemble_integration_example():
     """
     msg = f"\nHandling the Prolific side of the integration"
     print(msg)
-
-    # Create some completion code objects
-    cc_approve = {
-        "code": "APR",
-        "code_type": "APPROVE",
-        "actions": [
-            {
-                "action": "AUTOMATICALLY_APPROVE"
-            }
-        ]
-    }
-
-    cc_criteria_not_met = {
-        "code": "CNM",
-        "code_type": "CRITERIA_NOT_MET",
-        "actions": [
-            {
-                "action": "MANUALLY_REVIEW"
-            }
-        ]
-    }
 
     # Get our PyEnsemble experiments
     pyensemble_experiments = study.experiments.order_by('studyxexperiment__experiment_order')
@@ -389,31 +380,26 @@ def create_prolific_pyensemble_integration_example():
         prolific_study_params = get_default_prolific_study_params()
 
         # Deal with our completion codes
-        current_completion_codes = [cc_criteria_not_met]
         if exp_idx < pyensemble_experiments.count()-1:
-            cc_follow_up = {
+            prolific_study_params['completion_codes'].append({
                 "code": "FUP",
                 "code_type": "FOLLOW_UP_STUDY",
+                "actor": "researcher",  
                 "actions": [
                     {
-                        "action": "AUTOMATICALLY_APPROVE"
+                        "action": "MANUALLY_REVIEW"
                     },
                     {
                         "action": "ADD_TO_PARTICIPANT_GROUP",
                         "participant_group": next_participant_groups[exp_idx]['id']
                     }
                 ]
-            }
-
-            current_completion_codes.append(cc_follow_up)
-        else:
-            current_completion_codes.append(cc_approve)
+            })
 
         # Update the study parameters with the experiment title
         prolific_study_params.update({
             'name': experiment.title,
             'description': experiment.description,
-            'completion_codes': current_completion_codes
         })
 
         # Update the study parameters with the external URL
@@ -439,23 +425,56 @@ def create_prolific_pyensemble_integration_example():
             # Add the participant group to this study filter
             status = prolific.add_participant_group_to_study(prolific_study, participant_group)
 
+        # If this is the first experiment and we have test participants, add them to the custom_allowlist filter
+        if exp_idx == 0 and settings.PROLIFIC_TESTERS:
+            # Get the current set of filters
+            filters = prolific_study['filters']
+
+            custom_allowlist_filter = None
+
+            # Find the 'custom_allowlist' filter in the filters list
+            for f in filters:
+                if f['filter_id'] == 'custom_allowlist':
+                    custom_allowlist_filter = f
+
+            # If the subject is not registered, add them to the allow list
+            if not custom_allowlist_filter:
+                # Create the filter
+                custom_allowlist_filter = {
+                    'filter_id': 'custom_allowlist',
+                    'selected_values': [],
+                }
+
+                # Add the filter to the filters list
+                filters.append(custom_allowlist_filter)
+
+            # Add the participant to the filter
+            for tester in settings.PROLIFIC_TESTERS:
+                if tester not in custom_allowlist_filter['selected_values']:
+                    custom_allowlist_filter['selected_values'].append(tester)
+
+            # Update the study with the new filter
+            prolific_study = prolific.update_study(prolific_study, filters=filters)
+
     # Create our test participants if they are specified in our settings
-    for test_participant in settings.PROLIFIC_TESTERS:
-        # Construct the Prolific API endpoint
-        endpoint = prolific.api_endpoint + "/researcher/participants/"
+    # 2025-05-02 This endpoint has not been released by Prolific yet, so we are not using it
+    if 0:
+        for test_participant in settings.PROLIFIC_TESTERS:
+            # Construct the Prolific API endpoint
+            endpoint = prolific.api_endpoint + "/researcher/participants/"
 
-        # Post the test participant email
-        response = prolific.session.post(endpoint, json={"email": test_participant})
+            # Post the test participant email
+            response = prolific.session.post(endpoint, json={"email": test_participant})
 
-        # Check the response status code
-        if response.status_code == 200:
-            pdb.set_trace()
-        
-        else:
-            # Handle the error
-            print(f"Error: {response.status_code} - {response.text}")
+            # Check the response status code
+            if response.status_code == 200:
+                pdb.set_trace()
+            
+            else:
+                # Handle the error
+                print(f"Error: {response.status_code} - {response.text}")
 
-            pdb.set_trace()
+                pdb.set_trace()
 
 
     msg = f"Prolific integration example created successfully. <p> The PyEnsemble study is titled {pyensemble_study_title}. <p> The Prolific project is titled {prolific_project_title}. "
@@ -483,22 +502,41 @@ def create_prolific_pyensemble_integration_example():
 
 # Publish the Prolific integration example
 def publish_multiday_example(request):
-    # Get our paramters
+    # Get our parameters
     params = get_prolific_pyensemble_integration_example_params()
+
+    project_title = params['prolific_project_title']
+
+    msg = f"<p>Publishing the studies in the Prolific project titled {project_title}.</p>"
+
 
     # Get ourselves a Prolific object
     prolific = Prolific()
 
     # Get the Prolific project
-    project = prolific.get_project(params['prolific_project_title'])
+    project = prolific.get_project(project_title)
 
     # Get the studies in the Prolific project
+    studies = prolific.get_project_studies(project['id'])
 
     # Loop over the studies and publish each one
+    for study in studies:
+        # Publish the study
+        status = prolific.publish_study(study['id'])
 
-    msg = f"Published the studies in the Prolific project titled {params['prolific_project_title']}."
+        if not status:
+            msg += f"FAILED to publish the Prolific study titled {study['name']}.<br>"
 
-    return render(request, 'pyensemble/message.html', {'msg': msg})
+        else:
+            msg += f"Published the Prolific study titled {study['name']}.<br>"
+
+    # Generate our response message
+    context = {
+        'msg': msg,
+        'back_url': reverse('experiments:debug:prolific-home'),
+    }
+
+    return render(request, 'pyensemble/message.html', context)
 
 
 # Create a callback that will be used to determine whether the participant has enough time to participate in the study
@@ -520,6 +558,7 @@ def not_enough_time(request, *args, **kwargs):
 
     return insufficient_time
 
+
 def qc_check(session, *args, **kwargs):
     # Run any quality control checks
     passed_qc = True
@@ -530,6 +569,84 @@ def qc_check(session, *args, **kwargs):
         passed_qc = False
     
     return passed_qc
+
+
+def complete_prolific_session(request, *args, **kwargs):
+    # Initialize the context
+    context = {}
+
+    # Get our Prolific object
+    prolific = Prolific()
+
+    # Get our session
+    session = Session.objects.get(pk=kwargs['session_id'])
+
+    # Get the Prolific submission
+    submission = prolific.get_submission_by_id(session.origin_sessid)
+
+    # Get the study ID from the submission
+    study_id = submission['study_id']
+
+    # Get the study
+    study = prolific.get_study_by_id(study_id)
+
+    # Run any quality control checks
+    passed_qc = qc_check(session, *args, **kwargs)
+
+    sxe = session.experiment.studyxexperiment_set.first()
+    is_last_experiment = sxe.experiment_order == sxe.study.num_experiments
+
+    # Determine the completion code to use
+    if passed_qc:
+        # If this is not the last experiment in the sequence, we need to use the FOLLOW_UP_STUDY completion code
+
+        if not is_last_experiment:
+            # Get the completion code to enroll the participant in the next experiment
+            completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'FOLLOW_UP_STUDY'), None)
+
+        else:
+            # If this is the last experiment in the sequence, we need to use the COMPLETED_APPROVE completion code
+            completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'COMPLETED_APPROVE'), None)
+
+    else:
+        # Perhaps the criteria were not met for the participant to complete the experiment at this time
+        # Get the last response
+        last_response = session.response_set.last()
+
+        if last_response.form.name in ['Return Later']:
+            # If the last response was to the "Return Later" form, we need to use the RETURN_LATER completion code
+            completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'CRITERIA_NOT_MET'), None)
+
+        else:
+            # Use the default completion code
+            completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'COMPLETED_MANUALLY_REVIEW'), None)
+
+    # Transition the submission
+    # We can only transition if the completion code has a 'researcher' actor associated
+    # with it. If the completion code has a 'participant' actor associated with it, we need to use the
+    # completion URL instead.
+    context['prolific_submission'] = complete_submission(session.origin_sessid, completion_code=completion_code)
+
+    # If this is the last experiment in the sequence and it was successfully approved, approve the submissions
+    # for the preceding experiments as approved also.
+    # This should arguably be moved to postsession()
+    if is_last_experiment and context['prolific_submission']['submission']['status'] == 'APPROVED':
+        while sxe.prev_experiment():
+            # Get the previous experiment in the sequence
+            prev_experiment = sxe.prev_experiment()
+
+            # Get the sessions for the previous experiment.
+            # Should just be one session, if a participant can only participate once per experiment. However,
+            # during testing, multiple sessions may be created for the same experiment and same subject.
+            prev_sessions = Session.objects.filter(experiment=prev_experiment, subject=session.subject)
+
+            # Loop over the sessions and approve them
+            for prev_session in prev_sessions:
+                status = prolific.approve_submission(prev_session.origin_sessid)
+
+            sxe = prev_experiment.studyxexperiment_set.first()
+
+    return context
 
 # Create a single postsession callback that can be used for all days and that runs after each day's session is completed.
 # This callback needs to add the participant to the eligibility list for the next study in the sequence.
@@ -556,7 +673,7 @@ def postsession(session, *args, **kwargs):
         #
 
         # Determine the valid ticket times
-        tomorrow = session.effective_end_date()+timezone.timedelta(days=1)
+        tomorrow = session.effective_session_date()+timezone.timedelta(days=1)
         day_after_tomorrow = tomorrow+timezone.timedelta(days=1)
         
         earliest_start_time = datetime.time(5,30)
@@ -584,6 +701,7 @@ def postsession(session, *args, **kwargs):
         group = prolific.get_group_by_name(next_experiment_ticket.experiment.title)
 
         # Add the participant to the group
+        # This may have already been achieved using the completion code
         result = prolific.add_participant_to_group(group['id'], session.subject.subject_id)
 
         # Verify that the participant was added to the group
@@ -632,13 +750,13 @@ def postsession(session, *args, **kwargs):
 
             notification_list.append({
                 'session': session,
+                'ticket': next_experiment_ticket,
                 'template': notification_template,
                 'context': {
                     'msg_number': len(notification_list)+1,
                     'msg_subject': f"Day {next_experiment_order} Study Reminder",
                     'curr_experiment_order': curr_experiment_order,
                     'prolific_study_name': next_experiment_ticket.experiment.title,
-                    'ticket': next_experiment_ticket,
                 },
                 'datetime': target_time,
             })
@@ -650,12 +768,12 @@ def postsession(session, *args, **kwargs):
             # Generate the notification
             notification_list.append({
                 'session': session,
+                'ticket': next_experiment_ticket,
                 'template': notification_template,
                 'context': {
                     'msg_number': len(notification_list)+1,
                     'msg_subject': f"Day {next_experiment_order} FINAL PARTICIPATION REMINDER ",
                     'prolific_study_name': next_experiment_ticket.experiment.title,
-                    'ticket': next_experiment_ticket,
                 },
                 'datetime': target_time,
             })
@@ -792,6 +910,7 @@ def delete_multiday_example(request):
     }
 
     return render(request, 'pyensemble/message.html', context)
+
 
 def delete_pyensemble_example(request):
     # Get our parameters

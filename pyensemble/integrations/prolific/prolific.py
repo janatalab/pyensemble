@@ -24,6 +24,7 @@ class Prolific():
         self.workspace_id = workspace_id
         self.project_id = None
         self.session = None
+        self.submission = None
 
         # Create a session
         self.create_session()
@@ -338,6 +339,35 @@ class Prolific():
 
         return project, created
 
+    # Publish a study
+    def publish_study(self, study_id):
+        # Generate the study endpoint
+        curr_endpoint = f"{self.api_endpoint}studies/{study_id}/transition/"
+
+        # Publish the study
+        resp = self.session.post(curr_endpoint, json={'action':'PUBLISH'}).json()
+
+        # Handle error
+        if 'error' in resp.keys():
+            raise Exception(resp['error'])
+
+        return resp
+
+
+    def get_project_studies(self, project_id):
+        studies = []
+
+        curr_endpoint = f"{self.api_endpoint}projects/{project_id}/studies/"
+
+        # Get a list of all our studies
+        resp = self.session.get(curr_endpoint, params={}).json()
+
+        # Try to find our project
+        for s in resp['results']:
+            studies.append(s)
+
+        return studies
+
 
     def delete_project_studies(self, project_name):
         project = None
@@ -388,6 +418,7 @@ class Prolific():
                 resp = self.session.delete(f"{self.api_endpoint}study-collections/mutually-exclusive/{sc['id']}/").json()
 
         return project
+
 
     def get_study_collection_by_id(self, collection_id):
         collection = None
@@ -582,6 +613,10 @@ class Prolific():
         else:
             status_str = "Found"
 
+            # Update the study if it is unpublished
+            if study['status'] == 'UNPUBLISHED':
+                study = self.update_study(study, **study_params)
+
         # Report on what happened
         msg = f"{status_str} study {study['name']}: {study['id']}"
         if settings.DEBUG:
@@ -621,23 +656,23 @@ class Prolific():
         
         return resp
     
-    def get_submission_by_id(self, session_id):
+    def get_submission_by_id(self, submission_id):
         """
         Get a submission by its ID.
         Args:
-            session_id (str): The ID of the submission.
+            submission_id (str): The ID of the submission. This is passed in as the SESSION_ID parameter to an external study link
         Returns:
             dict: The submission.
         """
         # Generate the submission endpoint
-        curr_endpoint = f"{self.api_endpoint}submissions/{session_id}/"
+        curr_endpoint = f"{self.api_endpoint}submissions/{submission_id}/"
 
         # Get the submission
         resp = self.session.get(curr_endpoint).json()
 
         # Check for an error
         if 'error' in resp.keys():
-            msg = f"Error getting Prolific submission, {session_id}: {resp['error']}"
+            msg = f"Error getting Prolific submission, {submission_id}: {resp['error']}"
             if settings.DEBUG:
                 print(msg)
                 pdb.set_trace()
@@ -646,5 +681,35 @@ class Prolific():
 
             raise Exception(msg)
         
+        # Cache our submission
+        self.submission = resp
+        
         # Return the submission object
+        return resp
+    
+
+    def approve_submission(self, submission_id):
+        """
+        Approve a submission.
+        Args:
+            submission_id (str): The ID of the submission.
+        Returns:
+            dict: The approved submission.
+        """
+        # Generate the submission endpoint
+        curr_endpoint = f"{self.api_endpoint}submissions/{submission_id}/transition/"
+
+        # Approve the submission
+        resp = self.session.post(curr_endpoint, json={'action':'APPROVE'}).json()
+
+        # Check for an error
+        if 'error' in resp.keys():
+            msg = f"Error approving Prolific submission, {submission_id}: {resp['error']}"
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.error(msg)
+
+            raise Exception(msg)
+        
         return resp
