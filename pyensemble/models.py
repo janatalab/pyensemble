@@ -645,7 +645,8 @@ class Ticket(models.Model):
                 url = f"{domain}:{settings.PORT}{path}"
             else:
                 # Used in production
-                url = f"{domain}/{settings.INSTANCE_LABEL}/{path}"
+                # url = f"{domain}/{settings.INSTANCE_LABEL}/{path}"
+                url = f"{domain}/{path}"
 
             # Remove any double forward slash
             url = url.replace('//','/')

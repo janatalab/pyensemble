@@ -8,6 +8,8 @@ DEBUG=True
 
 INSTALLED_APPS += ['sslserver']
 
+PORT = 8000
+
 # Allow one to connect to an instance running on one's local computer
 ALLOWED_HOSTS += ['localhost','127.0.0.1']
 
