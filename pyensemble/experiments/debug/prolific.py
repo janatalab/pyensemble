@@ -26,7 +26,7 @@ from pyensemble.study import create_experiment_groupings
 from pyensemble.integrations.prolific.prolific import Prolific
 from pyensemble.integrations.prolific.utils import default_completion_codes, complete_submission
 
-from pyensemble.tasks import create_tickets, get_or_create_next_experiment_ticket, create_notifications
+from pyensemble.tasks import create_tickets, get_or_create_next_experiment_ticket, create_notifications, clear_unsent_notifications
 
 import pdb
 
@@ -382,17 +382,19 @@ def create_prolific_pyensemble_integration_example():
         # Deal with our completion codes
         if exp_idx < pyensemble_experiments.count()-1:
             prolific_study_params['completion_codes'].append({
-                "code": "FUP",
-                "code_type": "FOLLOW_UP_STUDY",
+                "code": "QFNS",
+                "code_type": "QUALIFIED_FOR_NEXT_STUDY",
                 "actor": "researcher",  
                 "actions": [
                     {
                         "action": "MANUALLY_REVIEW"
                     },
-                    {
-                        "action": "ADD_TO_PARTICIPANT_GROUP",
-                        "participant_group": next_participant_groups[exp_idx]['id']
-                    }
+                    # We are allowing the notification mechanism to handle the addition of the participant 
+                    # to the next experiment
+                    # {
+                    #     "action": "ADD_TO_PARTICIPANT_GROUP",
+                    #     "participant_group": next_participant_groups[exp_idx]['id']
+                    # }
                 ]
             })
 
@@ -456,25 +458,6 @@ def create_prolific_pyensemble_integration_example():
             # Update the study with the new filter
             prolific_study = prolific.update_study(prolific_study, filters=filters)
 
-    # Create our test participants if they are specified in our settings
-    # 2025-05-02 This endpoint has not been released by Prolific yet, so we are not using it
-    if 0:
-        for test_participant in settings.PROLIFIC_TESTERS:
-            # Construct the Prolific API endpoint
-            endpoint = prolific.api_endpoint + "/researcher/participants/"
-
-            # Post the test participant email
-            response = prolific.session.post(endpoint, json={"email": test_participant})
-
-            # Check the response status code
-            if response.status_code == 200:
-                pdb.set_trace()
-            
-            else:
-                # Handle the error
-                print(f"Error: {response.status_code} - {response.text}")
-
-                pdb.set_trace()
 
 
     msg = f"Prolific integration example created successfully. <p> The PyEnsemble study is titled {pyensemble_study_title}. <p> The Prolific project is titled {prolific_project_title}. "
@@ -498,6 +481,39 @@ def create_prolific_pyensemble_integration_example():
     response = template.render(context)
     
     return response
+
+
+def test_multiday_example(request):
+    # Get our parameters
+    params = get_prolific_pyensemble_integration_example_params()
+
+    project_title = params['prolific_project_title']
+
+    msg = f"<p>Testing the studies in the Prolific project titled {project_title}.</p>"
+
+    # Get ourselves a Prolific object
+    prolific = Prolific()
+
+    # Get the Prolific project
+    project = prolific.get_project(project_title)
+
+    # Get the studies in the Prolific project
+    studies = prolific.get_project_studies(project['id'])
+
+    # Loop over the studies and test each one
+    for study in studies:
+        # Test the study
+        response = prolific.test_study(study['id'])
+
+        msg += f"Transitioned the Prolific study ({response['study_id']} )to TEST mode.<br>"
+
+    # Generate our response message
+    context = {
+        'msg': msg,
+        'back_url': reverse('experiments:debug:prolific-home'),
+    }
+
+    return render(request, 'pyensemble/message.html', context)
 
 
 # Publish the Prolific integration example
@@ -575,6 +591,9 @@ def complete_prolific_session(request, *args, **kwargs):
     # Initialize the context
     context = {}
 
+    # Indicate whether the last form was reached
+    reached_last_form = False
+
     # Get our Prolific object
     prolific = Prolific()
 
@@ -602,7 +621,7 @@ def complete_prolific_session(request, *args, **kwargs):
 
         if not is_last_experiment:
             # Get the completion code to enroll the participant in the next experiment
-            completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'FOLLOW_UP_STUDY'), None)
+            completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'QUALIFIED_FOR_NEXT_STUDY'), None)
 
         else:
             # If this is the last experiment in the sequence, we need to use the COMPLETED_APPROVE completion code
@@ -621,11 +640,17 @@ def complete_prolific_session(request, *args, **kwargs):
             # Use the default completion code
             completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'COMPLETED_MANUALLY_REVIEW'), None)
 
+            reached_last_form = True
+
     # Transition the submission
     # We can only transition if the completion code has a 'researcher' actor associated
     # with it. If the completion code has a 'participant' actor associated with it, we need to use the
     # completion URL instead.
     context['prolific_submission'] = complete_submission(session.origin_sessid, completion_code=completion_code)
+
+    # Clear out any unsent notificaitons for this experiment
+    if passed_qc or reached_last_form:
+        clear_unsent_notifications(session)
 
     # If this is the last experiment in the sequence and it was successfully approved, approve the submissions
     # for the preceding experiments as approved also.
@@ -654,6 +679,9 @@ def complete_prolific_session(request, *args, **kwargs):
 def postsession(session, *args, **kwargs):
     success = True
 
+    # Clear any remaining unsent notifications
+    clear_unsent_notifications(session)
+
     # Run any quality control checks
     passed_qc = qc_check(session, *args, **kwargs)
 
@@ -679,34 +707,15 @@ def postsession(session, *args, **kwargs):
         earliest_start_time = datetime.time(5,30)
         latest_start_time = datetime.time(2,0) # late-night session, after midnight, but before 2 AM
 
-        validfrom_time = timezone.datetime.combine(tomorrow, earliest_start_time, tzinfo=zoneinfo.ZoneInfo(session.timezone))
+        validfrom_datetime = timezone.datetime.combine(tomorrow, earliest_start_time, tzinfo=zoneinfo.ZoneInfo(session.timezone))
         expiration_datetime = timezone.datetime.combine(day_after_tomorrow, latest_start_time, tzinfo=zoneinfo.ZoneInfo(session.timezone))
         
         ticket_validity = {
-            'user_validfrom': validfrom_time,
+            'user_validfrom': validfrom_datetime,
             'user_expiration': expiration_datetime
         }
 
         next_experiment_ticket = get_or_create_next_experiment_ticket(session, **ticket_validity)
-
-        #
-        # Since we are dealing with a Prolific session, 
-        # we need to add this participant to the eligibility list for the next study in the sequence.
-        #
-
-        # Get ourselves a Prolific API object
-        prolific = Prolific()
-
-        # Get our Prolific group for the next experiment
-        group = prolific.get_group_by_name(next_experiment_ticket.experiment.title)
-
-        # Add the participant to the group
-        # This may have already been achieved using the completion code
-        result = prolific.add_participant_to_group(group['id'], session.subject.subject_id)
-
-        # Verify that the participant was added to the group
-        if not result:
-            return {'prolific_group_add_failed': True}
 
     #
     # Generate our notifications
@@ -723,11 +732,15 @@ def postsession(session, *args, **kwargs):
         curr_experiment_order = session.experiment.studyxexperiment_set.first().experiment_order
         notification_list.append({
             'session': session,
+            'ticket': next_experiment_ticket,
             'template': notification_template,
             'context': {
-                'msg_subject': f'Thank you for participating in the study titled {session.experiment.title}!'
+                'msg_number': len(notification_list)+1,
+                'msg_subject': f'Thank you for participating in the study titled {session.experiment.title}!',
+                'curr_experiment_order': curr_experiment_order,
             },
             'datetime': session.end,
+            'callback_for_dispatch': 'debug.prolific.thank_you_notification()',
         })
 
         # Create additional notifications for the next experiment day
@@ -735,8 +748,9 @@ def postsession(session, *args, **kwargs):
             # Get the experiment order in the study of this experiment
             next_experiment_order = next_experiment.studyxexperiment_set.first().experiment_order
 
-            # Create a notification to be sent at 5:30 AM (localtime) on the next experiment day, 
-            # containing a link for starting the next experiment
+            # Create a notification to be sent at the time at which  the ticket for the next experiment 
+            # becomes valid. It is at this time that the participant will be added to the participant
+            # group for the next experiment.
             
             # Get our session's timezone info
             # NOTE: Can this be moved to the Session model?
@@ -746,7 +760,8 @@ def postsession(session, *args, **kwargs):
 
             session_tzinfo = zoneinfo.ZoneInfo(session_tz)
 
-            target_time = timezone.datetime.combine(tomorrow, earliest_start_time, tzinfo=session_tzinfo)
+            # target_time = timezone.datetime.combine(tomorrow, earliest_start_time, tzinfo=session_tzinfo)
+            target_time = next_experiment_ticket.start
 
             notification_list.append({
                 'session': session,
@@ -759,6 +774,7 @@ def postsession(session, *args, **kwargs):
                     'prolific_study_name': next_experiment_ticket.experiment.title,
                 },
                 'datetime': target_time,
+                'callback_for_dispatch': 'debug.prolific.experiment_available_notification()',
             })
 
             # Create a reminder notification to be sent at 6 PM (localtime) on the next experiment day.
@@ -776,6 +792,7 @@ def postsession(session, *args, **kwargs):
                     'prolific_study_name': next_experiment_ticket.experiment.title,
                 },
                 'datetime': target_time,
+                'callback_for_dispatch': 'debug.prolific.experiment_expiring_notification()',
             })
 
         # Generate the notifications
@@ -796,6 +813,58 @@ class ProlificTestSubjectForm(forms.Form):
     # helper.field_class = 'col-lg-6'
     helper.add_input(Submit('submit', 'Submit'))
     
+
+class ProlificTesterEmailForm(forms.Form):
+    # Define a field for the email address
+    email = forms.EmailField(label='Prolific Tester Account Email', max_length=100)
+
+    def __init__(self, *args, **kwargs):
+        super(ProlificTesterEmailForm, self).__init__(*args, **kwargs)
+
+        self.helper = FormHelper()
+        self.helper.add_input(Submit('submit', 'Submit'))
+
+def tester_fetch(request):
+    # Fetch the Prolific participant ID for a test account
+    if request.method == 'POST':
+        # Get the Prolific ID from the form
+        form = ProlificTesterEmailForm(request.POST)
+
+        if form.is_valid():
+            # Get the Prolific ID from the form
+            email = form.cleaned_data['email']
+
+            # Get the Prolific API object
+            prolific = Prolific()
+
+            # Construct the Prolific API endpoint
+            endpoint = prolific.api_endpoint + "researchers/participants/"
+
+            # Post the test participant email
+            response = prolific.session.post(endpoint, json={"email": email})
+
+            # Check the response status code
+            context = {}
+            if response.status_code == 201:
+                context.update({'participant_id': response.json()['participant_id']})
+            
+            else:
+                # Handle the error
+                context.update({'error': response.json()['error']})
+
+            # Render the response through the PyEnsemble message interface
+            if 'error' in context:
+                context.update({'msg': f"Error: {context['error']}"})
+            else:
+                context.update({'msg': f"Prolific ID: {context['participant_id']}"})
+
+            context.update({'back_url': reverse('experiments:debug:prolific-home')})
+            return render(request, 'pyensemble/message.html', context)
+    else:
+        # Render the form to register a Prolific test subject
+        form = ProlificTesterEmailForm()
+
+    return render(request, 'debug/prolific/register_test_subject.html', {'form': form})
 
 # Create a view to register a Prolific text subject
 def register_test_subject(request):
@@ -957,3 +1026,73 @@ def delete_pyensemble_example(request):
     }
 
     return render(request, 'pyensemble/message.html', context)
+
+# 
+# Define our various notification callbacks
+#
+def send_message(context):
+    # Send the message via the Prolific API
+    # Get the Prolific object
+    prolific = Prolific()
+
+    # Get our template
+    template = loader.get_template(context['template'])
+
+    # Render the message content
+    body = template.render(context)
+
+    # Get the Prolific submission
+    submission = prolific.get_submission_by_id(context['session'].origin_sessid)
+
+    # Create the Prolific payload
+    json_data = {
+        'recipient_id': context['session'].subject.subject_id,
+        'body': body,
+        'study_id': submission['study_id']
+    }
+
+    resp = prolific.send_message(json_data)
+
+    return resp
+
+
+def thank_you_notification(request, *args, **kwargs):
+    # We can pass straight through to the dispatch_notification function
+    resp = send_message(kwargs)
+
+    return resp
+
+
+def experiment_available_notification(request, *args, **kwargs):
+    # We need to add the participant to the participant group for the next experiment
+
+    # Get the Prolific object
+    prolific = Prolific()
+
+    # Get the ticket
+    ticket = kwargs['ticket']
+
+    # Get our Prolific group for the next experiment
+    group = prolific.get_group_by_name(ticket.experiment.title)
+
+    # Add the participant to the group
+    # This may have already been achieved using the completion code
+    result = prolific.add_participant_to_group(group['id'], ticket.subject.subject_id)
+
+    # Verify that the participant was added to the group
+    if not result:
+        # Raise an error
+        msg = f"Failed to add the participant to the group {group['name']} for the study {ticket.experiment.title}."
+        raise Exception(msg)
+    
+    # Send the message
+    resp = send_message(kwargs)
+
+    return resp
+
+def experiment_expiring_notification(request, *args, **kwargs):
+    # We can pass straight through to the dispatch_notification function
+    resp = send_message(kwargs)
+
+    return resp
+

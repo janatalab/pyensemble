@@ -129,6 +129,19 @@ def create_tickets(ticket_request_data):
 Define a method for generating a ticket for a subject to participate in the next experiment in the study.
 '''
 def create_next_experiment_ticket(session, **kwargs):
+    # Create the ticket
+    ticket = create_tickets(kwargs).first()
+
+    return ticket
+
+
+def get_or_create_next_experiment_ticket(session, **kwargs):
+    # Get the next experiment in the study
+    next_experiment = session.experiment.studyxexperiment_set.first().next_experiment()
+
+    if not next_experiment:
+        return None
+
     # Get the next experiment in the study
     next_experiment = session.experiment.studyxexperiment_set.first().next_experiment()
 
@@ -143,31 +156,42 @@ def create_next_experiment_ticket(session, **kwargs):
         'timezone': session.timezone,
     }
 
-    # Update the ticket request with any additional parameters
+    # Update the ticket request with any additional kwargs
     ticket_request.update(kwargs)
 
-    # Create the ticket
-    ticket = create_tickets(ticket_request).first()
+    # Get the ticket validity
+    validfrom_datetime = kwargs.get('user_validfrom', None)
+    expiration_datetime = kwargs.get('user_expiration', None)
 
-    return ticket
-
-
-def get_or_create_next_experiment_ticket(session, **kwargs):
-    # Get the next experiment in the study
-    next_experiment = session.experiment.studyxexperiment_set.first().next_experiment()
-
-    if not next_experiment:
-        return None
+    # Extract our ticket filtering parameters
+    ticket_filter = {
+        'experiment': next_experiment,
+        'subject': session.subject,
+        'type': 'user',
+        'validfrom_datetime': validfrom_datetime,
+        'expiration_datetime': expiration_datetime,
+    }
 
     # Get the existing ticket
-    ticket = Ticket.objects.filter(experiment=next_experiment, subject=session.subject).first()
+    ticket = Ticket.objects.filter(**ticket_filter).first()
 
     # If the ticket does not exist, create it
     if not ticket:
-        ticket = create_next_experiment_ticket(session, **kwargs)
+        ticket = create_next_experiment_ticket(session, **ticket_request)
 
     return ticket
 
+
+def clear_unsent_notifications(session):
+    # Get the unsent notifications that we associated with the ticket used to
+    # initiate this session.
+    notifications = Notification.objects.filter(ticket=session.ticket, sent=None)
+
+    # Delete the tickets
+    deleted = notifications.delete()
+
+    # Return the number of deleted tickets
+    return deleted[0]
 
 def send_email(template_name, context):
     # Get our template
@@ -224,6 +248,7 @@ def create_notifications(session, notification_list):
             template = notification['template'],
             scheduled = notification['datetime'],
             context = notification.get('context', None),
+            callback_for_dispatch = notification.get('callback_for_dispatch', None),
         )
 
         # Add the notification to our notifications QuerySet
