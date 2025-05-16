@@ -16,7 +16,9 @@ urlpatterns = [
     path('prolific/', prolific.home, name='prolific-home'),
     path('prolific/create/experiment/multiday/', prolific.create_multiday_example, name='create-prolific-multiday'),
     path('prolific/register/test/subject/', prolific.register_test_subject, name='register-prolific-test-subject'),
-    path('prolific/create/experiment/multiday/publish/', prolific.publish_multiday_example, name='publish-prolific-multiday'),
+    path('prolific/tester/fetch/', prolific.tester_fetch, name='tester-fetch'),
+    path('prolific/experiment/multiday/publish/', prolific.publish_multiday_example, name='publish-prolific-multiday'),
+    path('prolific/experiment/multiday/test/', prolific.test_multiday_example, name='test-prolific-multiday'),
     path('prolific/delete/multiday/', prolific.delete_multiday_example, name='prolific-delete-multiday'),
     path('prolific/delete/pyensemble/', prolific.delete_pyensemble_example, name='prolific-delete-pyensemble'),
 ]

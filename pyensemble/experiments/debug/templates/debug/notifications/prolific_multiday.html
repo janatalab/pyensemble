@@ -2,60 +2,32 @@
 {% localtime off %}
 
 {% if msg_number == 1 %}
-    {% include 'thank_you.html' %}
+    {% include 'debug/notifications/thank_you.html' %}
 
-    <div>
-        <ul>
-            <li>
-                You are scheduled to participate in Stage {{curr_experiment_order|add:1}} on {{ ticket.validfrom_datetime }}. 
-            </li>
-        </ul>
-    </div>
+        <p>You are scheduled to participate in Stage {{curr_experiment_order|add:1}} on {{ ticket.start|date }}.</p>
 
-    <div>
-        <p>You will receive an email with the link to Stage {{curr_experiment_order|add:1}} at {{ ticket.validfrom_datetime }}. 
-            You will have have until {{ ticket.expiration_datetime }} to use that link to access and complete Stage {{curr_experiment_order|add:1}}.</p>
-
-        <p><strong>DO NOT use the original study link!</strong></p>
+        <p>The study for Stage {{curr_experiment_order|add:1}} will become available at {{ ticket.start }} and
+            you will have have until {{ ticket.end }} to complete it.</p>
 
         <p>Please let us know if you have any questions and thank you for your interest in our research.</p>
-    </div>
 
 {% elif msg_number == 2 %}
-    <div>
-        <p>Dear {{session.subject.name_first}},</p>
-        <p>You are receiving this email because you participated in Stage {{curr_experiment_order}} of the study {{ study_name }}. You are scheduled to participate in Stage {{curr_experiment_order|add:1}} today.</p> 
+        <p>Dear {% if session.subject.name_first %}{{session.subject.name_first}}{%else%} study participant{%endif%},</p>
+        <p>You are receiving this email because you participated in Stage {{curr_experiment_order}} of the study {{ study_name }}. 
+        You are scheduled to participate in Stage {{curr_experiment_order|add:1}} today.</p> 
 
-        <p>Please use the link below to access Stage {{curr_experiment_order|add:1}} when you are ready to participate. 
-        You have until {{ ticket.expiration_datetime|date:"D d M Y" }} {{ ticket.expiration_datetime|time:"H:i" }} to complete the study.</p>
-    </div>
+        <p>You have until {{ ticket.end }} to complete the study.</p>
 
-    <div>
-        <p><strong>
-            DO NOT CLICK THE LINK BEFORE YOU ARE READY TO BEGIN. YOU WILL ONLY BE ABLE TO USE THIS LINK ONCE. IT WILL BECOME UNUSABLE AS SOON AS YOU HAVE CLICKED IT. PLEASE ALLOW 90 MINUTES FOR COMPLETING THE SESSION.
-        </strong></p>
-        <p><a href="{{ticket.url}}">{{ticket.url}}</a></p>
-
-        The ticket is valid from {{ticket.start}} and will expire at {{ticket.end}}.
-    </div>
-
-    <div>
         <p>Thank you for your time and interest in our research!</p>
         <p>Please let us know if you have any questions or concerns.</p>
-    </div>
 
 {% elif msg_number == 3 %}
-    <div>
         <p>Dear {{session.subject.name_first}},</p>
-        <p>This is a reminder to participate in Stage {{curr_experiment_order|add:1}}  of {{ sona_study_name }} today using this link: <a href="{{ticket.url}}">{{ticket.url}}</a>. The ticket will expire at {{ticket.end}} and you will not be able to start the experiment after that time.</p>
-        <p><strong>
-            DO NOT CLICK THE LINK BEFORE YOU ARE READY TO BEGIN. YOU WILL ONLY BE ABLE TO USE THIS LINK ONCE. IT WILL BECOME UNUSABLE AS SOON AS YOU HAVE CLICKED IT. PLEASE ALLOW 90 MINUTES FOR COMPLETING THE SESSION.
-        </strong></p>
-    </div>
-    <div>
+        <p>This is a reminder to participate in Stage {{curr_experiment_order|add:1}} of {{ study_name }} today. 
+        You have until {{ticket.end}} to start the experiment.</p>
+
         <p>Thank you for your time and interest in our research!</p> 
         <p>Please let us know if you have any questions or concerns.</p>
-    </div>
 {% endif %}
 
 {% endlocaltime %}

@@ -339,6 +339,20 @@ class Prolific():
 
         return project, created
 
+    # Transition a study to test mode
+    def test_study(self, study_id):
+        # Generate the study endpoint
+        curr_endpoint = f"{self.api_endpoint}study/{study_id}/test-study"
+
+        # Transition the study to test mode
+        resp = self.session.post(curr_endpoint).json()
+
+        # Handle error
+        if 'error' in resp.keys():
+            raise Exception(resp['error'])
+
+        return resp
+
     # Publish a study
     def publish_study(self, study_id):
         # Generate the study endpoint
@@ -711,5 +725,31 @@ class Prolific():
                 logging.error(msg)
 
             raise Exception(msg)
+        
+        return resp
+    
+    
+    def send_message(self, context):
+        """
+        Send a message to a participant.
+        Args:
+            context (dict): The context for the message.
+        Returns:
+            dict: The response from the API.
+        """
+        # Generate the message endpoint
+        curr_endpoint = f"{self.api_endpoint}messages/"
+
+        # Send the message
+        resp = self.session.post(curr_endpoint, json=context)
+
+        if resp.status_code != 204:
+            msg = f"Error sending Prolific message: {resp.status_code}"
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.error(msg)
+
+            raise Exception(resp)
         
         return resp

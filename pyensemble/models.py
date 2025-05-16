@@ -1207,6 +1207,9 @@ class Notification(models.Model):
     # Optional ticket that we want to associate with this notification
     ticket = models.ForeignKey('Ticket', null=True, db_constraint=True, on_delete=models.CASCADE)
 
+    # Option callback function that we want to use to send the notification instead of the default email function
+    callback_for_dispatch = models.CharField(max_length=100, blank=True, help_text="Optional callback function to use to send the notification")
+
     def dispatch(self):
         from pyensemble.tasks import send_email
 
@@ -1224,13 +1227,33 @@ class Notification(models.Model):
         # Now add the context stored in a JSON field
         context.update(self.context)
 
-        # Call our email-generating function
-        send_email(self.template, context)
+        if self.callback_for_dispatch:
+            # Parse the function call specification
+            funcdict = parse_function_spec(self.callback_for_dispatch)
+
+            # Update our context with the kwargs
+            context.update(funcdict['kwargs'])
+
+            # Add the template to the kwargs
+            context.update({'template':self.template})
+
+            # Fetch our callable method
+            method = fetch_experiment_method(funcdict['func_name'])
+
+            # Call the select function with the parameters to get the trial specification
+            success = method(self, *funcdict['args'], **context)
+        
+        else:
+            # Call our email-generating function
+            success = send_email(self.template, context)
 
         # Log the time we sent the notification
         # This should be made more robust in terms of verifying that the send_mail function actually sent the email
-        self.sent = timezone.now()
-        self.save()
+        if success:
+            self.sent = timezone.now()
+            self.save()
+
+        return success
 
 '''
     Models for saving files associated with Sessions and Experiments

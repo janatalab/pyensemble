@@ -553,14 +553,20 @@ def run_experiment(request, experiment_id=None):
 
             # If we have no ticket, and if there is no expectation of a ticket, we need to create one.
             if not user_tickets.exists():
+                ticket_error = ''
+
                 # Determine whether an existing user ticket is expected
                 if experiment.user_ticket_expected:
-                    return errors.ticket_error(request, None, 'USER_TICKET_MISSING')
+                    ticket_error = 'USER_TICKET_MISSING'
 
                 # If none is expected, we just use the master ticket
                 # Check to make sure we have one
                 if not ticket_code:
-                    return errors.ticket_error(request, None, 'TICKET_MISSING')
+                    ticket_error = 'TICKET_MISSING'
+            
+                if ticket_error:
+                    prolific_utils.complete_submission(origin_sessid, code_type=ticket_error)
+                    return errors.ticket_error(request, None, ticket_error)
 
             else:
                 # If we have multiple tickets, log a warning and use the first one

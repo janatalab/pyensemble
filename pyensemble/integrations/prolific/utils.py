@@ -167,6 +167,17 @@ def default_completion_codes():
                 }
             ]
         },
+        {
+            "code": "TKTMIS",
+            "code_type": 'USER_TICKET_MISSING',
+            "actor": "researcher",
+            "actions": [
+                {
+                    "action": "REQUEST_RETURN",
+                    "return_reason": "There is no ticket for this user."
+                }
+            ]
+        },
     ]
 
     return completion_codes
