@@ -548,10 +548,10 @@ def run_experiment(request, experiment_id=None):
             # Create a PyEnsemble subject entry for this participant if necessary
             subject, _ = prolific_utils.get_or_create_prolific_subject(request)
 
-            # Check whether there is a user ticket associated with this subject and experiment
-            user_tickets = Ticket.objects.filter(subject=subject, experiment=experiment, type='user')
+            # Check whether there is an unused user ticket associated with this subject and experiment
+            user_tickets = Ticket.objects.filter(subject=subject, experiment=experiment, type='user', used=False)
 
-            # If we have no ticket, and if there is no expectation of a ticket, we need to create one.
+            # If we have no user ticket, we work through some fallback options
             if not user_tickets.exists():
                 ticket_error = ''
 

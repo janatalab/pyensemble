@@ -4,10 +4,12 @@
 {% if msg_number == 1 %}
     {% include 'debug/notifications/thank_you.html' %}
 
-        <p>You are scheduled to participate in Stage {{curr_experiment_order|add:1}} on {{ ticket.start|date }}.</p>
+        {% if curr_experiment_order < 3 %}
+               <p>You are scheduled to participate in Stage {{curr_experiment_order|add:1}}, {{next_study_name}} on {{ ticket.start|date }}.</p>
 
-        <p>The study for Stage {{curr_experiment_order|add:1}} will become available at {{ ticket.start }} and
-            you will have have until {{ ticket.end }} to complete it.</p>
+                <p>The study for Stage {{curr_experiment_order|add:1}} will become available at {{ ticket.start }} and
+                you will have have until {{ ticket.end }} to complete it.</p>
+        {% endif %}
 
         <p>Please let us know if you have any questions and thank you for your interest in our research.</p>
 
@@ -16,14 +18,14 @@
         <p>You are receiving this email because you participated in Stage {{curr_experiment_order}} of the study {{ study_name }}. 
         You are scheduled to participate in Stage {{curr_experiment_order|add:1}} today.</p> 
 
-        <p>You have until {{ ticket.end }} to complete the study.</p>
+        <p>You have until {{ ticket.end }} to complete the study titled {{ next_study_name }}.</p>
 
         <p>Thank you for your time and interest in our research!</p>
         <p>Please let us know if you have any questions or concerns.</p>
 
 {% elif msg_number == 3 %}
         <p>Dear {{session.subject.name_first}},</p>
-        <p>This is a reminder to participate in Stage {{curr_experiment_order|add:1}} of {{ study_name }} today. 
+        <p>This is a reminder to participate in {{ next_study_name }} today. 
         You have until {{ticket.end}} to start the experiment.</p>
 
         <p>Thank you for your time and interest in our research!</p> 
