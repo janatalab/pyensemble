@@ -279,6 +279,18 @@ class Prolific():
             status = "Added group to study"
 
         return status
+    
+    
+    def get_study_participant_groups(self, study):
+        groups = []
+
+        # Search for the participant_group_allowlist filter
+        for f in study['filters']:
+            if f['filter_id'] == 'participant_group_allowlist':
+                groups = f['selected_values']
+                break
+
+        return groups
 
     # Get or create a workspace
     def get_or_create_workspace(self, workspace_name, description=""):

@@ -392,7 +392,7 @@ def create_prolific_pyensemble_integration_example():
             status = prolific.add_participant_group_to_study(prolific_study, participant_group)
 
         # If this is the first experiment and we have test participants, add them to the custom_allowlist filter
-        if exp_idx == 0 and settings.PROLIFIC_TESTERS:
+        if exp_idx == 0 and settings.PROLIFIC_TESTER_IDS:
             # Get the current set of filters
             filters = prolific_study['filters']
 
@@ -415,7 +415,7 @@ def create_prolific_pyensemble_integration_example():
                 filters.append(custom_allowlist_filter)
 
             # Add the participant to the filter
-            for tester in settings.PROLIFIC_TESTERS:
+            for tester in settings.PROLIFIC_TESTER_IDS:
                 if tester not in custom_allowlist_filter['selected_values']:
                     custom_allowlist_filter['selected_values'].append(tester)
 
@@ -591,6 +591,12 @@ def complete_prolific_session(request, *args, **kwargs):
             # If this is the last experiment in the sequence, we need to use the COMPLETED_APPROVE completion code
             completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'COMPLETED_APPROVE'), None)
 
+        # Remove the participant from the participant group associated with this study
+        groups = prolific.get_participant_groups(study_id)
+
+        for group in groups:
+            prolific.remove_participant_from_group(group['id'], session.origin_sessid)
+
     else:
         # Perhaps the criteria were not met for the participant to complete the experiment at this time
         # Get the last response
@@ -615,25 +621,6 @@ def complete_prolific_session(request, *args, **kwargs):
     # Clear out any unsent notificaitons for this experiment
     if passed_qc or reached_last_form:
         clear_unsent_notifications(session)
-
-    # If this is the last experiment in the sequence and it was successfully approved, approve the submissions
-    # for the preceding experiments as approved also.
-    # This should arguably be moved to postsession()
-    if passed_qc and is_last_experiment:
-        while sxe.prev_experiment():
-            # Get the previous experiment in the sequence
-            prev_experiment = sxe.prev_experiment()
-
-            # Get the sessions for the previous experiment.
-            # Should just be one session, if a participant can only participate once per experiment. However,
-            # during testing, multiple sessions may be created for the same experiment and same subject.
-            prev_sessions = Session.objects.filter(experiment=prev_experiment, subject=session.subject)
-
-            # Loop over the sessions and approve them
-            for prev_session in prev_sessions:
-                status = prolific.approve_submission(prev_session.origin_sessid)
-
-            sxe = prev_experiment.studyxexperiment_set.first()
 
     return context
 
@@ -766,6 +753,42 @@ def postsession(session, *args, **kwargs):
 
         # Generate the notifications
         notifications = create_notifications(session, notification_list)
+
+    # Perform any additional actions if this is the last experiment in the sequence
+    if not next_experiment:
+        # If this is the last experiment in the sequence and it was successfully approved, approve the submissions
+        # for the preceding experiments as approved also.
+        if passed_qc:
+            # Get our Prolific object
+            prolific = Prolific()
+
+            # The studyxexperiment object for the current session
+            sxe = session.experiment.studyxexperiment_set.first()
+
+            # Loop over the experiments in the sequence
+            while sxe.prev_experiment():
+                # Get the previous experiment in the sequence
+                prev_experiment = sxe.prev_experiment()
+
+                # Get the sessions for the previous experiment.
+                # Should just be one session, if a participant can only participate once per experiment. However,
+                # during testing, multiple sessions may be created for the same experiment and same subject.
+                prev_sessions = Session.objects.filter(experiment=prev_experiment, subject=session.subject)
+
+                # Loop over the sessions
+                for prev_session in prev_sessions:
+                    # Get the Prolific submission
+                    prev_submission = prolific.get_submission_by_id(prev_session.origin_sessid)
+
+                    # Check the status of the submission
+                    if prev_submission['status'] == 'APPROVED':
+                        # If the submission is already approved, we don't need to do anything
+                        continue
+
+                    # Now approve the submission
+                    prev_submission = prolific.approve_submission(prev_session.origin_sessid)
+
+                sxe = prev_experiment.studyxexperiment_set.first()
 
     return success
 
