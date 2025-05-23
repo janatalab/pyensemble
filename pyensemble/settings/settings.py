@@ -362,4 +362,4 @@ if config.has_section('prolific'):
     PROLIFIC_API = config['prolific']['api_endpoint']
     PROLIFIC_TOKEN = config['prolific']['api_token']
     PROLIFIC_WORKSPACE_ID = config['prolific']['workspace_id']
-    PROLIFIC_TESTERS = json.loads(config['prolific']['testers'])
+    PROLIFIC_TESTER_IDS = json.loads(config['prolific']['tester_ids'])

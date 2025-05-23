@@ -13,6 +13,15 @@ PORT = 8000
 # Allow one to connect to an instance running on one's local computer
 ALLOWED_HOSTS += ['localhost','127.0.0.1']
 
+# Override the memcached cache backend to use a database table
+# Remember to run: python manage.py createcachetable
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'dev_cache_table',
+    }
+}
+
 # We have to override the possibility that storage of static files is taking place elsewhere, such as AWS S3
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 STATIC_URL = '/static/'

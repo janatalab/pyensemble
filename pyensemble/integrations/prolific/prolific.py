@@ -208,7 +208,40 @@ class Prolific():
                 logging.info(msg)
 
         return result
-    
+
+
+    # Remove a participant to a group
+    def remove_participant_from_group(self, group_id, participant_id):
+        curr_endpoint = self.api_endpoint+f"participant-groups/{group_id}/participants/"
+
+        # Add the participant to the group
+        response = self.session.delete(curr_endpoint, json={"participant_ids": [participant_id]})
+
+        # Extract the response. We should only have one result.
+        response = response.json()
+
+        if 'error' in response.keys():
+            msg = f"Error removing participant {participant_id} from group {group_id}: {response['error']}"
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.error(msg)
+
+            raise Exception(msg)
+
+        else:
+            result = response['results'][0]
+
+            # Generate a message
+            msg = f"Removed participant {result['participant_id']} from group {group_id} on {result['datetime_created']}"
+
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.info(msg)
+
+        return result
+ 
 
     def add_participant_group_to_study(self, study, group):
         group_filter = None
@@ -246,6 +279,18 @@ class Prolific():
             status = "Added group to study"
 
         return status
+    
+    
+    def get_study_participant_groups(self, study):
+        groups = []
+
+        # Search for the participant_group_allowlist filter
+        for f in study['filters']:
+            if f['filter_id'] == 'participant_group_allowlist':
+                groups = f['selected_values']
+                break
+
+        return groups
 
     # Get or create a workspace
     def get_or_create_workspace(self, workspace_name, description=""):

@@ -56,7 +56,7 @@ def get_default_prolific_study_params():
         'completion_codes': default_completion_codes(),
         'device_compatibility': ["desktop"],
         'submissions_config': {
-            'max_submissions_per_participant': 1000, # set to high number for testing
+            'max_submissions_per_participant': -1, # set to -1 for unlimited testing
         }
     }
 
@@ -345,24 +345,7 @@ def create_prolific_pyensemble_integration_example():
     next_participant_groups = []
     for exp_idx, experiment in enumerate(pyensemble_experiments):
         # Get our ticket for the experiment because this is how we get the external URL
-        ticket_attribute_name = 'Prolific Test'
-        tickets = experiment.ticket_set.filter(attribute__name=ticket_attribute_name)
-
-        if not tickets.exists():
-            # Create a dictionary containing the ticket request data
-            ticket_request_data = {
-                'experiment': experiment,
-                'type': 'master',
-                'attribute': ticket_attribute_name,
-                'num_master': 1,
-                'timezone': 'UTC'
-            }
-
-            # Create the ticket
-            ticket = create_tickets(ticket_request_data).first()
-        
-        else:
-            ticket = tickets.first()
+        ticket = get_prolific_test_ticket(experiment)
 
         # Get or create the participant group for the next experiment
         next_experiment = experiment.studyxexperiment_set.first().next_experiment()
@@ -379,24 +362,8 @@ def create_prolific_pyensemble_integration_example():
         # Get the default study parameters
         prolific_study_params = get_default_prolific_study_params()
 
-        # Deal with our completion codes
-        if exp_idx < pyensemble_experiments.count()-1:
-            prolific_study_params['completion_codes'].append({
-                "code": "QFNS",
-                "code_type": "QUALIFIED_FOR_NEXT_STUDY",
-                "actor": "researcher",  
-                "actions": [
-                    {
-                        "action": "MANUALLY_REVIEW"
-                    },
-                    # We are allowing the notification mechanism to handle the addition of the participant 
-                    # to the next experiment
-                    # {
-                    #     "action": "ADD_TO_PARTICIPANT_GROUP",
-                    #     "participant_group": next_participant_groups[exp_idx]['id']
-                    # }
-                ]
-            })
+        # NOTE: We loaded our set of completion codes in the get_default_prolific_study_params function
+        # Adding a participant to the participant group for the next study happens in the notification callback
 
         # Update the study parameters with the experiment title
         prolific_study_params.update({
@@ -405,11 +372,8 @@ def create_prolific_pyensemble_integration_example():
         })
 
         # Update the study parameters with the external URL
-        pid_str = "{{%PROLIFIC_PID%}}"
-        study_id_str = "{{%STUDY_ID%}}"
-        session_id_str = "{{%SESSION_ID%}}"
         prolific_study_params.update({
-            'external_study_url': f"{ticket.url}&PROLIFIC_PID={pid_str}&STUDY_ID={study_id_str}&SESSION_ID={session_id_str}",
+            'external_study_url': get_external_study_url(ticket),
         })
 
         # Create the study
@@ -428,7 +392,7 @@ def create_prolific_pyensemble_integration_example():
             status = prolific.add_participant_group_to_study(prolific_study, participant_group)
 
         # If this is the first experiment and we have test participants, add them to the custom_allowlist filter
-        if exp_idx == 0 and settings.PROLIFIC_TESTERS:
+        if exp_idx == 0 and settings.PROLIFIC_TESTER_IDS:
             # Get the current set of filters
             filters = prolific_study['filters']
 
@@ -451,7 +415,7 @@ def create_prolific_pyensemble_integration_example():
                 filters.append(custom_allowlist_filter)
 
             # Add the participant to the filter
-            for tester in settings.PROLIFIC_TESTERS:
+            for tester in settings.PROLIFIC_TESTER_IDS:
                 if tester not in custom_allowlist_filter['selected_values']:
                     custom_allowlist_filter['selected_values'].append(tester)
 
@@ -627,6 +591,12 @@ def complete_prolific_session(request, *args, **kwargs):
             # If this is the last experiment in the sequence, we need to use the COMPLETED_APPROVE completion code
             completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'COMPLETED_APPROVE'), None)
 
+        # Remove the participant from the participant group associated with this study
+        groups = prolific.get_participant_groups(study_id)
+
+        for group in groups:
+            prolific.remove_participant_from_group(group['id'], session.origin_sessid)
+
     else:
         # Perhaps the criteria were not met for the participant to complete the experiment at this time
         # Get the last response
@@ -652,25 +622,6 @@ def complete_prolific_session(request, *args, **kwargs):
     if passed_qc or reached_last_form:
         clear_unsent_notifications(session)
 
-    # If this is the last experiment in the sequence and it was successfully approved, approve the submissions
-    # for the preceding experiments as approved also.
-    # This should arguably be moved to postsession()
-    if is_last_experiment and context['prolific_submission']['submission']['status'] == 'APPROVED':
-        while sxe.prev_experiment():
-            # Get the previous experiment in the sequence
-            prev_experiment = sxe.prev_experiment()
-
-            # Get the sessions for the previous experiment.
-            # Should just be one session, if a participant can only participate once per experiment. However,
-            # during testing, multiple sessions may be created for the same experiment and same subject.
-            prev_sessions = Session.objects.filter(experiment=prev_experiment, subject=session.subject)
-
-            # Loop over the sessions and approve them
-            for prev_session in prev_sessions:
-                status = prolific.approve_submission(prev_session.origin_sessid)
-
-            sxe = prev_experiment.studyxexperiment_set.first()
-
     return context
 
 # Create a single postsession callback that can be used for all days and that runs after each day's session is completed.
@@ -687,8 +638,8 @@ def postsession(session, *args, **kwargs):
 
     if not passed_qc:
         success = False
-        return success
-    
+        return 
+
     #
     # Determine the next experiment in the sequence
     #
@@ -737,6 +688,8 @@ def postsession(session, *args, **kwargs):
             'context': {
                 'msg_number': len(notification_list)+1,
                 'msg_subject': f'Thank you for participating in the study titled {session.experiment.title}!',
+                'study_name': session.experiment.title,
+                'next_study_name': next_experiment.title,
                 'curr_experiment_order': curr_experiment_order,
             },
             'datetime': session.end,
@@ -770,6 +723,8 @@ def postsession(session, *args, **kwargs):
                 'context': {
                     'msg_number': len(notification_list)+1,
                     'msg_subject': f"Day {next_experiment_order} Study Reminder",
+                    'study_name': session.experiment.title,
+                    'next_study_name': next_experiment.title,
                     'curr_experiment_order': curr_experiment_order,
                     'prolific_study_name': next_experiment_ticket.experiment.title,
                 },
@@ -789,6 +744,7 @@ def postsession(session, *args, **kwargs):
                 'context': {
                     'msg_number': len(notification_list)+1,
                     'msg_subject': f"Day {next_experiment_order} FINAL PARTICIPATION REMINDER ",
+                    'next_study_name': next_experiment.title,
                     'prolific_study_name': next_experiment_ticket.experiment.title,
                 },
                 'datetime': target_time,
@@ -797,6 +753,42 @@ def postsession(session, *args, **kwargs):
 
         # Generate the notifications
         notifications = create_notifications(session, notification_list)
+
+    # Perform any additional actions if this is the last experiment in the sequence
+    if not next_experiment:
+        # If this is the last experiment in the sequence and it was successfully approved, approve the submissions
+        # for the preceding experiments as approved also.
+        if passed_qc:
+            # Get our Prolific object
+            prolific = Prolific()
+
+            # The studyxexperiment object for the current session
+            sxe = session.experiment.studyxexperiment_set.first()
+
+            # Loop over the experiments in the sequence
+            while sxe.prev_experiment():
+                # Get the previous experiment in the sequence
+                prev_experiment = sxe.prev_experiment()
+
+                # Get the sessions for the previous experiment.
+                # Should just be one session, if a participant can only participate once per experiment. However,
+                # during testing, multiple sessions may be created for the same experiment and same subject.
+                prev_sessions = Session.objects.filter(experiment=prev_experiment, subject=session.subject)
+
+                # Loop over the sessions
+                for prev_session in prev_sessions:
+                    # Get the Prolific submission
+                    prev_submission = prolific.get_submission_by_id(prev_session.origin_sessid)
+
+                    # Check the status of the submission
+                    if prev_submission['status'] == 'APPROVED':
+                        # If the submission is already approved, we don't need to do anything
+                        continue
+
+                    # Now approve the submission
+                    prev_submission = prolific.approve_submission(prev_session.origin_sessid)
+
+                sxe = prev_experiment.studyxexperiment_set.first()
 
     return success
 
@@ -1096,3 +1088,34 @@ def experiment_expiring_notification(request, *args, **kwargs):
 
     return resp
 
+
+def get_prolific_test_ticket(experiment, ticket_attribute_name='Prolific Test'):
+    # Fetch any existing tickets for the experiment
+    tickets = experiment.ticket_set.filter(attribute__name=ticket_attribute_name)
+
+    if not tickets.exists():
+        # Create a dictionary containing the ticket request data
+        ticket_request_data = {
+            'experiment': experiment,
+            'type': 'master',
+            'attribute': ticket_attribute_name,
+            'num_master': 1,
+            'timezone': 'UTC'
+        }
+
+        # Create the ticket
+        ticket = create_tickets(ticket_request_data).first()
+    
+    else:
+        ticket = tickets.first()
+
+    return ticket
+
+
+def get_external_study_url(ticket):
+    pid_str = "{{%PROLIFIC_PID%}}"
+    study_id_str = "{{%STUDY_ID%}}"
+    session_id_str = "{{%SESSION_ID%}}"
+
+    external_study_url = f"{ticket.url}&PROLIFIC_PID={pid_str}&STUDY_ID={study_id_str}&SESSION_ID={session_id_str}"
+    return external_study_url

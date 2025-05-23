@@ -103,6 +103,16 @@ def default_completion_codes():
             ]
         },
         {
+            "code": "QFNS",
+            "code_type": "QUALIFIED_FOR_NEXT_STUDY",
+            "actor": "researcher",  
+            "actions": [
+                {
+                    "action": "MANUALLY_REVIEW"
+                },
+            ],
+        },
+        {
             "code": "PYCAP",
             "code_type": "COMPLETED_APPROVE",
             "actor": "researcher",
