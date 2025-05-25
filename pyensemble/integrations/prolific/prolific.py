@@ -84,6 +84,24 @@ class Prolific():
         return groups
 
 
+    # Get a participant group by ID
+    def get_group_by_id(self, group_id):
+        curr_endpoint = self.api_endpoint+f"participant-groups/{group_id}/"
+        group = self.session.get(curr_endpoint).json()
+
+        # Handle error
+        if 'error' in group.keys():
+            msg = f"Error getting participant group {group_id}: {group['error']}"
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.error(msg)
+
+            raise Exception(msg)
+
+        return group
+
+
     # Get a participant group by name
     def get_group_by_name(self, group_name):
         group = None
@@ -230,10 +248,10 @@ class Prolific():
             raise Exception(msg)
 
         else:
-            result = response['results'][0]
+            result = response['results']
 
             # Generate a message
-            msg = f"Removed participant {result['participant_id']} from group {group_id} on {result['datetime_created']}"
+            msg = f"Removed participant {participant_id} from group {group_id}"
 
             if settings.DEBUG:
                 print(msg)
@@ -243,9 +261,15 @@ class Prolific():
         return result
  
 
-    def add_participant_group_to_study(self, study, group):
+    def add_participant_group_to_study(self, study_id, group_id):
         group_filter = None
         group_in_study = False
+
+        # Get the study
+        study = self.get_study_by_id(study_id)
+
+        # Get the participant group
+        group = self.get_group_by_id(group_id)
 
         # Search for the participant_group_allowlist filter
         for f in study['filters']:
@@ -254,7 +278,6 @@ class Prolific():
 
                 if group['id'] in group_filter['selected_values']:
                     group_in_study = True
-                    status = "Group already in study"
 
                 break
 
@@ -276,13 +299,48 @@ class Prolific():
             # Update the study
             study = self.update_study(study, filters=study['filters'])
 
-            status = "Added group to study"
+        return study
+    
 
-        return status
+    def add_testers_to_study(self, study_id, tester_ids):
+        study = self.get_study_by_id(study_id)
+
+        # Get the current set of filters
+        filters = study['filters']
+
+        custom_allowlist_filter = None
+
+        # Find the 'custom_allowlist' filter in the filters list
+        for f in filters:
+            if f['filter_id'] == 'custom_allowlist':
+                custom_allowlist_filter = f
+
+        # If the subject is not registered, add them to the allow list
+        if not custom_allowlist_filter:
+            # Create the filter
+            custom_allowlist_filter = {
+                'filter_id': 'custom_allowlist',
+                'selected_values': [],
+            }
+
+            # Add the filter to the filters list
+            filters.append(custom_allowlist_filter)
+
+        # Add the participant to the filter
+        for tester in tester_ids:
+            if tester not in custom_allowlist_filter['selected_values']:
+                custom_allowlist_filter['selected_values'].append(tester)
+
+        # Update the study with the new filter
+        study = self.update_study(study, filters=filters)
+
+        return study
     
-    
-    def get_study_participant_groups(self, study):
+    def get_study_participant_groups(self, study_id):
         groups = []
+
+        # Get the study
+        study = self.get_study_by_id(study_id)
 
         # Search for the participant_group_allowlist filter
         for f in study['filters']:
@@ -428,6 +486,21 @@ class Prolific():
         return studies
 
 
+    def delete_study(self, study_id):
+        curr_endpoint = f"{self.api_endpoint}studies/{study_id}/"
+
+        # Delete the study
+        resp = self.session.delete(curr_endpoint)
+
+        # Handle error
+        if not resp.ok:
+            if settings.DEBUG:
+                print(f"Unable to delete study {study_id}")
+            resp.raise_for_status()
+
+        return resp
+
+
     def delete_project_studies(self, project_name):
         project = None
 
@@ -453,13 +526,7 @@ class Prolific():
             # Iterate over the studies
             for study in resp['results']:
                 # Delete the study
-                resp = self.session.delete(f"{self.api_endpoint}studies/{study['id']}/")
-
-                # Handle error
-                if not resp.ok:
-                    if settings.DEBUG:
-                        print(f"Unable to delete study {study['id']}")
-                    resp.raise_for_status()
+                resp = self.delete_study(study['id'])
 
             # Get the study collections in the project
             study_collections = self.session.get(f"{self.api_endpoint}study-collections/mutually-exclusive/", params={"project_id": project['id']}).json()

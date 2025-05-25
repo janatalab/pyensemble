@@ -56,7 +56,7 @@ def get_default_prolific_study_params():
         'completion_codes': default_completion_codes(),
         'device_compatibility': ["desktop"],
         'submissions_config': {
-            'max_submissions_per_participant': -1, # set to -1 for unlimited testing
+            'max_submissions_per_participant': 1, # set to -1 for unlimited testing
         }
     }
 
@@ -389,39 +389,11 @@ def create_prolific_pyensemble_integration_example():
             participant_group = next_participant_groups[exp_idx-1]
 
             # Add the participant group to this study filter
-            status = prolific.add_participant_group_to_study(prolific_study, participant_group)
+            prolific_study = prolific.add_participant_group_to_study(prolific_study['id'], participant_group['id'])
 
         # If this is the first experiment and we have test participants, add them to the custom_allowlist filter
         if exp_idx == 0 and settings.PROLIFIC_TESTER_IDS:
-            # Get the current set of filters
-            filters = prolific_study['filters']
-
-            custom_allowlist_filter = None
-
-            # Find the 'custom_allowlist' filter in the filters list
-            for f in filters:
-                if f['filter_id'] == 'custom_allowlist':
-                    custom_allowlist_filter = f
-
-            # If the subject is not registered, add them to the allow list
-            if not custom_allowlist_filter:
-                # Create the filter
-                custom_allowlist_filter = {
-                    'filter_id': 'custom_allowlist',
-                    'selected_values': [],
-                }
-
-                # Add the filter to the filters list
-                filters.append(custom_allowlist_filter)
-
-            # Add the participant to the filter
-            for tester in settings.PROLIFIC_TESTER_IDS:
-                if tester not in custom_allowlist_filter['selected_values']:
-                    custom_allowlist_filter['selected_values'].append(tester)
-
-            # Update the study with the new filter
-            prolific_study = prolific.update_study(prolific_study, filters=filters)
-
+            prolific_study = prolific.add_testers_to_study(prolific_study['id'], settings.PROLIFIC_TESTER_IDS)
 
 
     msg = f"Prolific integration example created successfully. <p> The PyEnsemble study is titled {pyensemble_study_title}. <p> The Prolific project is titled {prolific_project_title}. "
@@ -592,10 +564,10 @@ def complete_prolific_session(request, *args, **kwargs):
             completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'COMPLETED_APPROVE'), None)
 
         # Remove the participant from the participant group associated with this study
-        groups = prolific.get_participant_groups(study_id)
+        groups = prolific.get_study_participant_groups(study_id)
 
         for group in groups:
-            prolific.remove_participant_from_group(group['id'], session.origin_sessid)
+            prolific.remove_participant_from_group(group, session.subject.subject_id)
 
     else:
         # Perhaps the criteria were not met for the participant to complete the experiment at this time
