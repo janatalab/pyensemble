@@ -156,7 +156,7 @@ table.experiment-form-table {
     position: sticky; 
     left: -1px; 
     background: white; 
-    z-index: 1;
+    z-index: 10;
     min-width: 70px;
 }
 
@@ -164,7 +164,7 @@ table.experiment-form-table {
     position: sticky; 
     left: 68px; 
     background: white; 
-    z-index: 1;
+    z-index: 10;
 }
 
 #form_table .textinput {
