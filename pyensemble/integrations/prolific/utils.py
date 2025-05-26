@@ -5,6 +5,9 @@ from django.conf import settings
 from django.http import HttpResponseBadRequest
 
 from pyensemble.models import Subject, Session
+from pyensemble.utils import parsers
+from pyensemble.tasks import clear_unsent_notifications
+from pyensemble.integrity import default_session_qc_check
 
 from .prolific import Prolific
 
@@ -193,6 +196,36 @@ def default_completion_codes():
     return completion_codes
 
 
+def get_default_prolific_study_params():
+    # Create a dictionary containing the set of required params to create a Prolific study
+    # The dictionary will contain the following
+    # - study_name: The name of the study
+    # - description: A description of the study that participants will read
+    # - external_study_url: This is the PyEnsemble URL that participants will be directed to, along with the Prolific participant ID
+    # - prolific_id_option: "url_parameters"
+    # - reward: in cents
+    # - total_available_places: The number of participants that can participate in the study
+    # - estimated_completion_time: The estimated time to complete the study
+    # - completion_codes: An array of completion codes that will be returned to Prolific
+    default_study_params = {
+        'name': "",
+        'description': "",
+        'external_study_url': "",
+        'prolific_id_option': "url_parameters",
+        'reward': 15,
+        'total_available_places': 1,
+        'estimated_completion_time': 1,
+        'maximum_allowed_time': 60,
+        'completion_codes': default_completion_codes(),
+        'device_compatibility': ["desktop"],
+        'submissions_config': {
+            'max_submissions_per_participant': 1, # set to -1 for unlimited testing
+        }
+    }
+
+    return default_study_params
+
+
 def get_completion_url(request, *args, **kwargs):
     completion_url = None
 
@@ -246,6 +279,120 @@ def get_completion_url(request, *args, **kwargs):
 
     return completion_url
         
+
+def complete_prolific_session(request, *args, **kwargs):
+    ''' 
+    Determine the completion code to use for the Prolific submission and transition it. 
+    This function should only be used for determining the completion code.
+    Any other tasks that need to be performed after the session is completed should be done in the postsession callback.
+    '''
+    # Initialize the context
+    context = {}
+
+    # Get our session
+    session = Session.objects.get(pk=kwargs['session_id'])
+
+    # Indicate whether the last form was reached
+    reached_last_form = session.last_form_responded()
+
+    # Get our Prolific object
+    prolific = Prolific()
+
+    # Get the Prolific submission
+    submission = prolific.get_submission_by_id(session.origin_sessid)
+
+    # Get the study ID from the submission
+    study_id = submission['study_id']
+
+    # Get the study
+    study = prolific.get_study_by_id(study_id)
+
+    # Determine whether this experiment is in a sequence of experiments,
+    # and, if so, whether this is the last experiment in the sequence.
+    if not session.experiment.studyxexperiment_set.exists():
+        # If there are no studyxexperiment entries, we assume that this is not a sequence of experiments.
+        is_last_experiment = True
+
+    else:
+        # Get the studyxexperiment object for the current session's experiment
+        sxe = session.experiment.studyxexperiment_set.first()
+
+        # Determine whether this is the last experiment in the sequence
+        is_last_experiment = sxe.experiment_order == sxe.study.num_experiments
+
+    # See whether a quality control callback was provided
+    if 'qc_callback' in kwargs:
+        # If a quality control callback was provided, use it
+        qc_check_callback = kwargs['qc_callback']
+
+        # Parse the callback to get the quality control check function
+        funcdict = parsers.parse_function_spec(qc_check_callback)
+
+        # Get our selection function
+        qc_check = parsers.fetch_experiment_method(funcdict['func_name'])
+
+        # Add any additional arguments to the function call arguments
+        kwargs.update(funcdict['kwargs'])
+
+    else:
+        # Otherwise, use the default quality control check
+        qc_check = default_session_qc_check
+
+    # Run any quality control checks
+    passed_qc = qc_check(session, *args, **kwargs)
+
+    # Determine the completion code to use
+    if passed_qc:
+        # If this is not the last experiment in the sequence, we need to use the FOLLOW_UP_STUDY completion code
+
+        if not is_last_experiment:
+            # Get the completion code to enroll the participant in the next experiment
+            completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'QUALIFIED_FOR_NEXT_STUDY'), None)
+
+        else:
+            # If this is the last experiment in the sequence, we need to use the COMPLETED_APPROVE completion code
+            completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'COMPLETED_APPROVE'), None)
+
+    else:
+        # Perhaps the criteria were not met for the participant to complete the experiment at this time
+        # Get the last response
+        last_response = session.response_set.last()
+
+        # Get the experiment parameters
+        if session.experiment.params:
+            experiment_params = json.loads(session.experiment.params)
+        else:
+            experiment_params = {}
+
+        # Extract the list of exit forms from the experiment parameters
+        exit_forms = experiment_params.get('exit_forms', [])
+
+        if not exit_forms:
+            exit_forms = ['Return Later']
+
+        if reached_last_form:
+            # Use the default completion code
+            completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'COMPLETED_MANUALLY_REVIEW'), None)
+
+        elif last_response.form.name in exit_forms:
+            # If the last response was to the "Return Later" form, we need to use the RETURN_LATER completion code
+            completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'CRITERIA_NOT_MET'), None)
+
+        else:
+            completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'DEFAULT'), None)
+            
+    # Transition the submission
+    # We can only transition if the completion code has a 'researcher' actor associated
+    # with it. If the completion code has a 'participant' actor associated with it, we need to use the
+    # completion URL instead.
+    context['prolific_submission'] = complete_submission(session.origin_sessid, completion_code=completion_code)
+
+    # Clear out any unsent notifications for this experiment
+    if passed_qc or reached_last_form:
+        clear_unsent_notifications(session)
+
+    return context
+
 
 def complete_submission(submission_id, completion_code=None, code_type=None):
     status = None
@@ -315,4 +462,48 @@ def complete_submission(submission_id, completion_code=None, code_type=None):
 
     return context
 
-    
+
+def approve_previous_submissions(session):
+    # This is used in the context of a multi-study sequence
+    # where we want to credit the previous submissions of the participant
+
+    # Get a Prolific object
+    prolific = Prolific()
+
+    # Get studyxexperiment object for the current session
+    sxe = session.experiment.studyxexperiment_set.first()
+
+    # Loop over the experiments in the sequence
+    while sxe.prev_experiment():
+        # Get the previous experiment in the sequence
+        prev_experiment = sxe.prev_experiment()
+
+        # Get the sessions for the previous experiment.
+        # Should just be one session, if a participant can only participate once per experiment. 
+        # However, during testing, or if a participant had to exit early,
+        # multiple sessions may have been created for the same experiment and same subject.
+        prev_sessions = session.subject.session_set.filter(experiment=prev_experiment)
+
+        # Loop over the sessions
+        for prev_session in prev_sessions:
+            # Get the Prolific submission
+            prev_submission = prolific.get_submission_by_id(prev_session.origin_sessid)
+
+            # Check the status of the submission
+            if prev_submission['status'] == 'APPROVED':
+                # If the submission is already approved, we don't need to do anything
+                continue
+
+            # It would be prudent to check on the completion code for that study
+            # and only approve those with a completion code of QUALIFIED_FOR_NEXT_STUDY
+            if prev_submission['status'] == 'AWAITING REVIEW':
+                if prev_submission['study_code'] == 'QFNS':
+                    # Now approve the submission
+                    prev_submission = prolific.approve_submission(prev_session.origin_sessid)
+
+                else:
+                    continue
+
+        sxe = prev_experiment.studyxexperiment_set.first()
+
+    return True
