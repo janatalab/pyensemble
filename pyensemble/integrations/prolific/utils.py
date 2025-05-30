@@ -106,6 +106,16 @@ def default_completion_codes():
             ]
         },
         {
+            "code": "PYIMR",
+            "code_type": "INCOMPLETE_MANUALLY_REVIEW",
+            "actor": "researcher", # This means that the submission will be programmatically transitioned
+            "actions": [
+                {
+                    "action": "MANUALLY_REVIEW"
+                }
+            ]
+        },
+        {
             "code": "QFNS",
             "code_type": "QUALIFIED_FOR_NEXT_STUDY",
             "actor": "researcher",  
@@ -292,7 +302,7 @@ def complete_prolific_session(request, *args, **kwargs):
     # Get our session
     session = Session.objects.get(pk=kwargs['session_id'])
 
-    # Indicate whether the last form was reached
+    # Indicate whether the last non-conditional form with a question was completed
     reached_last_form = session.last_form_responded()
 
     # Get our Prolific object
@@ -379,7 +389,7 @@ def complete_prolific_session(request, *args, **kwargs):
             completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'CRITERIA_NOT_MET'), None)
 
         else:
-            completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'DEFAULT'), None)
+            completion_code = next((code['code'] for code in study['completion_codes'] if code['code_type'] == 'INCOMPLETE_MANUALLY_REVIEW'), None)
             
     # Transition the submission
     # We can only transition if the completion code has a 'researcher' actor associated

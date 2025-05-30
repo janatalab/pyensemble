@@ -548,8 +548,8 @@ def run_experiment(request, experiment_id=None):
             # Create a PyEnsemble subject entry for this participant if necessary
             subject, _ = prolific_utils.get_or_create_prolific_subject(request)
 
-            # Check whether there is an unused user ticket associated with this subject and experiment
-            user_tickets = Ticket.objects.filter(subject=subject, experiment=experiment, type='user', used=False)
+            # Check whether there is an unused and unexpired user ticket associated with this subject and experiment
+            user_tickets = Ticket.objects.filter(subject=subject, experiment=experiment, type='user', used=False, expiration_datetime__gte=timezone.now())
 
             # If we have no user ticket, we work through some fallback options
             if not user_tickets.exists():
@@ -1073,6 +1073,8 @@ def serve_form(request, experiment_id=None):
         # NOTE: The use of the stimulus_script field transcends stimulus selection: what it accomplishes depends on what the form_handler that is associated with this form in this particular experiment context requires.
 
         if currform.stimulus_script:
+            logging.info(f"Processing stimulus script, {currform.stimulus_script} for form {currform.form.name} in experiment {experiment_id} for session {session.id}")
+
             # Use regexp to get the function name that we're calling
             funcdict = parse_function_spec(currform.stimulus_script)
             funcdict['kwargs'].update({'session_id': expsessinfo['session_id']})

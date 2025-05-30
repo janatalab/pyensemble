@@ -676,7 +676,10 @@ class Prolific():
         return study
 
 
-    # Check whether a study exists in a project
+    # Get a study by its name, opetionally from withing a project
+    # Note: multiple studies can have the same name, but different study IDs
+    # This function will return the first study it finds with the given name
+    # If you want to get a specific study, use get_study_by_id
     def get_study_by_name(self, name, project_id=None):
         study = None
 
@@ -691,6 +694,34 @@ class Prolific():
         # Try to find our study
         for s in resp['results']:
             if s['name'] == name:
+                study = s
+                break
+
+        return study
+    
+
+    def get_study_by_internal_name(self, internal_name, project_id=None):
+        """
+        Get a study by its internal name.
+        Args:
+            internal_name (str): The internal name of the study.
+            project_id (str, optional): The ID of the project to search within. Defaults to None.
+        Returns:
+            dict: The study if found, None otherwise.
+        """
+        study = None
+
+        if project_id:
+            curr_endpoint = f"{self.api_endpoint}projects/{project_id}/studies/"
+        else:
+            curr_endpoint = f"{self.api_endpoint}studies/"
+
+        # Get a list of all our studies
+        resp = self.session.get(curr_endpoint).json()
+
+        # Try to find our study
+        for s in resp['results']:
+            if s['internal_name'] == internal_name:
                 study = s
                 break
 

@@ -340,6 +340,7 @@ def create_prolific_pyensemble_integration_example():
         # Update the study parameters with the experiment title
         prolific_study_params.update({
             'name': experiment.title,
+            'internal_name': experiment.title,
             'description': experiment.description,
         })
 
@@ -496,7 +497,7 @@ def complete_prolific_session(request, *args, **kwargs):
     # If there is no quality control check specficied in the kwargs, 
     # we can either inject one here or let complete_prolific_session use the default one.
     if 'qc_callback' not in kwargs:
-        kwargs['qc_callback'] = 'musmemfmri.musmemfmri_bioloopV7.qc_check()'
+        kwargs['qc_callback'] = 'debug.prolific.qc_check()'
 
     return prolific_utils.complete_prolific_session(request, *args, **kwargs)
 
@@ -580,7 +581,43 @@ def create_notifications(session, next_experiment_ticket=None):
     # Create a list of dictionaries with notification parameters
     notification_list = []
 
+    # Get the current study name
+    is_prolific = session.subject.id_origin == 'PRLFC'
+
+    # Default the current study name to the session's experiment title
+    current_study_name = ""
+
+    if is_prolific:
+        # Get a Prolific object
+        prolific = Prolific()
+
+        # Get the Prolific study by its internal name
+        study = prolific.get_study_by_internal_name(session.experiment.title)
+
+        # Get the Prolific study name
+        if study:
+            current_study_name = study['name']
+        
+    if not current_study_name:
+        # Get the current study name from the session's experiment
+        current_study_name = session.experiment.title
+
+    # Get the next experiment in the sequence
     next_experiment = session.experiment.studyxexperiment_set.first().next_experiment()
+
+    next_study_name = ""
+    if next_experiment:
+        if is_prolific:
+            # Get the Prolific study for the next experiment
+            next_experiment_study = prolific.get_study_by_internal_name(next_experiment.title)
+
+            # Get the Prolific study name
+            if next_experiment_study:
+                next_study_name = next_experiment_study['name']
+        
+        if not next_study_name:
+            next_study_name = next_experiment.title
+        
 
     # Specify the template for all of this day's notifications
     notification_template = f'debug/notifications/prolific_multiday.html'
@@ -594,9 +631,9 @@ def create_notifications(session, next_experiment_ticket=None):
         'template': notification_template,
         'context': {
             'msg_number': len(notification_list)+1,
-            'msg_subject': f'Thank you for participating in the study titled {session.experiment.title}!',
-            'study_name': session.experiment.title,
-            'next_study_name': next_experiment.title,
+            'msg_subject': f'Thank you for participating in the study titled {current_study_name}!',
+            'study_name': current_study_name,
+            'next_study_name': next_study_name,
             'curr_experiment_order': curr_experiment_order,
         },
         'datetime': session.end,
