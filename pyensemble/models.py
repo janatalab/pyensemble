@@ -268,6 +268,24 @@ class ResponseQuerySet(models.QuerySet):
 
         return df
 
+    def is_straightline(self):
+        """
+        Check whether the responses to the questions on a form are straight-line, i.e. all responses to a question are the same.
+        We can only do this if the items in the queryset are all from the same form, same session, and same submission time.
+        """
+        # Check that the criterion of dealing with responses from a single form submission in the same session is met
+        if self.values('session', 'form', 'form_order').distinct().count() != 1:
+            return None
+        
+        # Check that the DataFormat of the questions is the same
+        if self.values('question__data_format').distinct().count() != 1:
+            return None
+        
+        # Group by question and check if all responses are the same
+        all_same = self.values_list('response_enum', flat=True).distinct().count() == 1
+
+        return all_same
+
 class ResponseManager(models.Manager):
     def get_queryset(self):
         return ResponseQuerySet(self.model, using=self._db)

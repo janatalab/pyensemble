@@ -445,13 +445,15 @@ class Prolific():
     # Transition a study to test mode
     def test_study(self, study_id):
         # Generate the study endpoint
-        curr_endpoint = f"{self.api_endpoint}study/{study_id}/test-study"
+        curr_endpoint = f"{self.api_endpoint}studies/{study_id}/test-study"
 
         # Transition the study to test mode
         resp = self.session.post(curr_endpoint).json()
 
         # Handle error
         if 'error' in resp.keys():
+            if settings.DEBUG:
+                print(f"Endpoint: {curr_endpoint}")
             raise Exception(resp['error'])
 
         return resp
