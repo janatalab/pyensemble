@@ -51,18 +51,20 @@
         </div>
     {% endif %}
 
-    {% if prolific_submission.status == 'SUBMISSION_COMPLETED' or 'SUBMISSION_NOT_ACTIVE' %}
-        <div class='py-3'>
-            Your Prolific submission has been completed and marked as such.
-            <div class="my-3">
-                <a href="https://app.prolific.com/submissions" class="btn btn-primary btn-lg" role="button">Return to Prolific submissions</a>
+    {% if prolific_submission %}
+        {% if prolific_submission.status == 'SUBMISSION_COMPLETED' or 'SUBMISSION_NOT_ACTIVE' %}
+            <div class='py-3'>
+                Your Prolific submission has been completed and marked as such.
+                <div class="my-3">
+                    <a href="https://app.prolific.com/submissions" class="btn btn-primary btn-lg" role="button">Return to Prolific submissions</a>
+                </div>
             </div>
-        </div>
-    {% elif prolific_completion_url %}
-        <div class='py-3'>
-            <div class="my-3">
-                <a href="{{prolific_completion_url}}" class="btn btn-primary btn-lg" role="button">Click here to return to Prolific to register your completion of the experiment</a>
+        {% elif prolific_completion_url %}
+            <div class='py-3'>
+                <div class="my-3">
+                    <a href="{{prolific_completion_url}}" class="btn btn-primary btn-lg" role="button">Click here to return to Prolific to register your completion of the experiment</a>
+                </div>
             </div>
-        </div>
+        {% endif %}
     {% endif %}
 {% endblock %}
