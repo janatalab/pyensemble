@@ -526,6 +526,16 @@ def run_experiment(request, experiment_id=None):
         # Pull out our ticket code
         ticket_code = request.GET.get('tc', None)
 
+        # If we don't have a ticket code, we need to check whether this is a group experiment.
+        # If it isn't, we return an error because the session has to be accessed with either
+        # and experiment or user ticket code.
+        if not ticket_code:
+            # Check whether this is a group experiment and fetch the group ticket code if necessary
+            if experiment.is_group:
+                return HttpResponseRedirect(reverse('attach_participant'))
+
+            return errors.ticket_error(request, None, 'TICKET_MISSING')
+
         # Check whether we have a Prolific subject ID as a parameter.
         # If we do, we have to handle a bunch of Prolific integration stuff.
         prolific_pid = prolific_utils.get_participant_id(request)
@@ -548,8 +558,8 @@ def run_experiment(request, experiment_id=None):
             # Create a PyEnsemble subject entry for this participant if necessary
             subject, _ = prolific_utils.get_or_create_prolific_subject(request)
 
-            # Check whether there is an unused and unexpired user ticket associated with this subject and experiment
-            user_tickets = Ticket.objects.filter(subject=subject, experiment=experiment, type='user', used=False, expiration_datetime__gte=timezone.now())
+            # Check whether there are any tickets associated with this participant
+            user_tickets = Ticket.objects.filter(subject=subject, experiment=experiment, type='user')
 
             # If we have no user ticket, we work through some fallback options
             if not user_tickets.exists():
@@ -558,35 +568,50 @@ def run_experiment(request, experiment_id=None):
                 # Determine whether an existing user ticket is expected
                 if experiment.user_ticket_expected:
                     ticket_error = 'USER_TICKET_MISSING'
-
-                # If none is expected, we just use the master ticket
-                # Check to make sure we have one
-                if not ticket_code:
-                    ticket_error = 'TICKET_MISSING'
             
                 if ticket_error:
                     prolific_utils.complete_submission(origin_sessid, code_type=ticket_error)
                     return errors.ticket_error(request, None, ticket_error)
 
-            else:
-                # If we have multiple tickets, log a warning and use the first one
-                if user_tickets.count() > 1:
-                    msg = f"Multiple tickets found for subject {subject.subject_id} in experiment {experiment_id}. Using the first one."
-                    if settings.DEBUG:
-                        print(msg)
+            # If we have multiple tickets, log a warning and use the first one
+            if user_tickets.count() > 1:
+                msg = f"Multiple tickets found for subject {subject.subject_id} in experiment {experiment_id}."
+                if settings.DEBUG:
+                    print(msg)
+                else:
+                    logging.warning(msg)
+
+                # Check whether we have a ticket that is unused and not expired
+                valid_user_tickets = user_tickets.filter(used=False, expiration_datetime__gte=timezone.now())
+
+                if not valid_user_tickets.exists():
+                    # We have tickets but they are somehow not valid. Determine which one to use to
+                    # pass along to the erro handling further down.
+                    used_tickets = user_tickets.filter(used=True)
+                    expired_tickets = user_tickets.filter(expiration_datetime__lt=timezone.now())
+                    not_yet_valid_tickets = user_tickets.filter(validfrom_datetime__gt=timezone.now())
+
+                    if used_tickets.exists():
+                        ticket_code = used_tickets.first().ticket_code
+
+                    elif expired_tickets.exists():
+                        ticket_code = expired_tickets.first().ticket_code
+
+                    elif not_yet_valid_tickets.exists():
+                        ticket_code = not_yet_valid_tickets.first().ticket_code
+
                     else:
-                        logging.warning(msg)
+                        # Not sure what else it would be, but we can just use the first ticket
+                        ticket_code = user_tickets.first().ticket_code
 
-                # Get the ticket code
+                else:
+                    # Get the first valid ticket code. There should only be one valid ticket,
+                    # but we are not handling more complex multi-ticket scenarios at this time.
+                    ticket_code = valid_user_tickets.first().ticket_code
+
+            else:
+                # If we have a single ticket, use that one
                 ticket_code = user_tickets.first().ticket_code
-
-        # Process the ticket
-        if not ticket_code:
-            # Check whether this is a group experiment and fetch the group ticket code if necessary
-            if experiment.is_group:
-                return HttpResponseRedirect(reverse('attach_participant'))
-
-            return errors.ticket_error(request, None, 'TICKET_MISSING')
 
         # Get our ticket entry
         try:
@@ -594,6 +619,8 @@ def run_experiment(request, experiment_id=None):
 
         except:
             return errors.ticket_error(request, ticket_code, 'TICKET_NOT_FOUND')
+
+        # Validate the ticket
 
         # Check to see that the experiment associated with this ticket code matches
         ticket_error = ''
@@ -1129,12 +1156,17 @@ def serve_form(request, experiment_id=None):
                 stimulus_id = group_trial.get('stimulus_id', None)
                 presents_stimulus = group_trial.get('presents_stimulus', False)
 
-            else:
+            elif handler_name in ['form_stimulus_s']:
                 # The default assumption, if selecting a stimulus, is that we will be presenting the stimulus via jsPsych
                 presents_stimulus = True
 
                 # Call the select function with the parameters to get the trial timeline specification
                 timeline, stimulus_id  = method(request, *funcdict['args'],**funcdict['kwargs'])
+
+            else:
+                presents_stimulus = False
+
+                result = method(request, *funcdict['args'],**funcdict['kwargs'])
 
         if timeline:
             context.update({
@@ -1245,10 +1277,10 @@ def serve_form(request, experiment_id=None):
             prolific_submission = context.get('prolific_submission', None)
 
             if not prolific_submission or prolific_submission['submission']['status'] == "ACTIVE":
-                submission = prolific_utils.complete_submission(session.origin_sessid)
+                prolific_submission = prolific_utils.complete_submission(session.origin_sessid)
 
                 # Update context
-                context['prolific_submission'] = submission
+                context['prolific_submission'] = prolific_submission
 
             if prolific_submission['submission_status'] == 'SUBMISSION_NOT_COMPLETED':
                 # We we unable to transition the study to completed state, so we need to redirect the participant to the Prolific site with a completion code

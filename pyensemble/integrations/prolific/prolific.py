@@ -898,3 +898,106 @@ class Prolific():
             raise Exception(resp)
         
         return resp
+
+    def get_filters(self, filter_ids):
+        """
+        Get filters from Prolific.
+        Args:
+            filter_ids (list): A list of filter IDs to retrieve.
+        Returns:
+            dict: A dictionary of filters.
+        """
+        curr_endpoint = f"{self.api_endpoint}filters/"
+
+        # Get the filters
+        resp = self.session.get(curr_endpoint, params={"workspace_id": self.workspace_id}).json()
+
+        # Handle error
+        if 'error' in resp.keys():
+            msg = f"Error getting Prolific filters: {resp['error']}"
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.error(msg)
+
+            raise Exception(msg)
+        
+        prolific_filters = resp['results']
+
+        # Filter the results to only include the requested filters
+        filtered_filters = {f['filter_id']:f for f in prolific_filters if f['filter_id'] in filter_ids}
+
+        return filtered_filters
+    
+    def get_filter_set_by_name(self, filter_set_name):
+        """
+        Get a filter set by its name.
+        Args:
+            filter_set_name (str): The name of the filter set.
+        Returns:
+            dict: The filter set if found, None otherwise.
+        """
+        curr_endpoint = f"{self.api_endpoint}filter-sets/"
+
+        # Get a list of all our filter sets
+        resp = self.session.get(curr_endpoint, params={"workspace_id": self.workspace_id}).json()
+
+        # Try to find our filter set
+        for fs in resp['results']:
+            if fs['name'] == filter_set_name:
+                return fs
+
+        return None
+
+
+    def create_or_update_filter_set(self, filter_set):
+        filter_sets_endpoint = f"{self.api_endpoint}filter-sets/"
+
+        # Try to get the filter set by name
+        fs = self.get_filter_set_by_name(filter_set['name'])
+
+        # Create an empty filter set if we didn't find an existing one
+        if not fs:
+            # Create the filter set
+            fs = self.session.post(filter_sets_endpoint, json={
+                'workspace_id': self.workspace_id,
+                'name': filter_set['name'],
+                'filters': []
+                }).json()
+
+            # Handle error
+            if 'error' in fs.keys():
+                msg = f"Error creating Prolific filter set, {filter_set['name']}: {fs['error']}"
+                if settings.DEBUG:
+                    print(msg)
+                else:
+                    logging.error(msg)
+
+                raise Exception(msg)
+
+        # Now update the filter set with the filters
+        endpoint = f"{filter_sets_endpoint}{fs['id']}/"
+
+        fs = self.session.patch(endpoint, json=filter_set).json()
+
+        # Handle error
+        if 'error' in fs.keys():
+            msg = f"Error updating Prolific filter set, {filter_set['name']}: {fs['error']}"
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.error(msg)
+
+            raise Exception(msg)
+        else:
+            msg = f"Updated Prolific filter set, {filter_set['name']}, id={fs['id']}"
+            if settings.DEBUG:
+                print(msg)
+            else:
+                logging.info(msg)
+
+        return fs
+    
+
+
+

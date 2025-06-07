@@ -4,6 +4,8 @@
 <div>
 <p>Dear {% if session.subject.name_last %}{{session.subject.name_first}} {{session.subject.name_last}}{% else %} study participant{% endif %},</p>
 
-<p>Thank you for participating in our experiment titled, {{session.experiment.title}}, on {{session.start|date}} from {{session.start|time}} to {{session.end|time}}!</p>
+<p>Thank you for participating in our experiment titled, 
+    {% if study_name %}{{study_name}}{%else%}{{session.experiment.title}}{%endif%}, 
+    on {{session.start|date}} from {{session.start|time}} to {{session.end|time}}!</p>
 </div>
 {% endlocaltime %}

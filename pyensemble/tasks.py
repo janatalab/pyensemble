@@ -183,7 +183,7 @@ def get_or_create_next_experiment_ticket(session, **kwargs):
 
 
 def clear_unsent_notifications(session):
-    # Get the unsent notifications that we associated with the ticket used to
+    # Get any unsent notifications that we associated with the ticket used to
     # initiate this session.
     notifications = Notification.objects.filter(ticket=session.ticket, sent=None)
 
