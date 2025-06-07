@@ -298,6 +298,7 @@ class Response(models.Model):
 
     form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
     form_order = models.PositiveSmallIntegerField(null=False,default=None)
+    form_served = models.DateTimeField(blank=True, null=True)
 
     question = models.ForeignKey('Question', db_constraint=True, on_delete=models.CASCADE)
     form_question_num = models.PositiveSmallIntegerField(null=False,default=None)

@@ -1008,6 +1008,14 @@ def serve_form(request, experiment_id=None):
                         else:
                             trial_info = ""
 
+                    # Extract the time that the form was served, if it is available
+                    form_served = expsessinfo.get('form_served', None)
+
+                    # Deserialize the form_served time if it is available
+                    if form_served:
+                        # Convert the form_served time to a datetime object
+                        form_served = timezone.datetime.fromisoformat(form_served)
+
                     # Create a Response object and append it to our list
                     responses.append(Response(
                         experiment=currform.experiment,
@@ -1015,6 +1023,7 @@ def serve_form(request, experiment_id=None):
                         session=session,
                         form=currform.form,
                         form_order=form_idx+1, # form order is 1-indexed
+                        form_served=form_served,
                         stimulus=stimulus,
                         question=question.instance,
                         form_question_num=idx,
@@ -1294,7 +1303,7 @@ def serve_form(request, experiment_id=None):
                     completion_url = prolific_utils.get_completion_url(request, session_id=session.id)
 
                 context['prolific_completion_url'] = completion_url
-        
+
         # Remove our cached session info
         request.session.pop(expsess_key, None)
 
@@ -1306,6 +1315,10 @@ def serve_form(request, experiment_id=None):
 
     # Update our context with our session
     context.update({'session': session})
+
+    # Timestamp the initial serving of the form
+    if request.method == 'GET':
+        expsessinfo['form_served'] = timezone.now().isoformat()
 
     # Make sure to save any changes to our session cache
     request.session.modified = True
