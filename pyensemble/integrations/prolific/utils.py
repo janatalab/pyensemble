@@ -5,9 +5,8 @@ from django.conf import settings
 from django.http import HttpResponseBadRequest
 
 from pyensemble.models import Subject, Session
-from pyensemble.utils import parsers
+from pyensemble.utils import parsers, qc
 from pyensemble.tasks import clear_unsent_notifications
-from pyensemble.integrity import default_session_qc_check
 
 from .prolific import Prolific
 
@@ -346,7 +345,7 @@ def complete_prolific_session(request, *args, **kwargs):
 
     else:
         # Otherwise, use the default quality control check
-        qc_check = default_session_qc_check
+        qc_check = qc.default_session_qc_check
 
     # Run any quality control checks
     passed_qc = qc_check(session, *args, **kwargs)

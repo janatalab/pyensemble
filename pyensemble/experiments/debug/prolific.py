@@ -26,7 +26,7 @@ from pyensemble.study import create_experiment_groupings
 from pyensemble.integrations.prolific.prolific import Prolific
 import pyensemble.integrations.prolific.utils as prolific_utils
 
-from pyensemble.integrity import default_session_qc_check
+from pyensemble.utils import qc
 
 import pyensemble.tasks as pyensemble_tasks
 
@@ -488,7 +488,7 @@ def qc_check(session, *args, **kwargs):
     # For now, we will just run the default quality control check (defined in pyensemble.integrity)
     # which simply checks to see if the last form of the experiment
     # has a response, but we want to add more sophisticated checks.
-    passed_qc = default_session_qc_check(session, *args, **kwargs)
+    passed_qc = qc.default_session_qc_check(session, *args, **kwargs)
 
     return passed_qc
 
@@ -515,7 +515,7 @@ def postsession(session, *args, **kwargs):
     pyensemble_tasks.clear_unsent_notifications(session)
 
     # Run any quality control checks
-    passed_qc = default_session_qc_check(session, *args, **kwargs)
+    passed_qc = qc.default_session_qc_check(session, *args, **kwargs)
 
     if not passed_qc:
         success = False

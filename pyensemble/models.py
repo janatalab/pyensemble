@@ -286,6 +286,130 @@ class ResponseQuerySet(models.QuerySet):
 
         return all_same
 
+    def form_completion_time_statistics(self):
+        """
+        Calculate the completion time statistics for the responses in the queryset.
+        """
+        form_completion_time_stats = {}
+
+        # We only need the response to the first question on each form, 0-indexed
+        first_responses = self.filter(form_question_num=0).order_by('id')
+
+        # Extract the values we need
+        values = first_responses.values('form__name', 'date_time', 'form_served')
+
+        # Extract into a list to avoid hitting the database for each iteration
+        values = [v for v in values]
+
+        # Calculate completion times
+        completion_times = []
+        for response in values:
+            if response['form_served']:
+                completion_time = (response['date_time'] - response['form_served']).seconds
+                completion_times.append({
+                    'form': response['form__name'],
+                    'completion_time': completion_time
+                })
+
+        form_completion_time_stats['completion_times'] = completion_times
+        
+        # Group by form and response order
+        grouped_times = {}
+        for item in completion_times:
+            key = item['form']
+            if key not in grouped_times:
+                grouped_times[key] = []
+            grouped_times[key].append(item['completion_time'])
+
+        # Calculate descriptive statistics for each group
+        stats = {}
+        for key, times in grouped_times.items():
+            num_times = len(times)
+            mean_time = sum(times) / num_times
+            stats[key] = {
+                'mean': mean_time,
+                'median': sorted(times)[num_times // 2] if num_times % 2 == 1 else (sorted(times)[num_times // 2 - 1] + sorted(times)[num_times // 2]) / 2,
+                'stddev': (sum((t - mean_time) ** 2 for t in times) / num_times) ** 0.5,
+                'min': min(times),
+                'max': max(times),
+                'count': num_times
+            }
+
+        form_completion_time_stats['descriptive'] = stats
+
+        return form_completion_time_stats
+    
+    def form_transition_time_statistics(self):
+        """
+        Calculate the transition time statistics between forms in the queryset.
+        """
+        form_transition_time_stats = {}
+
+        # We only need the response to the first question on each form, 0-indexed
+        first_responses = self.filter(form_question_num=0).order_by('id')
+
+        # We have to deal with the possibility that we have more than one session
+        # in the queryset, so we need to iterate over sessions
+        sessions = first_responses.order_by('session').values_list('session', flat=True).distinct()
+
+        transition_times = []
+        for sess_idx, session in enumerate(sessions):
+            if settings.DEBUG:
+                print(f"Processing session {sess_idx+1}/{sessions.count()}: {session}")
+
+            # Filter responses for the current session
+            session_responses = first_responses.filter(session=session)
+
+            if session_responses.count() < 2:
+                continue
+
+            # Pull all the values for the form and response order
+            values = session_responses.values_list('form__name', 'date_time')
+            num_values = values.count()
+
+            # This list comprehension gets all the data from the database and prevents
+            # the database being hit for each iteration of the loop blow
+            values = [v for v in values]
+
+            # Calculate transition times for the current session
+            for idx in range(num_values-1):
+                transition_time = (values[idx+1][1] - values[idx][1]).seconds
+
+                transition_times.append({
+                    'form1': values[idx][0],
+                    'form2': values[idx+1][0],
+                    'transition_time': transition_time
+                })
+
+        form_transition_time_stats['transition_times'] = transition_times
+        
+        # Group by form and response order
+        grouped_times = {}
+        for item in transition_times:
+            key = f"{item['form1']}, {item['form2']}"
+            if key not in grouped_times:
+                grouped_times[key] = []
+            grouped_times[key].append(item['transition_time'])
+
+        # Calculate descriptive statistics for each group
+        stats = {}
+        for key, times in grouped_times.items():
+            num_times = len(times)
+            mean_time = sum(times) / num_times
+            median_time = sorted(times)[num_times // 2] if num_times % 2 == 1 else (sorted(times)[num_times // 2 - 1] + sorted(times)[num_times // 2]) / 2
+            stats[key] = {
+                'mean': mean_time,
+                'median': median_time,
+                'stddev': (sum((t - mean_time) ** 2 for t in times) / num_times) ** 0.5,
+                'min': min(times),
+                'max': max(times),
+                'count': num_times
+            }
+
+        form_transition_time_stats['descriptive'] = stats
+
+        return form_transition_time_stats
+
 class ResponseManager(models.Manager):
     def get_queryset(self):
         return ResponseQuerySet(self.model, using=self._db)

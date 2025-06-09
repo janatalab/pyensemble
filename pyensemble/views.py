@@ -558,60 +558,57 @@ def run_experiment(request, experiment_id=None):
             # Create a PyEnsemble subject entry for this participant if necessary
             subject, _ = prolific_utils.get_or_create_prolific_subject(request)
 
-            # Check whether there are any tickets associated with this participant
-            user_tickets = Ticket.objects.filter(subject=subject, experiment=experiment, type='user')
+            if experiment.user_ticket_expected:
+                # Check whether there are any tickets associated with this participant
+                user_tickets = Ticket.objects.filter(subject=subject, experiment=experiment, type='user')
 
-            # If we have no user ticket, we work through some fallback options
-            if not user_tickets.exists():
-                ticket_error = ''
-
-                # Determine whether an existing user ticket is expected
-                if experiment.user_ticket_expected:
+                # If we have no user ticket, we work through some fallback options
+                if not user_tickets.exists():
                     ticket_error = 'USER_TICKET_MISSING'
-            
-                if ticket_error:
-                    prolific_utils.complete_submission(origin_sessid, code_type=ticket_error)
-                    return errors.ticket_error(request, None, ticket_error)
+               
+                    if ticket_error:
+                        prolific_utils.complete_submission(origin_sessid, code_type=ticket_error)
+                        return errors.ticket_error(request, None, ticket_error)
 
-            # If we have multiple tickets, log a warning and use the first one
-            if user_tickets.count() > 1:
-                msg = f"Multiple tickets found for subject {subject.subject_id} in experiment {experiment_id}."
-                if settings.DEBUG:
-                    print(msg)
-                else:
-                    logging.warning(msg)
+                # If we have multiple tickets, log a warning and use the first one
+                if user_tickets.count() > 1:
+                    msg = f"Multiple tickets found for subject {subject.subject_id} in experiment {experiment_id}."
+                    if settings.DEBUG:
+                        print(msg)
+                    else:
+                        logging.warning(msg)
 
-                # Check whether we have a ticket that is unused and not expired
-                valid_user_tickets = user_tickets.filter(used=False, expiration_datetime__gte=timezone.now())
+                    # Check whether we have a ticket that is unused and not expired
+                    valid_user_tickets = user_tickets.filter(used=False, expiration_datetime__gte=timezone.now())
 
-                if not valid_user_tickets.exists():
-                    # We have tickets but they are somehow not valid. Determine which one to use to
-                    # pass along to the erro handling further down.
-                    used_tickets = user_tickets.filter(used=True)
-                    expired_tickets = user_tickets.filter(expiration_datetime__lt=timezone.now())
-                    not_yet_valid_tickets = user_tickets.filter(validfrom_datetime__gt=timezone.now())
+                    if not valid_user_tickets.exists():
+                        # We have tickets but they are somehow not valid. Determine which one to use to
+                        # pass along to the erro handling further down.
+                        used_tickets = user_tickets.filter(used=True)
+                        expired_tickets = user_tickets.filter(expiration_datetime__lt=timezone.now())
+                        not_yet_valid_tickets = user_tickets.filter(validfrom_datetime__gt=timezone.now())
 
-                    if used_tickets.exists():
-                        ticket_code = used_tickets.first().ticket_code
+                        if used_tickets.exists():
+                            ticket_code = used_tickets.first().ticket_code
 
-                    elif expired_tickets.exists():
-                        ticket_code = expired_tickets.first().ticket_code
+                        elif expired_tickets.exists():
+                            ticket_code = expired_tickets.first().ticket_code
 
-                    elif not_yet_valid_tickets.exists():
-                        ticket_code = not_yet_valid_tickets.first().ticket_code
+                        elif not_yet_valid_tickets.exists():
+                            ticket_code = not_yet_valid_tickets.first().ticket_code
+
+                        else:
+                            # Not sure what else it would be, but we can just use the first ticket
+                            ticket_code = user_tickets.first().ticket_code
 
                     else:
-                        # Not sure what else it would be, but we can just use the first ticket
-                        ticket_code = user_tickets.first().ticket_code
+                        # Get the first valid ticket code. There should only be one valid ticket,
+                        # but we are not handling more complex multi-ticket scenarios at this time.
+                        ticket_code = valid_user_tickets.first().ticket_code
 
                 else:
-                    # Get the first valid ticket code. There should only be one valid ticket,
-                    # but we are not handling more complex multi-ticket scenarios at this time.
-                    ticket_code = valid_user_tickets.first().ticket_code
-
-            else:
-                # If we have a single ticket, use that one
-                ticket_code = user_tickets.first().ticket_code
+                    # If we have a single ticket, use that one
+                    ticket_code = user_tickets.first().ticket_code
 
         # Get our ticket entry
         try:
