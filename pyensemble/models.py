@@ -165,7 +165,7 @@ class Experiment(models.Model):
     end_date = models.DateField(blank=True, null=True)
     language = models.CharField(max_length=30,default='en')
     play_question_audio = models.BooleanField(default=False)
-    params = models.TextField(blank=True)
+    params = models.TextField(blank=True)  # This field is used to store experiment parameters in JSON format, and thus it should be a JSONField in the future
     locked = models.BooleanField(default=False)
 
     is_group = models.BooleanField(default=False, help_text="Subjects participate in groups")
