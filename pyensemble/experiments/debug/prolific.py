@@ -4,6 +4,7 @@
 
 import datetime
 import zoneinfo
+import json
 
 from django.conf import settings
 
@@ -26,7 +27,7 @@ from pyensemble.study import create_experiment_groupings
 from pyensemble.integrations.prolific.prolific import Prolific
 import pyensemble.integrations.prolific.utils as prolific_utils
 
-from pyensemble.integrity import default_session_qc_check
+from pyensemble.utils import qc
 
 import pyensemble.tasks as pyensemble_tasks
 
@@ -317,7 +318,7 @@ def create_prolific_pyensemble_integration_example():
     next_participant_groups = []
     for exp_idx, experiment in enumerate(pyensemble_experiments):
         # Get our ticket for the experiment because this is how we get the external URL
-        ticket = get_prolific_test_ticket(experiment)
+        ticket = prolific_utils.get_prolific_ticket(experiment, ticket_attribute_name='Prolific Test')
 
         # Get or create the participant group for the next experiment
         next_experiment = experiment.studyxexperiment_set.first().next_experiment()
@@ -346,7 +347,7 @@ def create_prolific_pyensemble_integration_example():
 
         # Update the study parameters with the external URL
         prolific_study_params.update({
-            'external_study_url': get_external_study_url(ticket),
+            'external_study_url': prolific_utils.get_external_study_url(ticket),
         })
 
         # Create the study
@@ -488,7 +489,7 @@ def qc_check(session, *args, **kwargs):
     # For now, we will just run the default quality control check (defined in pyensemble.integrity)
     # which simply checks to see if the last form of the experiment
     # has a response, but we want to add more sophisticated checks.
-    passed_qc = default_session_qc_check(session, *args, **kwargs)
+    passed_qc = qc.default_session_qc_check(session, *args, **kwargs)
 
     return passed_qc
 
@@ -515,7 +516,7 @@ def postsession(session, *args, **kwargs):
     pyensemble_tasks.clear_unsent_notifications(session)
 
     # Run any quality control checks
-    passed_qc = default_session_qc_check(session, *args, **kwargs)
+    passed_qc = qc.default_session_qc_check(session, *args, **kwargs)
 
     if not passed_qc:
         success = False
@@ -617,6 +618,11 @@ def create_notifications(session, next_experiment_ticket=None):
         
         if not next_study_name:
             next_study_name = next_experiment.title
+
+        next_experiment_params = json.loads(next_experiment.params)
+
+    else:
+        next_experiment_params = {}
         
 
     # Specify the template for all of this day's notifications
@@ -673,6 +679,7 @@ def create_notifications(session, next_experiment_ticket=None):
                 'next_study_name': next_study_name,
                 'curr_experiment_order': curr_experiment_order,
                 'prolific_study_name': next_study_name,
+                'study_duration': next_experiment_params.get('total_experiment_duration_m', None),
             },
             'datetime': target_time,
             'callback_for_dispatch': 'debug.prolific.experiment_available_notification()',
@@ -692,6 +699,7 @@ def create_notifications(session, next_experiment_ticket=None):
                 'msg_subject': f"Day {next_experiment_order} FINAL PARTICIPATION REMINDER ",
                 'next_study_name': next_study_name,
                 'prolific_study_name': next_study_name,
+                'study_duration': next_experiment_params.get('total_experiment_duration_m', None),
             },
             'datetime': target_time,
             'callback_for_dispatch': 'debug.prolific.experiment_expiring_notification()',
@@ -996,35 +1004,3 @@ def experiment_expiring_notification(request, *args, **kwargs):
     resp = send_message(kwargs)
 
     return resp
-
-
-def get_prolific_test_ticket(experiment, ticket_attribute_name='Prolific Test'):
-    # Fetch any existing tickets for the experiment
-    tickets = experiment.ticket_set.filter(attribute__name=ticket_attribute_name)
-
-    if not tickets.exists():
-        # Create a dictionary containing the ticket request data
-        ticket_request_data = {
-            'experiment': experiment,
-            'type': 'master',
-            'attribute': ticket_attribute_name,
-            'num_master': 1,
-            'timezone': 'UTC'
-        }
-
-        # Create the ticket
-        ticket = pyensemble_tasks.create_tickets(ticket_request_data).first()
-    
-    else:
-        ticket = tickets.first()
-
-    return ticket
-
-
-def get_external_study_url(ticket):
-    pid_str = "{{%PROLIFIC_PID%}}"
-    study_id_str = "{{%STUDY_ID%}}"
-    session_id_str = "{{%SESSION_ID%}}"
-
-    external_study_url = f"{ticket.url}&PROLIFIC_PID={pid_str}&STUDY_ID={study_id_str}&SESSION_ID={session_id_str}"
-    return external_study_url

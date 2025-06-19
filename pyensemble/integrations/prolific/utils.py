@@ -5,9 +5,8 @@ from django.conf import settings
 from django.http import HttpResponseBadRequest
 
 from pyensemble.models import Subject, Session
-from pyensemble.utils import parsers
-from pyensemble.tasks import clear_unsent_notifications
-from pyensemble.integrity import default_session_qc_check
+from pyensemble.utils import parsers, qc
+import pyensemble.tasks as pt
 
 from .prolific import Prolific
 
@@ -236,6 +235,38 @@ def get_default_prolific_study_params():
     return default_study_params
 
 
+def get_prolific_ticket(experiment, ticket_attribute_name='Prolific Test'):
+    # Fetch any existing tickets for the experiment
+    tickets = experiment.ticket_set.filter(attribute__name=ticket_attribute_name)
+
+    if not tickets.exists():
+        # Create a dictionary containing the ticket request data
+        ticket_request_data = {
+            'experiment': experiment,
+            'type': 'master',
+            'attribute': ticket_attribute_name,
+            'num_master': 1,
+            'timezone': 'UTC'
+        }
+
+        # Create the ticket
+        ticket = pt.create_tickets(ticket_request_data).first()
+    
+    else:
+        ticket = tickets.first()
+
+    return ticket
+
+
+def get_external_study_url(ticket):
+    pid_str = "{{%PROLIFIC_PID%}}"
+    study_id_str = "{{%STUDY_ID%}}"
+    session_id_str = "{{%SESSION_ID%}}"
+
+    external_study_url = f"{ticket.url}&PROLIFIC_PID={pid_str}&STUDY_ID={study_id_str}&SESSION_ID={session_id_str}"
+    return external_study_url
+
+
 def get_completion_url(request, *args, **kwargs):
     completion_url = None
 
@@ -346,7 +377,7 @@ def complete_prolific_session(request, *args, **kwargs):
 
     else:
         # Otherwise, use the default quality control check
-        qc_check = default_session_qc_check
+        qc_check = qc.default_session_qc_check
 
     # Run any quality control checks
     passed_qc = qc_check(session, *args, **kwargs)
@@ -399,7 +430,7 @@ def complete_prolific_session(request, *args, **kwargs):
 
     # Clear out any unsent notifications for this experiment
     if passed_qc or reached_last_form:
-        clear_unsent_notifications(session)
+        pt.clear_unsent_notifications(session)
 
     return context
 

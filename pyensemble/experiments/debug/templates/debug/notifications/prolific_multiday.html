@@ -10,7 +10,7 @@
                 <p>The study for Stage {{curr_experiment_order|add:1}} will become available at {{ ticket.start }} and
                 you will have have until {{ ticket.end }} to complete it.</p>
 
-                <p>We will send you reminder messages on the day of the experiment, but Prolific may not display a badge that a new message was received.</p>
+                <p>We will send you reminder messages on the day of the experiment.</p>
 
         {% endif %}
 
@@ -21,6 +21,7 @@
         <p>You are receiving this email because you participated in Stage {{curr_experiment_order}} of the study {{ study_name }}. 
         You are scheduled to participate in Stage {{curr_experiment_order|add:1}} today.</p> 
 
+        {% if study_duration %}<p>The study will take approximately {{study_duration}} minutes.</p>{% endif %}
         <p>You have until {{ ticket.end }} to complete the study titled {{ next_study_name }}.</p>
 
         <p>Thank you for your time and interest in our research! Please let us know if you have any questions or concerns.</p>
@@ -29,6 +30,8 @@
         <p>Dear {{session.subject.name_first}},</p>
         <p>This is a reminder to participate in {{ next_study_name }} today. 
         You have until {{ticket.end}} to start the experiment.</p>
+
+        {% if study_duration %}<p>The study will take approximately {{study_duration}} minutes.</p>{% endif %}
 
         <p>Thank you for your time and interest in our research! Please let us know if you have any questions or concerns.</p>
 {% endif %}

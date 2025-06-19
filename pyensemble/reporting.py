@@ -66,6 +66,9 @@ def experiment_summary(request, *args, **kwargs):
     if experiment.is_group:
         summary = group_experiment_summary(experiment, *args, **kwargs)
 
+    else:
+        pass
+
     context = {
         'experiment': experiment,
         'summary': summary,
@@ -423,7 +426,7 @@ def experiment_sessions(request):
 def group_experiment_summary(experiment, *args, **kwargs):
     summary_data = {}
 
-    pdb.set_trace()
+    # pdb.set_trace()
 
     # Get our non-excluded group sessions
     groupsessions = experiment.groupsession_set.filter(exclude=False)
