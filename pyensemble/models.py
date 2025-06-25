@@ -597,6 +597,9 @@ class AbstractSession(models.Model):
         # Get our method
         method = fetch_experiment_method(funcdict['func_name'])
 
+        # Update the funcdict kwargs with any kwargs passed to this method
+        funcdict['kwargs'].update(kwargs)
+
         # Evaluate our method
         response = method(self, *funcdict['args'],**funcdict['kwargs'])
 
