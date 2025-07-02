@@ -91,7 +91,7 @@ def get_subject_data(session, *args, **kwargs):
         subject_data['last_response'] = None
 
     # Get the completion time statistics for the session
-    subject_data['completion_time_stats'] = session.response_set.completion_time_statistics()
+    # subject_data['form_completion_time_stats'] = session.response_set.all().form_completion_time_statistics()
 
 
     return subject_data
