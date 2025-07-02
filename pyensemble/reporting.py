@@ -14,7 +14,7 @@ from django.urls import reverse
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse, HttpResponseBadRequest, HttpResponseRedirect
 
-from pyensemble.models import Study, Session, Experiment, StudyXExperiment
+from pyensemble.models import Study, Session, Experiment, Response, StudyXExperiment
 from pyensemble.group.models import GroupSession
 
 from pyensemble.group import forms as group_forms
@@ -69,6 +69,7 @@ def experiment_summary(request, *args, **kwargs):
     else:
         pass
 
+    # pdb.set_trace()
     context = {
         'experiment': experiment,
         'summary': summary,
@@ -436,7 +437,11 @@ def group_experiment_summary(experiment, *args, **kwargs):
     # Get a list with the number of subjects per session
     num_subs_in_session = [g.num_subject_sessions for g in groupsessions]
 
-    summary_data['groups_of_size_n'] = Counter(num_subs_in_session)
-    
+    size_summary = Counter(num_subs_in_session)
 
-    return JsonResponse(summary_data)
+    # Order the size summary by size
+    size_summary = sorted(size_summary.items(), key=lambda x: x[0])
+
+    summary_data['groups_of_size_n'] = dict(size_summary)
+
+    return summary_data

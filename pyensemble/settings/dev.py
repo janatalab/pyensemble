@@ -24,6 +24,7 @@ CACHES = {
 
 # We have to override the possibility that storage of static files is taking place elsewhere, such as AWS S3
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
+STORAGES['staticfiles'] = {'BACKEND': STATICFILES_STORAGE}
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR,'static/')
 

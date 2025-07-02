@@ -69,7 +69,7 @@ window.PyEnsemble.reporting = (function(){
         // Get our selected experiment
         var dataType = "json";
 
-        if (ev.target.text == 'Responses'){
+        if (ev.target.text == 'Responses' || ev.target.text == 'Summary'){
             dataType = "html";
         }
 
@@ -84,9 +84,14 @@ window.PyEnsemble.reporting = (function(){
                     updateResults(data);
 
                 } else {
-                    document.open();
-                    document.write(data);
-                    document.close();
+                    if (ev.target.text == 'Summary') {
+                        $("#summary_section").html(data);
+                        $("#summary_section").removeClass("d-none");
+                    } else if (ev.target.text == 'Responses') {
+                        document.open();
+                        document.write(data);
+                        document.close();
+                    }
                 }
             },
             error: function(response){
