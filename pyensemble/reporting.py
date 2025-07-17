@@ -6,6 +6,7 @@ import numpy as np
 
 from collections import Counter
 
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
 
 from django.db.models import Max
@@ -261,13 +262,28 @@ def get_experiment_session_data(experiment, **kwargs):
 
 
 def get_column_statistics(data):
+    # Fill NaN values
     data = data.fillna(value=np.nan)
 
+    # Figure out which columns are numeric
+    numeric_columns = data.select_dtypes(include='number').columns
+
+    # Calculate statistics for numeric columns
+    if numeric_columns.empty:
+        return {
+            'min': {},
+            'max': {},
+            'mean': {},
+            'median': {}
+        }, data
+    
+    # Select only numeric columns
+    stats_data = data[numeric_columns]
     stats = {
-        'min': data.min().to_json(orient='index', double_precision=2),
-        'max': data.max().to_json(orient='index', double_precision=2),
-        'mean': data.mean().to_json(orient='index', double_precision=2),
-        'median': data.median().to_json(orient='index', double_precision=2),
+        'min': stats_data.min().to_json(orient='index', double_precision=2),
+        'max': stats_data.max().to_json(orient='index', double_precision=2),
+        'mean': stats_data.mean().to_json(orient='index', double_precision=2),
+        'median': stats_data.median().to_json(orient='index', double_precision=2),
     }
 
     return stats, data
