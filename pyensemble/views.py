@@ -1,6 +1,7 @@
 # views.py
 import os, re
 import json
+import random
 
 from django.utils import timezone
 
@@ -31,7 +32,6 @@ from pyensemble.forms import RegisterSubjectForm, RegisterSubjectUsingEmailForm,
 
 from pyensemble.tasks import fetch_subject_id, create_tickets, send_email
 
-from pyensemble.integrations.prolific.prolific import Prolific
 import pyensemble.integrations.prolific.utils as prolific_utils
 import pyensemble.integrations.prolific.errors as prolific_errors
 
@@ -39,7 +39,7 @@ from pyensemble import errors
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
 
-from pyensemble.group.models import Group, GroupSubject, GroupSession, GroupSessionSubjectSession
+from pyensemble.group.models import GroupSession, GroupSessionSubjectSession
 from pyensemble.group.views import attach_subject_to_group, get_group_session, set_groupuser_state, get_groupuser_state, init_group_trial
 
 from crispy_forms.layout import Submit
@@ -518,6 +518,9 @@ def run_experiment(request, experiment_id=None):
 
     # Check whether we have a running session, and initialize a new one if not.
     if not expsessinfo.get('running', False): 
+        # Seed the random number generator with the current time
+        random.seed()
+
         # Have yet to determine a subject
         subject = None
         tmp_subject = False # Assume we are not using a temporary subject
