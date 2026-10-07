@@ -14,7 +14,7 @@ django-encrypted-model-fields==0.6.5
 django-recaptcha==4.1.0
 django-sslserver @ git+https://github.com/shalltell/django-sslserver.git@e74e7f8d4441afddd8d87e89490c25f155c9c9cc
 django-storages==1.14.6
-djangorestframework==3.16.0
+djangorestframework==3.17.2
 executing==2.2.0
 idna==3.10
 ipython==9.1.0
