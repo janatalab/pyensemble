@@ -64,6 +64,7 @@ coverage.xml
 # Django stuff:
 *.log
 django-debug.txt
+logs/
 
 */settings/local/
 

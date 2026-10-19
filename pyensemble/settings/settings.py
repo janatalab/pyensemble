@@ -154,13 +154,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 # Get the encryption key for the Subject table fields
 FIELD_ENCRYPTION_KEY = config['django']['field_encryption_key'] 
 
-# Specify cache engine
+# Store cache entries in the database.
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.memcached.PyMemcacheCache',
-        'LOCATION': ['127.0.0.1:11211'],
+        'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+        'LOCATION': 'pyensemble_cache',
         'TIMEOUT': 60*60*6,
-        'NAME': '',
     },
 }
 

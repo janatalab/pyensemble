@@ -3,7 +3,7 @@ asttokens==3.0.0
 boto3==1.38.1
 botocore==1.38.1
 certifi==2025.1.31
-cffi==1.17.1
+cffi==2.1.1
 charset-normalizer==3.4.1
 crispy-bootstrap4==2024.10
 cryptography==50.0.0
@@ -33,7 +33,6 @@ ptyprocess==0.7.0
 pure_eval==0.2.3
 pycparser==2.22
 Pygments==2.20.0
-pymemcache==4.0.0
 python-dateutil==2.9.0.post0
 pytz==2025.2
 redis==5.2.1

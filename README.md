@@ -78,15 +78,11 @@ The installation steps below are based on an installation on an Amazon Linux AMI
 > sudo yum install python36-devel
 ```
 
-- Install memcached (necessary for caching session data in memory)
+- Set environment variables to make the mysqlclient build happy
 ```
-> sudo yum install memcached
+> export MYSQLCLIENT_CFLAGS="$(mysql_config --cflags)"
+> export MYSQLCLIENT_LDFLAGS="$(mysql_config --libs)"
 ```
-  - Start memcached and add it to the system files for automatic load on startup
-  ```
-  sudo /sbin/service memcached start
-  sudo chkconfig memcached on
-  ```
 
 <a name="pyensemble_user"/></a>
 ## Create a pyensemble user
@@ -181,7 +177,10 @@ Once the settings.py file is configured with your specifics, you can populate th
 ```
 > python manage.py makemigrations
 > python manage.py migrate
+> python manage.py createcachetable
 ```
+
+PyEnsemble uses Django's database-backed cache, so no separate cache server is required. Create the cache table once for each database.
 
 At this point, you could launch a development server. Please note that the Django development server does not support HTTPS, and running it on anything other than your local machine, i.e. localhost, risks exposure of information. To run a secure development server, use the dev_settings.py settings file:
 ```
@@ -523,7 +522,7 @@ There are multiple options for implementing the control of flow in the group ses
 
 When deciding on how to implement the flow of a group session using PyEnsemble's core framework of form handlers and experiment-specific callbacks, it is critical to consider the ways in which information is stored within sessions and communicated between experimenter and participant sessions in order to indicate state across trials. 
 
-There are three principle ways of storing session information. The first is within the database, the second is in the session-level cache accessible in request.session, the third is in the global cache (maintined in memcached). Note that separate session-level caches, identified with the sessionid cookie, are maintained for each participant who has connected from a browser, the experiment browser that was used to launch the group session, and potentially any other application used for running the experiment. Session-level caches are not visible to other sessions.
+There are three principle ways of storing session information. The first is within the database, the second is in the session-level cache accessible in request.session, and the third is in the global cache (maintained in the database-backed cache table). Note that separate session-level caches, identified with the sessionid cookie, are maintained for each participant who has connected from a browser, the experiment browser that was used to launch the group session, and potentially any other application used for running the experiment. Session-level caches are not visible to other sessions.
 
 The context field of the GroupSession object is conceived of as a temporary mutable cache that all sessions can read. This is a more secure means of storing information than in the global cache.
 
