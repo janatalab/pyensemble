@@ -84,6 +84,9 @@ The installation steps below are based on an installation on an Amazon Linux AMI
 > export MYSQLCLIENT_LDFLAGS="$(mysql_config --libs)"
 ```
 
+- Add the following line to your .bashrc, .zshrc, or other shell resource file:
+`export DYLD_LIBRARY_PATH=/usr/local/mysql/lib:${DYLD_LIBRARY_PATH}`
+
 <a name="pyensemble_user"/></a>
 ## Create a pyensemble user
 The production version of the PyEnsemble site, i.e. the version of the webserver accessed by the outside world needs to be served from a specific location on the server's file system. This could be directly in a standard location, such as /var/www/html/pyensemble, which is accessible to the webserver daemon, e.g. apache, and other system users with appropriate privileges. Alternatively, it can be within a user's directory. In this case it is the pyensemble user.
