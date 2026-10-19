@@ -3,6 +3,12 @@
 import os
 import sys
 
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+env_path = Path(__file__).resolve().parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 def main():
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'pyensemble.settings.settings')
