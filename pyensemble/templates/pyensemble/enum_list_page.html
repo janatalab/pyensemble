@@ -1,0 +1,16 @@
+{% extends "pyensemble/editor_base.html" %}
+
+{% block editorDetail %}
+    {% include "pyensemble/enum_list.html" %}
+{% endblock %}
+
+{% block appscript %}
+    {{ block.super }}
+    <script>
+        $(function () {
+            var $table = $("#content-right table");
+            $table.bootstrapTable();
+            $table.bootstrapTable('hideColumn', 'checkbox');
+        });
+    </script>
+{% endblock %}

@@ -14,7 +14,7 @@ from crispy_forms.bootstrap import InlineRadios, InlineCheckboxes, UneditableFie
 
 from django_recaptcha.fields import ReCaptchaField
 
-from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket, Study, Response, SessionFile
+from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket, Study, StudyXExperiment, Response, SessionFile
 
 from pyensemble.widgets import RangeInput
 
@@ -56,7 +56,10 @@ class QuestionCreateForm(forms.ModelForm):
 
     class Meta:
         model=Question
-        exclude=('_unique_hash','forms','data_format','category','value_range','value_default','audio_path')
+        exclude=(
+            '_unique_hash', 'forms', 'data_format', 'category', 'value_range',
+            'value_default', 'audio_path', 'locked',
+        )
 
         widgets = {
             'text': forms.TextInput(attrs={'placeholder':'Enter the question text here'}),
@@ -183,7 +186,10 @@ class FormQuestionForm(forms.ModelForm):
 class FormForm(forms.ModelForm):
     class Meta:
         model = Form
-        exclude = ('version','category','header_audio_path','footer_audio_path','questions','experiments')
+        exclude = (
+            'version', 'category', 'header_audio_path', 'footer_audio_path',
+            'questions', 'experiments', 'locked',
+        )
 
     def __init__(self, *args, **kwargs):
         super(FormForm, self).__init__(*args, **kwargs)
@@ -192,7 +198,7 @@ class FormForm(forms.ModelForm):
         self.helper.formset_tag = True
         self.helper.formset_method = 'POST'
 
-    field_order = ('name','header','footer','visit_once','locked')
+    field_order = ('name','header','footer','visit_once')
 
 FormQuestionFormset = forms.inlineformset_factory(Form, FormXQuestion, 
     form=FormQuestionForm, 
@@ -249,6 +255,84 @@ class ExperimentForm(forms.ModelForm):
         self.helper.formset_method = 'POST'
         self.fields['params'].widget = forms.Textarea(attrs={'rows': 1})
 
+
+class StudyForm(forms.ModelForm):
+    class Meta:
+        model = Study
+        fields = ('title', 'params')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['params'].required = False
+        if self.instance.params is None:
+            self.initial['params'] = ''
+
+
+class StudyExperimentForm(forms.ModelForm):
+    class Meta:
+        model = StudyXExperiment
+        fields = ('experiment',)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['experiment'].queryset = Experiment.objects.order_by('title')
+
+
+class StudyExperimentFormSet(forms.BaseInlineFormSet):
+    def add_fields(self, form, index):
+        super().add_fields(form, index)
+        if (
+            index is not None
+            and self.can_order
+            and index >= self.initial_form_count()
+        ):
+            form.fields['ORDER'].initial = index + 1
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            selected_experiments = [
+                form.cleaned_data.get('experiment')
+                for form in self.forms
+                if form.cleaned_data
+                and not form.cleaned_data.get('DELETE', False)
+                and form.cleaned_data.get('experiment')
+            ]
+            if len(selected_experiments) < 2:
+                raise ValidationError('A study must contain at least two experiments.')
+            return
+
+        active_forms = [
+            form for form in self.forms
+            if form.cleaned_data
+            and not form.cleaned_data.get('DELETE', False)
+            and form.cleaned_data.get('experiment')
+        ]
+        if any(form.cleaned_data.get('ORDER') is None for form in active_forms):
+            raise ValidationError('Assign an order to each selected experiment.')
+
+        experiments = [
+            form.cleaned_data['experiment']
+            for form in active_forms
+        ]
+        if len(experiments) != len(set(experiments)):
+            raise ValidationError('An experiment can appear only once in a study.')
+
+
+StudyExperimentFormSetFactory = forms.inlineformset_factory(
+    Study,
+    StudyXExperiment,
+    form=StudyExperimentForm,
+    formset=StudyExperimentFormSet,
+    fields=('experiment',),
+    can_order=True,
+    can_delete=True,
+    extra=0,
+    min_num=2,
+    validate_min=True,
+    max_num=100,
+)
+
 ExperimentFormFormset = forms.inlineformset_factory(Experiment, ExperimentXForm, 
     form=ExperimentFormForm, 
     fields= (
@@ -281,6 +365,42 @@ class CopyExperimentForm(forms.ModelForm):
     helper = FormHelper()
     helper.form_method = 'POST'
     helper.form_id = 'copyItemForm'
+
+
+class CopyFormForm(forms.ModelForm):
+    class Meta:
+        model = Form
+        fields = ('name',)
+
+        widgets = {
+            'name': forms.TextInput(attrs={'placeholder': 'Name of new form'}),
+        }
+
+    helper = FormHelper()
+    helper.form_method = 'POST'
+    helper.form_id = 'copyItemForm'
+
+
+class CopyStudyForm(forms.ModelForm):
+    class Meta:
+        model = Study
+        fields = ('title',)
+
+        widgets = {
+            'title': forms.TextInput(attrs={'placeholder': 'Title of new study'}),
+        }
+
+    helper = FormHelper()
+    helper.form_method = 'POST'
+    helper.form_id = 'copyItemForm'
+
+
+class DefinitionDeletionForm(forms.Form):
+    reason = forms.CharField(
+        label='Reason for deletion',
+        widget=forms.Textarea(attrs={'rows': 3}),
+    )
+
 
 # TODO: Refactor TicketCreationForm into a ModelForm and also make use of validfrom field
 class TicketCreationForm(forms.Form):

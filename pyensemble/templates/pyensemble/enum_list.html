@@ -19,6 +19,7 @@
                     <td></td>
                     <td class="text-left">        
                         {{e.enum_values}}
+                        <a class="ml-3" href="{% url 'definition_delete' 'enum' e.pk %}">Delete</a>
                     </td>
                 </tr>
             {% endif %}

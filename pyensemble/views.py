@@ -8,14 +8,14 @@ from django.utils import timezone
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from pyensemble.access import Role, has_role
+from pyensemble.access import Role, has_role, role_required
 
 from django.views.generic import ListView
 from django.views.generic.base import TemplateView
 from django.views.decorators.http import require_http_methods
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Count
 
 from django.utils.crypto import get_random_string
 
@@ -27,9 +27,9 @@ from django.urls import reverse, reverse_lazy
 from django.conf import settings
 from django.views.generic.edit import CreateView, UpdateView
 
-from pyensemble.models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, EmailVerification
+from pyensemble.models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, EmailVerification, Study, StudyXExperiment
 
-from pyensemble.forms import RegisterSubjectForm, RegisterSubjectUsingEmailForm, LoginSubjectUsingEmailForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
+from pyensemble.forms import RegisterSubjectForm, RegisterSubjectUsingEmailForm, LoginSubjectUsingEmailForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, CopyFormForm, CopyStudyForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm, StudyForm, StudyExperimentFormSetFactory, DefinitionDeletionForm
 
 from pyensemble.tasks import fetch_subject_id, create_tickets, send_email
 
@@ -46,6 +46,15 @@ from pyensemble.group.views import attach_subject_to_group, get_group_session, s
 from crispy_forms.layout import Submit
 
 from pyensemble.utils.serializers import ExperimentSerializer, FormSerializer, QuestionSerializer
+from pyensemble.cloning import clone_experiment, clone_form, clone_study
+from pyensemble.deletion import (
+    DELETABLE_MODELS,
+    DefinitionDeletionBlocked,
+    definition_label,
+    delete_definition,
+    get_deletion_blockers,
+    get_deletion_reference_counts,
+)
 
 import logging
 
@@ -242,8 +251,15 @@ class ExperimentUpdateView(LoginRequiredMixin,UpdateView):
     template_name = 'pyensemble/experiment_update.html'
     form_class = ExperimentForm
 
+    def get_template_names(self):
+        if self.request.GET.get('standalone') == '1':
+            return ['pyensemble/editor_detail_page.html']
+        return super().get_template_names()
+
     def get_context_data(self, **kwargs):
         context = super(ExperimentUpdateView, self).get_context_data(**kwargs)
+        if self.request.GET.get('standalone') == '1':
+            context['detail_template'] = self.template_name
         if self.request.POST:
             context['formset'] = ExperimentFormFormset(self.request.POST, instance=self.object)
         else:
@@ -260,24 +276,207 @@ class ExperimentUpdateView(LoginRequiredMixin,UpdateView):
         return context
 
     def form_valid(self, form):
-        context = self.get_context_data()
+        context = self.get_context_data(form=form)
         formset = context['formset']
+        if not formset.is_valid():
+            context['formset'] = formset
+            return self.render_to_response(context, status=400)
+
         with transaction.atomic():
             self.object = form.save()
-            if formset.is_valid():
-                # Save forms in (new) order
-                for idx,f in enumerate(formset.ordered_forms):
-                    f.instance.form_order = idx+1
-                    f.instance.save()
+            # Save forms in (new) order
+            for idx,f in enumerate(formset.ordered_forms):
+                f.instance.form_order = idx+1
+                f.instance.save()
 
-                # Delete forms flagged for deletion
-                for f in formset.deleted_forms:
-                    f.instance.delete()
+            # Delete forms flagged for deletion
+            for f in formset.deleted_forms:
+                f.instance.delete()
 
-        return super(ExperimentUpdateView, self).form_valid(form)
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
         return reverse_lazy('experiment_update', kwargs={'pk': self.object.pk})
+
+
+class StudyListView(LoginRequiredMixin, ListView):
+    model = Study
+    context_object_name = 'study_list'
+    template_name = 'pyensemble/study_list.html'
+
+    def get_queryset(self):
+        return Study.objects.annotate(
+            experiment_count=Count('studyxexperiment'),
+        ).order_by('title')
+
+
+class StudyEditorMixin:
+    template_name = 'pyensemble/study_update.html'
+    form_class = StudyForm
+
+    def get_template_names(self):
+        if self.request.GET.get('standalone') == '1':
+            return ['pyensemble/editor_detail_page.html']
+        return [self.template_name]
+
+    def get_formset(self):
+        instance = self.object if self.object is not None else Study()
+        queryset = StudyXExperiment.objects.none()
+        if instance.pk:
+            queryset = StudyXExperiment.objects.filter(study=instance).select_related(
+                'experiment',
+            ).order_by('experiment_order')
+        return StudyExperimentFormSetFactory(
+            self.request.POST if self.request.method == 'POST' else None,
+            instance=instance,
+            queryset=queryset,
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        if self.request.GET.get('standalone') == '1':
+            context['detail_template'] = self.template_name
+        context['formset'] = kwargs.get('formset') or self.get_formset()
+        return context
+
+    def save_study(self, form):
+        formset = self.get_formset()
+        if not formset.is_valid():
+            return self.render_to_response(
+                self.get_context_data(form=form, formset=formset),
+                status=400,
+            )
+
+        with transaction.atomic():
+            self.object = form.save()
+            formset.instance = self.object
+            for row in formset.deleted_forms:
+                if row.instance.pk:
+                    row.instance.delete()
+            for order, row in enumerate(formset.ordered_forms, start=1):
+                instance = row.save(commit=False)
+                instance.study = self.object
+                instance.experiment_order = order
+                instance.save()
+
+        return HttpResponseRedirect(self.get_success_url())
+
+    def form_valid(self, form):
+        return self.save_study(form)
+
+    def get_success_url(self):
+        return reverse_lazy('study_update', kwargs={'pk': self.object.pk})
+
+
+class StudyCreateView(StudyEditorMixin, LoginRequiredMixin, CreateView):
+    model = Study
+
+
+class StudyUpdateView(StudyEditorMixin, LoginRequiredMixin, UpdateView):
+    model = Study
+
+
+@role_required(Role.EDITOR)
+@require_http_methods(['GET', 'POST'])
+def delete_definition_view(request, model_name, pk):
+    model = DELETABLE_MODELS.get(model_name)
+    if model is None:
+        return HttpResponseBadRequest('Unsupported definition type.')
+
+    try:
+        instance = model.objects.get(pk=pk)
+    except model.DoesNotExist:
+        return HttpResponse('Definition not found.', status=404)
+    if model_name == 'enum' and instance.df_type != 'enum':
+        return HttpResponse('Definition not found.', status=404)
+
+    return_url_name = {
+        'study': 'study_update',
+        'experiment': 'experiment_update',
+        'form': 'form_update',
+        'question': 'question_present',
+        'enum': 'enum_list',
+    }[model_name]
+    if model_name == 'enum':
+        return_url = reverse(return_url_name) + '?standalone=1'
+    else:
+        return_url = reverse(return_url_name, kwargs={'pk': instance.pk})
+        return_url += '?standalone=1'
+
+    blockers = get_deletion_blockers(instance)
+    form = DefinitionDeletionForm(request.POST or None)
+    if request.method == 'POST':
+        if not form.is_valid():
+            return render(
+                request,
+                'pyensemble/definition_delete.html',
+                {
+                    'definition': instance,
+                    'definition_label': definition_label(instance),
+                    'blockers': blockers,
+                    'return_url': return_url,
+                    'model_name': model_name,
+                    'form': form,
+                },
+                status=400,
+            )
+        try:
+            delete_definition(instance, request.user, form.cleaned_data['reason'])
+        except DefinitionDeletionBlocked as error:
+            return render(
+                request,
+                'pyensemble/definition_delete.html',
+                {
+                    'definition': instance,
+                    'definition_label': definition_label(instance),
+                    'blockers': error.blockers,
+                    'return_url': return_url,
+                    'model_name': model_name,
+                    'form': form,
+                },
+                status=409,
+            )
+        return HttpResponseRedirect(reverse('editor'))
+
+    return render(
+        request,
+        'pyensemble/definition_delete.html',
+        {
+            'definition': instance,
+            'definition_label': definition_label(instance),
+            'blockers': blockers,
+            'return_url': return_url,
+            'model_name': model_name,
+            'reference_counts': get_deletion_reference_counts(instance),
+            'form': form,
+        },
+    )
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def copy_study(request, study_id):
+    source = Study.objects.get(pk=study_id)
+    if request.method == 'POST':
+        form = CopyStudyForm(request.POST)
+        if form.is_valid():
+            clone = clone_study(source, form.cleaned_data['title'])
+            return HttpResponseRedirect(
+                reverse('study_update', kwargs={'pk': clone.pk}),
+            )
+        return render(
+            request,
+            'pyensemble/item_copy.html',
+            {'form': form},
+            status=400,
+        )
+
+    return render(
+        request,
+        'pyensemble/item_copy.html',
+        {'form': CopyStudyForm()},
+    )
+
 
 def add_experiment_form(request, experiment_id):
     if request.method == 'POST':
@@ -296,46 +495,28 @@ def add_experiment_form(request, experiment_id):
     return HttpResponseRedirect(reverse('experiment_update', kwargs={'pk': experiment_id}))
 
 @login_required
+@require_http_methods(['GET', 'POST'])
 def copy_experiment(request, experiment_id):
-    template = 'pyensemble/item_copy.html'
-    status = 200
-
+    source = Experiment.objects.get(pk=experiment_id)
     if request.method == 'POST':
         form = CopyExperimentForm(request.POST)
-
         if form.is_valid():
-            # Create a new Experiment
-            new_experiment = Experiment.objects.create(title=form.cleaned_data['title'])
+            clone = clone_experiment(source, form.cleaned_data['title'])
+            return HttpResponseRedirect(
+                reverse('experiment_update', kwargs={'pk': clone.pk}),
+            )
+        return render(
+            request,
+            'pyensemble/item_copy.html',
+            {'form': form},
+            status=400,
+        )
 
-            # Now copy all of the ExperimentXForm entries from the parent experiment
-            old_exf = ExperimentXForm.objects.filter(experiment__id=experiment_id)
-
-            new_exf = []
-            for exf in old_exf:
-                exf.pk = None # To prevent overwrite of existing exf entry
-
-                # Replace old experiment object with new experiment object in the exf instance
-                exf.experiment = new_experiment 
-
-                # Add the instance to the stack
-                new_exf.append(exf)
-
-            # Create all of the new exf entries
-            ExperimentXForm.objects.bulk_create(new_exf) 
-
-            return HttpResponseRedirect(reverse('experiment_update', kwargs={'pk': new_experiment.id}))
-
-        else:
-            status=400
-
-    else:
-        form = CopyExperimentForm()
-
-    context = {
-        'form': form,
-    }
-
-    return render(request,template,context,status=status)
+    return render(
+        request,
+        'pyensemble/item_copy.html',
+        {'form': CopyExperimentForm()},
+    )
 
 #
 # Form editing views
@@ -358,8 +539,15 @@ class FormUpdateView(LoginRequiredMixin,UpdateView):
     template_name = 'pyensemble/form_update.html'
     form_class = FormForm
 
+    def get_template_names(self):
+        if self.request.GET.get('standalone') == '1':
+            return ['pyensemble/editor_detail_page.html']
+        return super().get_template_names()
+
     def get_context_data(self, **kwargs):
         context = super(FormUpdateView, self).get_context_data(**kwargs)
+        if self.request.GET.get('standalone') == '1':
+            context['detail_template'] = self.template_name
 
         if self.request.POST:
             context['formset'] = FormQuestionFormset(self.request.POST, instance=self.object)
@@ -371,24 +559,53 @@ class FormUpdateView(LoginRequiredMixin,UpdateView):
         return context
 
     def form_valid(self, form):
-        context = self.get_context_data()
+        context = self.get_context_data(form=form)
         formset = context['formset']
+        if not formset.is_valid():
+            context['formset'] = formset
+            return self.render_to_response(context, status=400)
+
         with transaction.atomic():
             self.object = form.save()
-            if formset.is_valid():
-                # Save forms in (new) order
-                for idx,f in enumerate(formset.ordered_forms):
-                    f.instance.form_question_num = idx+1
-                    f.instance.save()
+            # Save questions in (new) order
+            for idx,f in enumerate(formset.ordered_forms):
+                f.instance.form_question_num = idx+1
+                f.instance.save()
 
-                # Delete forms flagged for deletion
-                for f in formset.deleted_forms:
-                    f.instance.delete()
+            # Delete questions flagged for deletion
+            for f in formset.deleted_forms:
+                f.instance.delete()
 
-        return super(FormUpdateView, self).form_valid(form)
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
         return reverse_lazy('form_update', kwargs={'pk': self.object.pk})
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def copy_form(request, form_id):
+    source = Form.objects.get(pk=form_id)
+    if request.method == 'POST':
+        form = CopyFormForm(request.POST)
+        if form.is_valid():
+            clone = clone_form(source, form.cleaned_data['name'])
+            return HttpResponseRedirect(
+                reverse('form_update', kwargs={'pk': clone.pk}),
+            )
+        return render(
+            request,
+            'pyensemble/item_copy.html',
+            {'form': form},
+            status=400,
+        )
+
+    return render(
+        request,
+        'pyensemble/item_copy.html',
+        {'form': CopyFormForm()},
+    )
+
 
 class FormPresentView(LoginRequiredMixin,UpdateView):
     model = Form
@@ -475,8 +692,15 @@ class QuestionPresentView(LoginRequiredMixin,UpdateView):
     form_class = QuestionPresentForm
     template_name = 'pyensemble/question_present.html'
 
+    def get_template_names(self):
+        if self.request.GET.get('standalone') == '1':
+            return ['pyensemble/editor_detail_page.html']
+        return super().get_template_names()
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        if self.request.GET.get('standalone') == '1':
+            context['detail_template'] = self.template_name
         context['object_type'] = context['object'].__class__.__name__.lower()
 
         return context
@@ -489,6 +713,11 @@ class EnumListView(LoginRequiredMixin,ListView):
     context_object_name = 'enum_list'
     template_name = 'pyensemble/enum_list.html'
     ordering = ['pk']
+
+    def get_template_names(self):
+        if self.request.GET.get('standalone') == '1':
+            return ['pyensemble/enum_list_page.html']
+        return super().get_template_names()
 
 class EnumCreateView(LoginRequiredMixin,CreateView):
     model = DataFormat

@@ -1,0 +1,30 @@
+<table
+    data-toggle="table"
+    data-search="true"
+    data-pagination="true"
+    data-click-to-select="true"
+    class="form-list table-striped"
+>
+    <thead>
+        <tr class="list-group-item">
+            <th data-field="checkbox" data-checkbox="true"></th>
+            <th data-field="name">Study Name</th>
+            <th data-field="experiment_count">Experiments</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for study in study_list %}
+            <tr class="contentlist-item">
+                <td></td>
+                <td class="text-left">
+                    <a class="contentlist-item-link" href="{% url 'study_update' study.pk %}">
+                        {{ study.title }}
+                    </a>
+                </td>
+                <td>{{ study.experiment_count }}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="3">No studies have been created.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>

@@ -10,6 +10,7 @@ function bindFunctions(){
         ev.preventDefault();
 
         var itemType = ev.target.innerText;
+        var objectType = "";
 
         $.ajax({
             url: ev.target.href,
@@ -19,7 +20,12 @@ function bindFunctions(){
                 $("#content-right").addClass('d-none');
 
                 $("#contentListHeader").text(itemType);
-                $("#addButton").text('Add '+itemType.slice(0,itemType.length-1));
+                if (itemType == "Studies"){
+                    objectType = "Study";
+                } else {
+                    objectType = itemType.slice(0,itemType.length-1);
+                }
+                $("#addButton").text('Add '+ objectType);
                 $("#addButton").on('click',function(ev){
                     ev.preventDefault();
 
@@ -137,10 +143,14 @@ function submitNewItemForm(item_type){
         type: 'POST',
         data: $("#copyItemForm").serialize(),
         success: function(response){
-            $("#content-right").html(response);
+            var $modal = $("#copyItemModal");
+            $modal.one('hidden.bs.modal', function(){
+                $("#content-right").html(response);
+            });
+            $modal.modal('hide');
         },
         error: function(response,errorText){
-            alert('An experiment with that title already exists! Please choose a different title!')
+            $("#copyItemModal .modal-body").html(response.responseText);
         }
     });    
 }

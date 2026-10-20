@@ -339,7 +339,7 @@ Sessions uniquely associate participants with an instance of running an experime
 # Usage
 <a name="create_qfe"/></a>
 ## Creating questions, forms, and experiments
-Experiments, Forms, Questions, and Enums can all be defined through the editor interface and require no programming whatsoever. For experiments that are purely surveys which present no stimuli can be deployed entirely within the editor interface.
+Studies, Experiments, Forms, Questions, and Enums can be managed through the editor interface and require no programming whatsoever. The Studies editor lets an Editor create a Study and order at least two distinct Experiments within it. Study locking metadata and centralized definition-write guards are under implementation, but user-facing lock controls and complete writer coverage are not yet available; do not rely on production locking yet. For experiments that are purely surveys which present no stimuli can be deployed entirely within the editor interface.
 
 <a name="tickets"/></a>
 ## Creating tickets

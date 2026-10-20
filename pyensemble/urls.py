@@ -63,12 +63,18 @@ app_patterns = [
 
 editor_patterns = [
     path('', views.EditorView.as_view(template_name='pyensemble/editor_base.html'), name='editor'),
+    path('studies/', views.StudyListView.as_view(), name='study_list'),
+    path('studies/create/', views.StudyCreateView.as_view(), name='study_create'),
+    path('studies/<int:pk>/', views.StudyUpdateView.as_view(), name='study_update'),
+    path('studies/copy/<int:study_id>/', views.copy_study, name='study_copy'),
+    path('delete/<str:model_name>/<int:pk>/', views.delete_definition_view, name='definition_delete'),
     path('experiments/', views.ExperimentListView.as_view(), name='experiment_list'),
     path('experiments/create/', views.ExperimentCreateView.as_view(), name='experiment_create'),
     path('experiments/copy/<int:experiment_id>/', views.copy_experiment, name='experiment_copy'),
     path('experiments/<int:pk>/', views.ExperimentUpdateView.as_view(), name='experiment_update'),
     path('forms/', views.FormListView.as_view(), name='form_list'),
     path('forms/create/', views.FormCreateView.as_view(), name='form_create'),
+    path('forms/copy/<int:form_id>/', views.copy_form, name='form_copy'),
     path('forms/update/<int:pk>', views.FormUpdateView.as_view(), name='form_update'),
     path('forms/<int:pk>/', views.FormPresentView.as_view(), name='form_present'),
     path('forms/add/<int:experiment_id>/', views.add_experiment_form, name='add_experiment_form'),

@@ -1,0 +1,98 @@
+{% extends "pyensemble/editor_detail.html" %}
+
+{% block detailContentTitle %}
+    {% if study.pk %}{{ study.title }}{% else %}New Study{% endif %}
+{% endblock %}
+
+{% block additionalDetailContentNavItems %}
+    {% if study.pk %}
+        <li class="nav-item"><a class="nav-link" href="#studyExperiments">Experiments</a></li>
+        <li class="nav-item"><a id="copyLink" class="nav-link" role="button" href="#">Copy</a></li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'definition_delete' 'study' study.pk %}">Delete</a>
+        </li>
+    {% endif %}
+{% endblock %}
+
+{% block detailContent %}
+<form id="editorForm" method="post" class="editor-form"
+      action="{% if study.pk %}{% url 'study_update' study.pk %}{% else %}{% url 'study_create' %}{% endif %}">
+    {% csrf_token %}
+    <div class="editor study-info text-left">
+        <ul class="list-group">
+            <li class="list-group-item bg-light">Study Information</li>
+            <li class="list-group-item">
+                {{ form.title.label_tag }}
+                {{ form.title }}
+                {{ form.title.errors }}
+            </li>
+            <li class="list-group-item">
+                {{ form.params.label_tag }}
+                {{ form.params }}
+                {{ form.params.errors }}
+            </li>
+            <li id="studyExperiments" class="list-group-item bg-light">
+                Ordered Experiments
+                <p class="mb-0 small">A study must contain at least two different experiments.</p>
+            </li>
+            <li class="list-group-item">
+                {{ formset.management_form }}
+                {{ formset.non_form_errors }}
+                <table class="table table-striped table-bordered">
+                    <thead>
+                        <tr><th>Order</th><th>Experiment</th><th>Experiment status</th><th>Remove</th></tr>
+                    </thead>
+                    <tbody id="study-experiment-rows">
+                        {% for row in formset %}
+                            <tr>
+                                <td>
+                                    {% for hidden in row.hidden_fields %}{{ hidden }}{% endfor %}
+                                    {{ row.ORDER }}{{ row.ORDER.errors }}
+                                </td>
+                                <td>{{ row.experiment }}{{ row.experiment.errors }}{{ row.non_field_errors }}</td>
+                                <td>
+                                    {% if row.instance.experiment_id %}
+                                        {% if row.instance.experiment.locked %}Locked{% else %}Editable{% endif %}
+                                    {% endif %}
+                                </td>
+                                <td>{{ row.DELETE }}</td>
+                            </tr>
+                        {% endfor %}
+                        <tr id="study-empty-form" class="d-none">
+                            <td>
+                                {% for hidden in formset.empty_form.hidden_fields %}{{ hidden }}{% endfor %}
+                                {{ formset.empty_form.ORDER }}
+                            </td>
+                            <td>{{ formset.empty_form.experiment }}</td>
+                            <td></td>
+                            <td>{{ formset.empty_form.DELETE }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button id="add-study-experiment" type="button" class="btn btn-outline-secondary">
+                    Add another experiment
+                </button>
+            </li>
+            <li class="list-group-item editor form-actions text-center">
+                <button type="submit" class="btn btn-primary">Save Study</button>
+            </li>
+        </ul>
+    </div>
+</form>
+{% if study.pk %}
+    {% include "pyensemble/modals/copy_item_modal.html" with item_type='study' item_plural='studies' %}
+{% endif %}
+<script>
+    document.getElementById('add-study-experiment').addEventListener('click', function () {
+        const totalForms = document.getElementById('id_studyxexperiment_set-TOTAL_FORMS');
+        const row = document.getElementById('study-empty-form').cloneNode(true);
+        const index = Number(totalForms.value);
+        row.removeAttribute('id');
+        row.classList.remove('d-none');
+        row.innerHTML = row.innerHTML.replaceAll('__prefix__', index);
+        row.querySelector('input[name$="-ORDER"]').value = index + 1;
+        document.getElementById('study-experiment-rows').appendChild(row);
+        totalForms.value = index + 1;
+    });
+</script>
+{% endblock %}
