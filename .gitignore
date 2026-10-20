@@ -136,7 +136,7 @@ html/dist
 
 # thirdparty python src
 python/src
-thirdparty/
+thirdparty/*
 
 # experiment directories
 pyensemble/experiments/*
@@ -144,3 +144,5 @@ pyensemble/experiments/*
 # Dev settings
 settings/*dev*.py
 settings/local/
+
+docs/dev
