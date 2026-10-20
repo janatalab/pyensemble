@@ -13,6 +13,9 @@
             <li><a class="nav-link content-link" href="{% url 'reporting' %}">Reports</a></li>
             <li><a class="nav-link content-link" href="{% url 'stimulus' %}">Stimuli</a></li>        
             <li><a class="nav-link content-link" href="{% url 'importers:import-home' %}">Importers</a></li>
+            {% if can_manage_accounts %}
+                <li><a class="nav-link" href="{% url 'account-invitations' %}">Account invitations</a></li>
+            {% endif %}
         </ul>
         <ul class="navbar-nav ml-auto">
             {% include "pyensemble/logout_button.html" %}

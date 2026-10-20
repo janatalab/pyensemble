@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from pyensemble.access import Role, has_role
 
 from django.views.generic import ListView
 from django.views.generic.base import TemplateView
@@ -151,6 +152,11 @@ def verify_email(request, user_id, token):
 
 class PyEnsembleHomeView(LoginRequiredMixin,TemplateView):
     template_name = 'pyensemble/pyensemble_home.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['can_manage_accounts'] = has_role(self.request.user, Role.ACCOUNT_ADMINISTRATOR)
+        return context
 
 class EditorView(LoginRequiredMixin,TemplateView):
     template_name = 'pyensemble/editor_base.html'

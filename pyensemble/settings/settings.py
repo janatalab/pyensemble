@@ -230,21 +230,27 @@ PORT = ''  # use '' for default http(s) ports
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = '/'
+ACCOUNT_INVITATION_ORIGIN = os.environ.get('PYENSEMBLE_ACCOUNT_INVITATION_ORIGIN', '')
 
 # Various things pertaining to sessions
 SESSION_DURATION=60*60*24 # default session duration
 
 # Email related stuff
+EMAIL_BACKEND = os.environ.get(
+    'PYENSEMBLE_EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend',
+)
 if 'email' in config.sections():
     email_params = config['email']
 
     EMAIL_HOST = email_params['host']
-    EMAIL_HOST_USER = email_params['host_user']
-    EMAIL_HOST_PASSWORD = email_params['host_password']
-    EMAIL_PORT = email_params['port']
-    EMAIL_USE_TLS = email_params['use_tls']
+    EMAIL_HOST_USER = email_params.get('host_user', '')
+    EMAIL_HOST_PASSWORD = email_params.get('host_password', '')
+    EMAIL_PORT = email_params.getint('port', 25)
+    EMAIL_USE_TLS = email_params.getboolean('use_tls', False)
+    EMAIL_USE_SSL = email_params.getboolean('use_ssl', False)
+    EMAIL_TIMEOUT = email_params.getint('timeout', 10)
     DEFAULT_FROM_EMAIL = email_params['default_from_email']
-    SERVER_EMAIL = EMAIL_HOST_USER
+    SERVER_EMAIL = DEFAULT_FROM_EMAIL
 
 
 # Logging

@@ -1,0 +1,45 @@
+{% extends "pyensemble/base.html" %}
+
+{% block main %}
+<main class="container my-4 text-left">
+    <a href="{% url 'home' %}">PyEnsemble home</a>
+    <h1>Account invitations</h1>
+    {% for message in messages %}
+        <div role="status" class="alert alert-info">{{ message }}</div>
+    {% endfor %}
+    <p>Invite a new user or resend an invitation. Resending replaces the previous link and role.
+       The invitation approves access; accepting it verifies the recipient's email address.</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Send invitation</button>
+    </form>
+    <h2 class="mt-4">Recent invitations</h2>
+    <table class="table">
+        <thead><tr><th>Email</th><th>Role</th><th>Invited by</th><th>Status</th><th>Expires</th><th>Action</th></tr></thead>
+        <tbody>
+        {% for invitation in page %}
+            <tr>
+                <td>{{ invitation.email }}</td>
+                <td>{{ invitation.get_role_display }}</td>
+                <td>{{ invitation.invited_by }}</td>
+                <td>{{ invitation.status }}</td>
+                <td>{{ invitation.expires_at }}</td>
+                <td>
+                    {% if not invitation.accepted_at and not invitation.revoked_at %}
+                    <form method="post" action="{% url 'account-invitation-revoke' invitation.pk %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm">Revoke</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="6">No invitations yet.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Previous</a>{% endif %}
+    {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Next</a>{% endif %}
+</main>
+{% endblock %}

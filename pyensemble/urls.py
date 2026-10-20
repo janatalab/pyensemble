@@ -22,6 +22,7 @@ from django.urls import path, include, reverse
 from pyensemble import views
 from pyensemble import reporting
 from pyensemble import integrity
+from pyensemble import accounts
 
 import pyensemble.errors as error
 
@@ -39,6 +40,9 @@ app_patterns = [
     path('admin/', admin.site.urls),
     path('accounts/login/', auth_views.LoginView.as_view(template_name='pyensemble/login.html'), name='login'),
     path('accounts/logout/', views.logout_view, name='logout'),
+    path('accounts/invitations/', accounts.invitations, name='account-invitations'),
+    path('accounts/invitations/<int:invitation_id>/revoke/', accounts.revoke_invitation, name='account-invitation-revoke'),
+    path('accounts/accept/<int:invitation_id>/<str:token>/', accounts.accept_invitation, name='account-invitation-accept'),
     path('register/participant/', views.register_participant, name='register-participant'),
     path('register/participant/<int:group_id>/', views.register_participant, name='register_with_group'),
     path('verify-email/<str:user_id>/<str:token>/', views.verify_email, name='verify_email'),
