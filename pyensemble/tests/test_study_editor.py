@@ -3,6 +3,7 @@ from django.contrib.auth.models import Group
 from django.test import TestCase
 from django.urls import reverse
 
+from pyensemble.locking import lock_experiment
 from pyensemble.models import Experiment, Study, StudyXExperiment
 
 
@@ -88,8 +89,16 @@ class StudyEditorTests(TestCase):
 
     def test_study_relationship_can_reference_an_experiment_already_marked_locked(self):
         locked_experiment = self.experiments[0]
-        locked_experiment.locked = True
-        locked_experiment.save(update_fields=['locked'])
+        release_manager = get_user_model().objects.create_user(
+            'study-release-manager',
+        )
+        release_manager.groups.add(Group.objects.get(name='Release manager'))
+        lock_experiment(
+            locked_experiment,
+            release_manager,
+            'Test release',
+            'test-release',
+        )
         study = Study.objects.create(title='Study containing locked experiment')
         StudyXExperiment.objects.create(
             study=study, experiment=locked_experiment, experiment_order=1,

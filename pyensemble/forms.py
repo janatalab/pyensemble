@@ -183,7 +183,10 @@ class FormQuestionForm(forms.ModelForm):
 class FormForm(forms.ModelForm):
     class Meta:
         model = Form
-        exclude = ('version','category','header_audio_path','footer_audio_path','questions','experiments')
+        exclude = (
+            'version', 'category', 'header_audio_path', 'footer_audio_path',
+            'questions', 'experiments', 'locked',
+        )
 
     def __init__(self, *args, **kwargs):
         super(FormForm, self).__init__(*args, **kwargs)
@@ -192,7 +195,7 @@ class FormForm(forms.ModelForm):
         self.helper.formset_tag = True
         self.helper.formset_method = 'POST'
 
-    field_order = ('name','header','footer','visit_once','locked')
+    field_order = ('name','header','footer','visit_once')
 
 FormQuestionFormset = forms.inlineformset_factory(Form, FormXQuestion, 
     form=FormQuestionForm, 

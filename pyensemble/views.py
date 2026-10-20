@@ -260,21 +260,24 @@ class ExperimentUpdateView(LoginRequiredMixin,UpdateView):
         return context
 
     def form_valid(self, form):
-        context = self.get_context_data()
+        context = self.get_context_data(form=form)
         formset = context['formset']
+        if not formset.is_valid():
+            context['formset'] = formset
+            return self.render_to_response(context, status=400)
+
         with transaction.atomic():
             self.object = form.save()
-            if formset.is_valid():
-                # Save forms in (new) order
-                for idx,f in enumerate(formset.ordered_forms):
-                    f.instance.form_order = idx+1
-                    f.instance.save()
+            # Save forms in (new) order
+            for idx,f in enumerate(formset.ordered_forms):
+                f.instance.form_order = idx+1
+                f.instance.save()
 
-                # Delete forms flagged for deletion
-                for f in formset.deleted_forms:
-                    f.instance.delete()
+            # Delete forms flagged for deletion
+            for f in formset.deleted_forms:
+                f.instance.delete()
 
-        return super(ExperimentUpdateView, self).form_valid(form)
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
         return reverse_lazy('experiment_update', kwargs={'pk': self.object.pk})
@@ -442,21 +445,24 @@ class FormUpdateView(LoginRequiredMixin,UpdateView):
         return context
 
     def form_valid(self, form):
-        context = self.get_context_data()
+        context = self.get_context_data(form=form)
         formset = context['formset']
+        if not formset.is_valid():
+            context['formset'] = formset
+            return self.render_to_response(context, status=400)
+
         with transaction.atomic():
             self.object = form.save()
-            if formset.is_valid():
-                # Save forms in (new) order
-                for idx,f in enumerate(formset.ordered_forms):
-                    f.instance.form_question_num = idx+1
-                    f.instance.save()
+            # Save questions in (new) order
+            for idx,f in enumerate(formset.ordered_forms):
+                f.instance.form_question_num = idx+1
+                f.instance.save()
 
-                # Delete forms flagged for deletion
-                for f in formset.deleted_forms:
-                    f.instance.delete()
+            # Delete questions flagged for deletion
+            for f in formset.deleted_forms:
+                f.instance.delete()
 
-        return super(FormUpdateView, self).form_valid(form)
+        return HttpResponseRedirect(self.get_success_url())
 
     def get_success_url(self):
         return reverse_lazy('form_update', kwargs={'pk': self.object.pk})

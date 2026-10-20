@@ -27,7 +27,9 @@
             <li class="list-group-item">{{form.footer.label}}{% crispy_field form.footer 'class' 'form-control' %}</li>
             <li class="list-group-item">
                 <div class="row">
-                    <div class="col-4">{% crispy_field form.locked %}{{form.locked.label}}</div>
+                    {% if form.instance.locked %}
+                        <div class="col-4"><span class="badge badge-secondary">Locked</span></div>
+                    {% endif %}
                     <div class="col-4 form-check">{% crispy_field form.visit_once %}{{form.visit_once.label}}</div>
                 </div>
             </li>

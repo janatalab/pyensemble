@@ -31,6 +31,7 @@ import zoneinfo
 from pyensemble.storage_backends import use_media_storage, use_data_storage
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
+from pyensemble.locking import DefinitionWriteManager, DefinitionWriteMixin
 
 import pdb
 
@@ -41,7 +42,14 @@ class Attribute(models.Model):
     name = models.CharField(max_length=50)
     attribute_class = models.CharField(db_column='class', max_length=15)  # Field renamed because it was a Python reserved word.
 
-class DataFormat(models.Model):
+class DefinitionWriteMutex(models.Model):
+    class Meta:
+        db_table = 'pyensemble_definition_write_mutex'
+
+
+class DataFormat(DefinitionWriteMixin, models.Model):
+    objects = DefinitionWriteManager()
+
     df_type = models.CharField(max_length=15,default='enum')
     enum_values = models.CharField(max_length=512, null=True, blank=True, default=None)
 
@@ -55,6 +63,7 @@ class DataFormat(models.Model):
     range_data = models.JSONField(null=True)
 
     class Meta:
+        base_manager_name = 'objects'
         unique_together = (("df_type", "enum_values"),)
 
     def choice(self):
@@ -82,7 +91,12 @@ def generate_range_hash(sender, instance, **kwargs):
     instance.range_hash
 
 
-class Question(models.Model):
+class Question(DefinitionWriteMixin, models.Model):
+    objects = DefinitionWriteManager()
+
+    class Meta:
+        base_manager_name = 'objects'
+
     _unique_hash = models.CharField(max_length=128, unique=True, db_column='unique_hash')
     text = models.TextField(blank=False)
     category = models.CharField(max_length=64, blank=True)
@@ -137,7 +151,12 @@ class Question(models.Model):
 def generate_question_hash(sender, instance, **kwargs):
     instance.unique_hash
 
-class Form(models.Model):
+class Form(DefinitionWriteMixin, models.Model):
+    objects = DefinitionWriteManager()
+
+    class Meta:
+        base_manager_name = 'objects'
+
     name = models.CharField(unique=True, max_length=50)
     category = models.CharField(max_length=19, blank=True)
     header = models.TextField(blank=True)
@@ -156,7 +175,12 @@ class Form(models.Model):
 
     # Add visited and can_visit properties
 
-class Experiment(models.Model):
+class Experiment(DefinitionWriteMixin, models.Model):
+    objects = DefinitionWriteManager()
+
+    class Meta:
+        base_manager_name = 'objects'
+
     title = models.CharField(unique=True, max_length=50)
     description = models.TextField(blank=True)
     irb_id = models.CharField(max_length=30, blank=True)
@@ -167,6 +191,18 @@ class Experiment(models.Model):
     play_question_audio = models.BooleanField(default=False)
     params = models.TextField(blank=True)  # This field is used to store experiment parameters in JSON format, and thus it should be a JSONField in the future
     locked = models.BooleanField(default=False)
+    locked_at = models.DateTimeField(null=True, blank=True)
+    locked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='locked_experiments',
+    )
+    lock_reason = models.TextField(blank=True)
+    lock_snapshot = models.JSONField(null=True, blank=True)
+    lock_snapshot_digest = models.CharField(max_length=64, blank=True)
+    release_identifier = models.CharField(max_length=100, blank=True)
 
     is_group = models.BooleanField(default=False, help_text="Subjects participate in groups")
     user_ticket_expected = models.BooleanField(default=False, help_text="User ticket expected for participation")
@@ -912,7 +948,9 @@ class ExperimentXStimulus(models.Model):
     class Meta:
         unique_together = (("experiment", "stimulus"),)
 
-class FormXQuestion(models.Model):
+class FormXQuestion(DefinitionWriteMixin, models.Model):
+    objects = DefinitionWriteManager()
+
     form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
     question = models.ForeignKey('Question', db_constraint=True, on_delete=models.CASCADE)
     question_iteration = models.IntegerField(default=1)
@@ -920,9 +958,12 @@ class FormXQuestion(models.Model):
     required = models.BooleanField(default=True)
 
     class Meta:
+        base_manager_name = 'objects'
         unique_together = (("form","question","form_question_num","question_iteration"),)
 
-class ExperimentXForm(models.Model):
+class ExperimentXForm(DefinitionWriteMixin, models.Model):
+    objects = DefinitionWriteManager()
+
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
     form_order = models.IntegerField()
@@ -974,6 +1015,7 @@ class ExperimentXForm(models.Model):
     use_clientside_validation = models.BooleanField(default=False)
 
     class Meta:
+        base_manager_name = 'objects'
         unique_together = (("experiment", "form", "form_order"),)
         ordering = ['form_order']
 
@@ -1257,9 +1299,27 @@ class ExperimentXAttribute(models.Model):
 
 # TODO: Create an Editor view, like the Experiment editor, that allows one to generate a study.
 
-class Study(models.Model):
+class Study(DefinitionWriteMixin, models.Model):
+    objects = DefinitionWriteManager()
+
+    class Meta:
+        base_manager_name = 'objects'
+
     title = models.CharField(unique=True, max_length=50)
     params = models.JSONField(null=True)
+    locked = models.BooleanField(default=False)
+    locked_at = models.DateTimeField(null=True, blank=True)
+    locked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name='locked_studies',
+    )
+    lock_reason = models.TextField(blank=True)
+    lock_snapshot = models.JSONField(null=True, blank=True)
+    lock_snapshot_digest = models.CharField(max_length=64, blank=True)
+    release_identifier = models.CharField(max_length=100, blank=True)
 
     # Get the experiments uniquely associated with this study
     experiments = models.ManyToManyField('Experiment', through='StudyXExperiment')
@@ -1272,12 +1332,15 @@ class Study(models.Model):
         return StudyXExperiment.objects.filter(study=self).count()
 
 
-class StudyXExperiment(models.Model):
+class StudyXExperiment(DefinitionWriteMixin, models.Model):
+    objects = DefinitionWriteManager()
+
     study = models.ForeignKey('Study', db_constraint=True, on_delete=models.CASCADE)
     experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
     experiment_order = models.PositiveSmallIntegerField()
 
     class Meta:
+        base_manager_name = 'objects'
         unique_together = (("study","experiment", "experiment_order"),)
         ordering = ['experiment_order']
 
