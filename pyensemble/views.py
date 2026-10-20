@@ -50,6 +50,7 @@ import logging
 
 import pdb
 
+@require_http_methods(['POST'])
 def logout_view(request):
     logout(request)
 

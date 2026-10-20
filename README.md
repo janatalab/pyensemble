@@ -196,7 +196,11 @@ In order to access the various editing interfaces and generate tickets for runni
 ```
 > python manage.py createsuperuser
 ```
-Using the standard Django admin interfaces at https://<server_name>/pyensemble/admin/ one can create additional users. Users within the admin group will be able to authenticate and access the editor interface under https://<server_name>/pyensemble/editor/
+Using the standard Django admin interfaces at https://<server_name>/pyensemble/admin/ a trusted superuser can create additional users. Run `python manage.py migrate` to create the application role groups, then explicitly assign each user one of these groups (highest first): **Account administrator**, **Release manager**, or **Editor**. Higher roles inherit all lower-role application access. Editor includes editing, importing, stimuli, reporting, data management, exports, tickets, and experimenter/group management.
+
+Existing users are not automatically assigned a role. An active account without a qualifying role receives HTTP 403 for the research interfaces; active superusers retain access. The Django `is_staff` flag alone does not grant an application role. Django admin requires Account administrator access (or an active superuser) in addition to its existing staff and model-permission checks.
+
+See [User account creation and access management](docs/user-account-hardening.md) for deployment steps, explicit role assignment, participant-route exceptions, and the remaining email-verification proposal. New experiment-specific routes require Editor access by default; genuinely public participant callbacks must explicitly use the documented `participant_view` decorator.
 
 <a name="production"/></a>
 ## Deploying the production server

@@ -15,7 +15,7 @@
             <li><a class="nav-link content-link" href="{% url 'importers:import-home' %}">Importers</a></li>
         </ul>
         <ul class="navbar-nav ml-auto">
-            <a class="nav-link" href="{% url 'logout' %}">Logout</a>
+            {% include "pyensemble/logout_button.html" %}
         </ul>
     </div>
   </div>
