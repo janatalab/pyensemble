@@ -9,7 +9,7 @@
       </div>
       <div class="modal-body"></div>
       <div class="modal-footer">
-        <button id="copyItemSubmit" type="button" class="btn btn-primary mr-auto" data-dismiss="modal">Create {{item_type|title}}</button>
+        <button id="copyItemSubmit" type="button" class="btn btn-primary mr-auto">Create {{item_type|title}}</button>
         <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
       </div>
     </div>
@@ -23,12 +23,12 @@
     })
 
     $('#copyItemModal').on('show.bs.modal', function(ev){
-      fetchNewItemForm('{{item_type}}s');
+      fetchNewItemForm('{{item_plural}}');
     });
 
     $('#copyItemSubmit').on('click',function(ev){
       ev.preventDefault();
-      submitNewItemForm('{{item_type}}s');
+      submitNewItemForm('{{item_plural}}');
     })
   })
 </script>

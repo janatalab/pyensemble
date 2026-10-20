@@ -10,6 +10,11 @@
 {% endblock %}
 
 {% block additionalDetailContentNavItems %}
+    {% if form.instance.pk %}
+        <li class="nav-item">
+            <a id="copyLink" class="nav-link" role="button" href="#">Copy</a>
+        </li>
+    {% endif %}
     <li class="nav-item">
         <a class="nav-link" href="#formQuestions">Questions</a>
     </li>
@@ -23,6 +28,6 @@
     {% crispy form %}
 
     {% include "pyensemble/modals/add_item_modal.html" with item_type='question' %}
-    {% include "pyensemble/modals/copy_item_modal.html" with item_type='form' %}
+    {% include "pyensemble/modals/copy_item_modal.html" with item_type='form' item_plural='forms' %}
 
 {% endblock %}

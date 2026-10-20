@@ -237,6 +237,195 @@ class DefinitionLockingTests(TestCase):
             )
         self.assertFalse(Experiment.objects.get(pk=self.experiment.pk).locked)
 
+    def test_clone_locked_experiment_copies_metadata_and_relationships_only(self):
+        self.experiment.description = 'Protocol description'
+        self.experiment.params = '{"mode": "production"}'
+        self.experiment.is_group = True
+        self.experiment.save()
+        self.experiment_form.form_handler = 'form_feedback'
+        self.experiment_form.condition = 'condition-expression'
+        self.experiment_form.stimulus_script = 'stimulus.method'
+        self.experiment_form.save()
+        self.lock_experiment()
+        source_row_id = self.experiment_form.pk
+        source_form_id = self.experiment_form.form_id
+
+        response = self.client.post(
+            reverse('experiment_copy', args=[self.experiment.pk]),
+            {'title': 'Draft protocol'},
+        )
+
+        clone = Experiment.objects.get(title='Draft protocol')
+        clone_row = ExperimentXForm.objects.get(experiment=clone)
+        self.assertRedirects(
+            response,
+            reverse('experiment_update', args=[clone.pk]),
+        )
+        self.assertNotEqual(clone.pk, self.experiment.pk)
+        self.assertFalse(clone.locked)
+        self.assertEqual(clone.description, 'Protocol description')
+        self.assertEqual(clone.params, '{"mode": "production"}')
+        self.assertTrue(clone.is_group)
+        self.assertNotEqual(clone_row.pk, source_row_id)
+        self.assertEqual(clone_row.form_id, source_form_id)
+        self.assertEqual(clone_row.form_handler, 'form_feedback')
+        self.assertEqual(clone_row.condition, 'condition-expression')
+        self.assertEqual(clone_row.stimulus_script, 'stimulus.method')
+        self.assertTrue(Experiment.objects.get(pk=self.experiment.pk).locked)
+        self.assertEqual(
+            ExperimentXForm.objects.get(pk=source_row_id).form_id,
+            source_form_id,
+        )
+        clone.title = 'Edited draft protocol'
+        clone.save()
+        clone_row.form_order = 2
+        clone_row.save()
+        self.assertEqual(
+            Experiment.objects.get(pk=self.experiment.pk).title,
+            'Production study',
+        )
+        self.assertEqual(
+            ExperimentXForm.objects.get(pk=source_row_id).form_order,
+            1,
+        )
+
+    def test_clone_locked_form_copies_question_relationships_only(self):
+        self.form.header = 'Instructions'
+        self.form.visit_once = True
+        self.form.save()
+        self.form_question.question_iteration = 3
+        self.form_question.required = False
+        self.form_question.save()
+        self.lock_experiment()
+        source_row_id = self.form_question.pk
+
+        response = self.client.post(
+            reverse('form_copy', args=[self.form.pk]),
+            {'name': 'Consent draft'},
+        )
+
+        clone = Form.objects.get(name='Consent draft')
+        clone_row = FormXQuestion.objects.get(form=clone)
+        self.assertRedirects(
+            response,
+            reverse('form_update', args=[clone.pk]),
+        )
+        self.assertNotEqual(clone.pk, self.form.pk)
+        self.assertFalse(clone.locked)
+        self.assertEqual(clone.header, 'Instructions')
+        self.assertTrue(clone.visit_once)
+        self.assertNotEqual(clone_row.pk, source_row_id)
+        self.assertEqual(clone_row.question_id, self.question.pk)
+        self.assertEqual(clone_row.question_iteration, 3)
+        self.assertFalse(clone_row.required)
+        self.assertEqual(
+            FormXQuestion.objects.get(pk=source_row_id).form_id,
+            self.form.pk,
+        )
+        self.assertEqual(Question.objects.get(pk=self.question.pk).text, 'Do you agree?')
+        clone.name = 'Edited consent draft'
+        clone.save()
+        clone_row.question_iteration = 4
+        clone_row.save()
+        self.assertEqual(Form.objects.get(pk=self.form.pk).name, 'Consent')
+        self.assertEqual(
+            FormXQuestion.objects.get(pk=source_row_id).question_iteration,
+            3,
+        )
+
+    def test_clone_locked_study_copies_membership_but_reuses_experiments(self):
+        second_experiment = Experiment.objects.create(title='Second protocol')
+        study = Study.objects.create(title='Production Study', params={'cohort': 'A'})
+        source_rows = [
+            StudyXExperiment.objects.create(
+                study=study,
+                experiment=experiment,
+                experiment_order=order,
+            )
+            for order, experiment in enumerate(
+                (self.experiment, second_experiment),
+                start=1,
+            )
+        ]
+        lock_study(study, self.actor, 'Release', 'study-release-2')
+
+        response = self.client.post(
+            reverse('study_copy', args=[study.pk]),
+            {'title': 'Draft Study'},
+        )
+
+        clone = Study.objects.get(title='Draft Study')
+        clone_rows = list(
+            StudyXExperiment.objects.filter(study=clone).order_by('experiment_order'),
+        )
+        self.assertRedirects(response, reverse('study_update', args=[clone.pk]))
+        self.assertNotEqual(clone.pk, study.pk)
+        self.assertFalse(clone.locked)
+        self.assertEqual(clone.params, {'cohort': 'A'})
+        self.assertEqual(
+            [row.experiment_id for row in clone_rows],
+            [row.experiment_id for row in source_rows],
+        )
+        self.assertTrue(all(
+            clone_row.pk != source_row.pk
+            for clone_row, source_row in zip(clone_rows, source_rows)
+        ))
+        self.assertTrue(Study.objects.get(pk=study.pk).locked)
+        self.assertEqual(Experiment.objects.count(), 2)
+        clone.title = 'Edited draft Study'
+        clone.save()
+        clone_rows[0].experiment_order = 2
+        clone_rows[0].save()
+        self.assertEqual(Study.objects.get(pk=study.pk).title, 'Production Study')
+        self.assertEqual(
+            StudyXExperiment.objects.get(pk=source_rows[0].pk).experiment_order,
+            1,
+        )
+
+    def test_clone_endpoints_reject_duplicate_names_without_side_effects(self):
+        self.lock_experiment()
+        experiment_count = Experiment.objects.count()
+        form_count = Form.objects.count()
+
+        experiment_response = self.client.post(
+            reverse('experiment_copy', args=[self.experiment.pk]),
+            {'title': self.experiment.title},
+        )
+        form_response = self.client.post(
+            reverse('form_copy', args=[self.form.pk]),
+            {'name': self.form.name},
+        )
+
+        self.assertEqual(experiment_response.status_code, 400)
+        self.assertEqual(form_response.status_code, 400)
+        self.assertEqual(Experiment.objects.count(), experiment_count)
+        self.assertEqual(Form.objects.count(), form_count)
+
+    def test_clone_dialogs_use_valid_urls_for_each_object_type(self):
+        second_experiment = Experiment.objects.create(title='Second protocol')
+        study = Study.objects.create(title='Study with protocols')
+        StudyXExperiment.objects.create(
+            study=study,
+            experiment=self.experiment,
+            experiment_order=1,
+        )
+        StudyXExperiment.objects.create(
+            study=study,
+            experiment=second_experiment,
+            experiment_order=2,
+        )
+
+        cases = (
+            ('experiment_update', self.experiment.pk, "fetchNewItemForm('experiments')"),
+            ('form_update', self.form.pk, "fetchNewItemForm('forms')"),
+            ('study_update', study.pk, "fetchNewItemForm('studies')"),
+        )
+        for view_name, object_id, expected_script in cases:
+            with self.subTest(view=view_name):
+                response = self.client.get(reverse(view_name, args=[object_id]))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, expected_script)
+
     def test_editor_formsets_are_validated_before_parent_updates(self):
         response = self.client.post(
             reverse('experiment_update', args=[self.experiment.pk]),

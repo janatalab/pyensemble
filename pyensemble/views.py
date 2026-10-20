@@ -29,7 +29,7 @@ from django.views.generic.edit import CreateView, UpdateView
 
 from pyensemble.models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, EmailVerification, Study, StudyXExperiment
 
-from pyensemble.forms import RegisterSubjectForm, RegisterSubjectUsingEmailForm, LoginSubjectUsingEmailForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm, StudyForm, StudyExperimentFormSetFactory
+from pyensemble.forms import RegisterSubjectForm, RegisterSubjectUsingEmailForm, LoginSubjectUsingEmailForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, CopyFormForm, CopyStudyForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm, StudyForm, StudyExperimentFormSetFactory
 
 from pyensemble.tasks import fetch_subject_id, create_tickets, send_email
 
@@ -46,6 +46,7 @@ from pyensemble.group.views import attach_subject_to_group, get_group_session, s
 from crispy_forms.layout import Submit
 
 from pyensemble.utils.serializers import ExperimentSerializer, FormSerializer, QuestionSerializer
+from pyensemble.cloning import clone_experiment, clone_form, clone_study
 
 import logging
 
@@ -353,6 +354,31 @@ class StudyUpdateView(StudyEditorMixin, LoginRequiredMixin, UpdateView):
     model = Study
 
 
+@login_required
+@require_http_methods(['GET', 'POST'])
+def copy_study(request, study_id):
+    source = Study.objects.get(pk=study_id)
+    if request.method == 'POST':
+        form = CopyStudyForm(request.POST)
+        if form.is_valid():
+            clone = clone_study(source, form.cleaned_data['title'])
+            return HttpResponseRedirect(
+                reverse('study_update', kwargs={'pk': clone.pk}),
+            )
+        return render(
+            request,
+            'pyensemble/item_copy.html',
+            {'form': form},
+            status=400,
+        )
+
+    return render(
+        request,
+        'pyensemble/item_copy.html',
+        {'form': CopyStudyForm()},
+    )
+
+
 def add_experiment_form(request, experiment_id):
     if request.method == 'POST':
         # Get our Experiment instance
@@ -370,46 +396,28 @@ def add_experiment_form(request, experiment_id):
     return HttpResponseRedirect(reverse('experiment_update', kwargs={'pk': experiment_id}))
 
 @login_required
+@require_http_methods(['GET', 'POST'])
 def copy_experiment(request, experiment_id):
-    template = 'pyensemble/item_copy.html'
-    status = 200
-
+    source = Experiment.objects.get(pk=experiment_id)
     if request.method == 'POST':
         form = CopyExperimentForm(request.POST)
-
         if form.is_valid():
-            # Create a new Experiment
-            new_experiment = Experiment.objects.create(title=form.cleaned_data['title'])
+            clone = clone_experiment(source, form.cleaned_data['title'])
+            return HttpResponseRedirect(
+                reverse('experiment_update', kwargs={'pk': clone.pk}),
+            )
+        return render(
+            request,
+            'pyensemble/item_copy.html',
+            {'form': form},
+            status=400,
+        )
 
-            # Now copy all of the ExperimentXForm entries from the parent experiment
-            old_exf = ExperimentXForm.objects.filter(experiment__id=experiment_id)
-
-            new_exf = []
-            for exf in old_exf:
-                exf.pk = None # To prevent overwrite of existing exf entry
-
-                # Replace old experiment object with new experiment object in the exf instance
-                exf.experiment = new_experiment 
-
-                # Add the instance to the stack
-                new_exf.append(exf)
-
-            # Create all of the new exf entries
-            ExperimentXForm.objects.bulk_create(new_exf) 
-
-            return HttpResponseRedirect(reverse('experiment_update', kwargs={'pk': new_experiment.id}))
-
-        else:
-            status=400
-
-    else:
-        form = CopyExperimentForm()
-
-    context = {
-        'form': form,
-    }
-
-    return render(request,template,context,status=status)
+    return render(
+        request,
+        'pyensemble/item_copy.html',
+        {'form': CopyExperimentForm()},
+    )
 
 #
 # Form editing views
@@ -466,6 +474,32 @@ class FormUpdateView(LoginRequiredMixin,UpdateView):
 
     def get_success_url(self):
         return reverse_lazy('form_update', kwargs={'pk': self.object.pk})
+
+
+@login_required
+@require_http_methods(['GET', 'POST'])
+def copy_form(request, form_id):
+    source = Form.objects.get(pk=form_id)
+    if request.method == 'POST':
+        form = CopyFormForm(request.POST)
+        if form.is_valid():
+            clone = clone_form(source, form.cleaned_data['name'])
+            return HttpResponseRedirect(
+                reverse('form_update', kwargs={'pk': clone.pk}),
+            )
+        return render(
+            request,
+            'pyensemble/item_copy.html',
+            {'form': form},
+            status=400,
+        )
+
+    return render(
+        request,
+        'pyensemble/item_copy.html',
+        {'form': CopyFormForm()},
+    )
+
 
 class FormPresentView(LoginRequiredMixin,UpdateView):
     model = Form

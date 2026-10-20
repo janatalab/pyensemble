@@ -7,6 +7,7 @@
 {% block additionalDetailContentNavItems %}
     {% if study.pk %}
         <li class="nav-item"><a class="nav-link" href="#studyExperiments">Experiments</a></li>
+        <li class="nav-item"><a id="copyLink" class="nav-link" role="button" href="#">Copy</a></li>
     {% endif %}
 {% endblock %}
 
@@ -75,6 +76,9 @@
         </ul>
     </div>
 </form>
+{% if study.pk %}
+    {% include "pyensemble/modals/copy_item_modal.html" with item_type='study' item_plural='studies' %}
+{% endif %}
 <script>
     document.getElementById('add-study-experiment').addEventListener('click', function () {
         const totalForms = document.getElementById('id_studyxexperiment_set-TOTAL_FORMS');

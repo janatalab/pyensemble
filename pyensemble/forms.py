@@ -56,7 +56,10 @@ class QuestionCreateForm(forms.ModelForm):
 
     class Meta:
         model=Question
-        exclude=('_unique_hash','forms','data_format','category','value_range','value_default','audio_path')
+        exclude=(
+            '_unique_hash', 'forms', 'data_format', 'category', 'value_range',
+            'value_default', 'audio_path', 'locked',
+        )
 
         widgets = {
             'text': forms.TextInput(attrs={'placeholder':'Enter the question text here'}),
@@ -362,6 +365,35 @@ class CopyExperimentForm(forms.ModelForm):
     helper = FormHelper()
     helper.form_method = 'POST'
     helper.form_id = 'copyItemForm'
+
+
+class CopyFormForm(forms.ModelForm):
+    class Meta:
+        model = Form
+        fields = ('name',)
+
+        widgets = {
+            'name': forms.TextInput(attrs={'placeholder': 'Name of new form'}),
+        }
+
+    helper = FormHelper()
+    helper.form_method = 'POST'
+    helper.form_id = 'copyItemForm'
+
+
+class CopyStudyForm(forms.ModelForm):
+    class Meta:
+        model = Study
+        fields = ('title',)
+
+        widgets = {
+            'title': forms.TextInput(attrs={'placeholder': 'Title of new study'}),
+        }
+
+    helper = FormHelper()
+    helper.form_method = 'POST'
+    helper.form_id = 'copyItemForm'
+
 
 # TODO: Refactor TicketCreationForm into a ModelForm and also make use of validfrom field
 class TicketCreationForm(forms.Form):

@@ -144,9 +144,10 @@ function submitNewItemForm(item_type){
         data: $("#copyItemForm").serialize(),
         success: function(response){
             $("#content-right").html(response);
+            $("#copyItemModal").modal('hide');
         },
         error: function(response,errorText){
-            alert('An experiment with that title already exists! Please choose a different title!')
+            $("#copyItemModal .modal-body").html(response.responseText);
         }
     });    
 }
