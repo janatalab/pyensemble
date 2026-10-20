@@ -17,6 +17,7 @@ class InterfaceAccessMiddleware(MiddlewareMixin):
     public_views = frozenset({
         'login',
         'logout',
+        'account-invitation-accept',
         'register-participant',
         'register_with_group',
         'verify_email',

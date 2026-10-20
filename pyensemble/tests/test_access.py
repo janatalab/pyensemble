@@ -110,13 +110,14 @@ class InterfaceAccessTests(TestCase):
                 public = name in self.middleware.public_views
                 if public:
                     seen_public.add(name)
-                is_admin = 'admin' in match.app_names
+                minimum_role = (
+                    Role.ACCOUNT_ADMINISTRATOR if 'admin' in match.app_names
+                    else getattr(match.func, 'required_role', Role.EDITOR)
+                )
                 for user in (AnonymousUser(), self.unassigned, *self.users.values()):
                     with self.subTest(route=name, user=str(user)):
                         request = self.request_for(path, user)
-                        allowed = public or has_role(
-                            user, Role.ACCOUNT_ADMINISTRATOR if is_admin else Role.EDITOR,
-                        )
+                        allowed = public or has_role(user, minimum_role)
                         if allowed:
                             self.assertIsNone(self.middleware.process_view(
                                 request, match.func, (), kwargs,

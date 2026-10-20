@@ -200,7 +200,9 @@ Using the standard Django admin interfaces at https://<server_name>/pyensemble/a
 
 Existing users are not automatically assigned a role. An active account without a qualifying role receives HTTP 403 for the research interfaces; active superusers retain access. The Django `is_staff` flag alone does not grant an application role. Django admin requires Account administrator access (or an active superuser) in addition to its existing staff and model-permission checks.
 
-See [User account creation and access management](docs/user-account-hardening.md) for deployment steps, explicit role assignment, participant-route exceptions, and the remaining email-verification proposal. New experiment-specific routes require Editor access by default; genuinely public participant callbacks must explicitly use the documented `participant_view` decorator.
+Account administrators can now send email invitations from **Account invitations** on the home page. The invitation supplies approval; the recipient verifies email ownership by following the single-use link and choosing a username/password. All three roles can be invited, without granting Django staff or superuser status. See [Account invitations](docs/account-invitations.md) for deployment, trusted link-origin configuration, SMTP settings, resend/revoke controls, and local testing without SMTP.
+
+New experiment-specific routes require Editor access by default. Genuinely public participant callbacks must explicitly use `@participant_view` from [pyensemble/access.py](pyensemble/access.py), retaining their own ticket/session validation. Django group membership supplies inherited access; `@role_required(Role.RELEASE_MANAGER)` and `@role_required(Role.ACCOUNT_ADMINISTRATOR)` declare higher-role actions.
 
 <a name="production"/></a>
 ## Deploying the production server

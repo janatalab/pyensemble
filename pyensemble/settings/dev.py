@@ -5,6 +5,12 @@ from .settings import *
 import pdb
 
 DEBUG=True
+EMAIL_BACKEND = os.environ.get(
+    'PYENSEMBLE_EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend',
+)
+ACCOUNT_INVITATION_ORIGIN = os.environ.get(
+    'PYENSEMBLE_ACCOUNT_INVITATION_ORIGIN', 'http://localhost:8000',
+)
 
 INSTALLED_APPS += ['sslserver']
 

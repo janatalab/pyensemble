@@ -1465,3 +1465,45 @@ class ExperimentFileAttribute(models.Model):
         m.update(self.attribute_value_text.encode('utf-8'))
         self.unique_hash = m.hexdigest()
         super(ExperimentFileAttribute, self).save(*args, **kwargs)
+
+
+class AccountInvitation(models.Model):
+    email = models.EmailField(unique=True)
+    role = models.PositiveSmallIntegerField(choices=[
+        (1, 'Editor'),
+        (2, 'Release manager'),
+        (3, 'Account administrator'),
+    ])
+    token_digest = models.CharField(max_length=64)
+    invited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL,
+        related_name='account_invitations_sent',
+    )
+    issued_at = models.DateTimeField()
+    expires_at = models.DateTimeField()
+    sent_at = models.DateTimeField(null=True)
+    revoked_at = models.DateTimeField(null=True)
+    accepted_at = models.DateTimeField(null=True)
+    accepted_user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL,
+        related_name='accepted_invitation',
+    )
+
+    @property
+    def status(self):
+        if self.accepted_at:
+            return 'Accepted'
+        if self.revoked_at:
+            return 'Revoked'
+        if self.expires_at <= timezone.now():
+            return 'Expired'
+        return 'Pending' if self.sent_at else 'Not sent'
+
+
+class AccountInvitationDelivery(models.Model):
+    invitation = models.ForeignKey(AccountInvitation, on_delete=models.PROTECT)
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL,
+    )
+    attempted_at = models.DateTimeField(default=timezone.now, db_index=True)
+    sent_at = models.DateTimeField(null=True)
