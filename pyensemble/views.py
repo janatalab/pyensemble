@@ -8,7 +8,7 @@ from django.utils import timezone
 from django.contrib.auth import logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
-from pyensemble.access import Role, has_role
+from pyensemble.access import Role, has_role, role_required
 
 from django.views.generic import ListView
 from django.views.generic.base import TemplateView
@@ -29,7 +29,7 @@ from django.views.generic.edit import CreateView, UpdateView
 
 from pyensemble.models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, EmailVerification, Study, StudyXExperiment
 
-from pyensemble.forms import RegisterSubjectForm, RegisterSubjectUsingEmailForm, LoginSubjectUsingEmailForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, CopyFormForm, CopyStudyForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm, StudyForm, StudyExperimentFormSetFactory
+from pyensemble.forms import RegisterSubjectForm, RegisterSubjectUsingEmailForm, LoginSubjectUsingEmailForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, CopyFormForm, CopyStudyForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm, StudyForm, StudyExperimentFormSetFactory, DefinitionDeletionForm
 
 from pyensemble.tasks import fetch_subject_id, create_tickets, send_email
 
@@ -47,6 +47,14 @@ from crispy_forms.layout import Submit
 
 from pyensemble.utils.serializers import ExperimentSerializer, FormSerializer, QuestionSerializer
 from pyensemble.cloning import clone_experiment, clone_form, clone_study
+from pyensemble.deletion import (
+    DELETABLE_MODELS,
+    DefinitionDeletionBlocked,
+    definition_label,
+    delete_definition,
+    get_deletion_blockers,
+    get_deletion_reference_counts,
+)
 
 import logging
 
@@ -352,6 +360,83 @@ class StudyCreateView(StudyEditorMixin, LoginRequiredMixin, CreateView):
 
 class StudyUpdateView(StudyEditorMixin, LoginRequiredMixin, UpdateView):
     model = Study
+
+
+@role_required(Role.EDITOR)
+@require_http_methods(['GET', 'POST'])
+def delete_definition_view(request, model_name, pk):
+    model = DELETABLE_MODELS.get(model_name)
+    if model is None:
+        return HttpResponseBadRequest('Unsupported definition type.')
+
+    try:
+        instance = model.objects.get(pk=pk)
+    except model.DoesNotExist:
+        return HttpResponse('Definition not found.', status=404)
+    if model_name == 'enum' and instance.df_type != 'enum':
+        return HttpResponse('Definition not found.', status=404)
+
+    return_url_name = {
+        'study': 'study_update',
+        'experiment': 'experiment_update',
+        'form': 'form_update',
+        'question': 'question_present',
+        'enum': 'editor',
+    }[model_name]
+    return_url = (
+        reverse(return_url_name, kwargs={'pk': instance.pk})
+        if model_name != 'enum'
+        else reverse(return_url_name)
+    )
+
+    blockers = get_deletion_blockers(instance)
+    form = DefinitionDeletionForm(request.POST or None)
+    if request.method == 'POST':
+        if not form.is_valid():
+            return render(
+                request,
+                'pyensemble/definition_delete.html',
+                {
+                    'definition': instance,
+                    'definition_label': definition_label(instance),
+                    'blockers': blockers,
+                    'return_url': return_url,
+                    'model_name': model_name,
+                    'form': form,
+                },
+                status=400,
+            )
+        try:
+            delete_definition(instance, request.user, form.cleaned_data['reason'])
+        except DefinitionDeletionBlocked as error:
+            return render(
+                request,
+                'pyensemble/definition_delete.html',
+                {
+                    'definition': instance,
+                    'definition_label': definition_label(instance),
+                    'blockers': error.blockers,
+                    'return_url': return_url,
+                    'model_name': model_name,
+                    'form': form,
+                },
+                status=409,
+            )
+        return HttpResponseRedirect(reverse('editor'))
+
+    return render(
+        request,
+        'pyensemble/definition_delete.html',
+        {
+            'definition': instance,
+            'definition_label': definition_label(instance),
+            'blockers': blockers,
+            'return_url': return_url,
+            'model_name': model_name,
+            'reference_counts': get_deletion_reference_counts(instance),
+            'form': form,
+        },
+    )
 
 
 @login_required

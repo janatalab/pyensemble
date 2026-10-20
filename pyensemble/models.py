@@ -47,6 +47,20 @@ class DefinitionWriteMutex(models.Model):
         db_table = 'pyensemble_definition_write_mutex'
 
 
+class DefinitionDeletionLog(models.Model):
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='definition_deletions',
+    )
+    model_name = models.CharField(max_length=32)
+    target_id = models.CharField(max_length=64)
+    target_label = models.TextField()
+    reason = models.TextField()
+    reference_counts = models.JSONField(default=dict)
+    deleted_at = models.DateTimeField(auto_now_add=True)
+
+
 class DataFormat(DefinitionWriteMixin, models.Model):
     objects = DefinitionWriteManager()
 
@@ -101,7 +115,7 @@ class Question(DefinitionWriteMixin, models.Model):
     text = models.TextField(blank=False)
     category = models.CharField(max_length=64, blank=True)
 
-    data_format = models.ForeignKey('DataFormat', db_constraint=True, on_delete=models.CASCADE)
+    data_format = models.ForeignKey('DataFormat', db_constraint=True, on_delete=models.PROTECT)
     value_range = models.CharField(max_length=30, blank=True)
     value_default = models.CharField(max_length=30, blank=True)
 
@@ -452,15 +466,15 @@ class ResponseManager(models.Manager):
 
 class Response(models.Model):
     date_time = models.DateTimeField(auto_now_add=True)
-    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.PROTECT)
     subject = models.ForeignKey('Subject', db_column='subject_id', db_constraint=True, on_delete=models.CASCADE)
     session = models.ForeignKey('Session', db_constraint=True, on_delete=models.CASCADE)
 
-    form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
+    form = models.ForeignKey('Form', db_constraint=True, on_delete=models.PROTECT)
     form_order = models.PositiveSmallIntegerField(null=False,default=None)
     form_served = models.DateTimeField(blank=True, null=True)
 
-    question = models.ForeignKey('Question', db_constraint=True, on_delete=models.CASCADE)
+    question = models.ForeignKey('Question', db_constraint=True, on_delete=models.PROTECT)
     form_question_num = models.PositiveSmallIntegerField(null=False,default=None)
     question_iteration = models.PositiveSmallIntegerField(null=False,default=1)
 
@@ -490,7 +504,7 @@ class AbstractSession(models.Model):
         abstract = True
 
     # Which experiment is this session associated with
-    experiment = models.ForeignKey(Experiment, db_constraint=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey(Experiment, db_constraint=True, on_delete=models.PROTECT)
 
     # When did this session start?
     start_datetime = models.DateTimeField(blank=True, null=True, auto_now_add=True)
@@ -789,7 +803,7 @@ class Ticket(models.Model):
     experimenter_code = models.CharField(max_length=4, blank=True, default='')
 
     # The experiment that this ticket launches
-    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.PROTECT)
 
     # An optional attribute
     attribute = models.ForeignKey('Attribute', db_constraint=True, on_delete=models.CASCADE, null=True)
@@ -942,7 +956,7 @@ class StimulusXAttribute(models.Model):
         super(StimulusXAttribute, self).save(*args, **kwargs)
 
 class ExperimentXStimulus(models.Model):
-    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.PROTECT)
     stimulus = models.ForeignKey('Stimulus', db_constraint=True, on_delete=models.CASCADE)
 
     class Meta:
@@ -951,8 +965,8 @@ class ExperimentXStimulus(models.Model):
 class FormXQuestion(DefinitionWriteMixin, models.Model):
     objects = DefinitionWriteManager()
 
-    form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
-    question = models.ForeignKey('Question', db_constraint=True, on_delete=models.CASCADE)
+    form = models.ForeignKey('Form', db_constraint=True, on_delete=models.PROTECT)
+    question = models.ForeignKey('Question', db_constraint=True, on_delete=models.PROTECT)
     question_iteration = models.IntegerField(default=1)
     form_question_num = models.IntegerField()
     required = models.BooleanField(default=True)
@@ -964,8 +978,8 @@ class FormXQuestion(DefinitionWriteMixin, models.Model):
 class ExperimentXForm(DefinitionWriteMixin, models.Model):
     objects = DefinitionWriteManager()
 
-    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
-    form = models.ForeignKey('Form', db_constraint=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.PROTECT)
+    form = models.ForeignKey('Form', db_constraint=True, on_delete=models.PROTECT)
     form_order = models.IntegerField()
 
     FORM_HANDLER_OPTIONS = [
@@ -1287,7 +1301,7 @@ class ExperimentXForm(DefinitionWriteMixin, models.Model):
         return expsessinfo['curr_form_idx']
 
 class ExperimentXAttribute(models.Model):
-    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.PROTECT)
     attribute = models.ForeignKey('Attribute', db_constraint=True, on_delete=models.CASCADE)
     attribute_value_double = models.FloatField(blank=True, null=True)
     attribute_value_text = models.TextField(blank=True)
@@ -1335,8 +1349,8 @@ class Study(DefinitionWriteMixin, models.Model):
 class StudyXExperiment(DefinitionWriteMixin, models.Model):
     objects = DefinitionWriteManager()
 
-    study = models.ForeignKey('Study', db_constraint=True, on_delete=models.CASCADE)
-    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+    study = models.ForeignKey('Study', db_constraint=True, on_delete=models.PROTECT)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.PROTECT)
     experiment_order = models.PositiveSmallIntegerField()
 
     class Meta:
@@ -1408,7 +1422,7 @@ class Notification(models.Model):
     subject = models.ForeignKey('Subject', db_constraint=True, on_delete=models.CASCADE)
 
     # Experiment that was the basis for this notification
-    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE, null=True)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.PROTECT, null=True)
 
     # Session that was the basis this notification
     session = models.ForeignKey('Session', db_constraint=True, on_delete=models.CASCADE, null=True)
@@ -1504,7 +1518,7 @@ def experiment_filepath(instance, filename):
 
 
 class ExperimentFile(models.Model):
-    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.CASCADE)
+    experiment = models.ForeignKey('Experiment', db_constraint=True, on_delete=models.PROTECT)
     file = models.FileField(storage=use_data_storage(), upload_to=experiment_filepath, max_length=512)
 
     class Meta:

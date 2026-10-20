@@ -395,6 +395,13 @@ class CopyStudyForm(forms.ModelForm):
     helper.form_id = 'copyItemForm'
 
 
+class DefinitionDeletionForm(forms.Form):
+    reason = forms.CharField(
+        label='Reason for deletion',
+        widget=forms.Textarea(attrs={'rows': 3}),
+    )
+
+
 # TODO: Refactor TicketCreationForm into a ModelForm and also make use of validfrom field
 class TicketCreationForm(forms.Form):
     input_format = '%d/%m/%Y %H:%M'

@@ -10,6 +10,11 @@
 {% endblock %}
 
 {% block additionalDetailContentNavItems %}
+    {% if form.instance.pk %}
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'definition_delete' 'question' form.instance.pk %}">Delete</a>
+        </li>
+    {% endif %}
 {% endblock %}
 
 {% block detailContent %}

@@ -14,6 +14,7 @@ from pyensemble.access import Role, has_role
 
 
 _lock_transition = ContextVar('pyensemble_lock_transition', default=False)
+_definition_deletion = ContextVar('pyensemble_definition_deletion', default=False)
 
 
 class LockedDefinitionError(PermissionDenied):
@@ -164,9 +165,24 @@ def _assert_definition_write_allowed(instance, previous=None):
 
 
 def _assert_delete_allowed(instance):
-    if not _lock_transition.get() and _is_protected(instance):
+    if _lock_transition.get():
+        return
+    if _is_protected(instance):
         raise LockedDefinitionError(
             'This definition is locked for production and cannot be deleted.',
+        )
+    from pyensemble.deletion import get_deletion_blockers
+
+    blockers = get_deletion_blockers(instance)
+    if blockers:
+        raise LockedDefinitionError(
+            'This definition cannot be deleted: ' + '; '.join(blockers),
+        )
+    if instance.__class__.__name__ in {
+        'Study', 'Experiment', 'Form', 'Question', 'DataFormat',
+    } and not _definition_deletion.get():
+        raise LockedDefinitionError(
+            'Definitions must be deleted through the audited deletion service.',
         )
 
 
@@ -246,6 +262,15 @@ def lock_transition():
         yield
     finally:
         _lock_transition.reset(token)
+
+
+@contextmanager
+def definition_deletion():
+    token = _definition_deletion.set(True)
+    try:
+        yield
+    finally:
+        _definition_deletion.reset(token)
 
 
 _LOCK_METADATA_FIELDS = {

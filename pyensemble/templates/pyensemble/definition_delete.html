@@ -1,0 +1,55 @@
+{% extends "pyensemble/base.html" %}
+
+{% block main %}
+<main class="container mt-5 pt-4">
+    <h1>Delete {{ model_name|title }}</h1>
+    <p>
+        You are attempting to delete
+        <strong>{{ definition_label }}</strong>.
+        Deletion is permanent and does not delete referenced child definitions.
+    </p>
+
+    {% if blockers %}
+        <div class="alert alert-warning" role="alert">
+            <strong>This definition cannot be deleted.</strong>
+            <ul class="mb-0">
+                {% for blocker in blockers %}
+                    <li>{{ blocker }}</li>
+                {% endfor %}
+            </ul>
+            Detach it from eligible unlocked parents first. Historical records
+            and locked definitions must be retained.
+        </div>
+    {% else %}
+        <div class="alert alert-danger" role="alert">
+            This definition has no current deletion blockers. Any relationship
+            rows owned by it may be removed, but referenced definitions are
+            retained.
+        </div>
+        {% if reference_counts %}
+            <ul class="mt-2">
+                {% for label, count in reference_counts.items %}
+                    <li>{{ label }}: {{ count }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endif %}
+
+    <div class="d-flex">
+        <a class="btn btn-secondary mr-2" href="{{ return_url }}">Cancel</a>
+        {% if not blockers %}
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                    {{ form.reason.label_tag }}
+                    {{ form.reason }}
+                    {{ form.reason.errors }}
+                </div>
+                <button type="submit" class="btn btn-danger">
+                    Permanently delete
+                </button>
+            </form>
+        {% endif %}
+    </div>
+</main>
+{% endblock %}

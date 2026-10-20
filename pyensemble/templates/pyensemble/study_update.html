@@ -8,6 +8,9 @@
     {% if study.pk %}
         <li class="nav-item"><a class="nav-link" href="#studyExperiments">Experiments</a></li>
         <li class="nav-item"><a id="copyLink" class="nav-link" role="button" href="#">Copy</a></li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'definition_delete' 'study' study.pk %}">Delete</a>
+        </li>
     {% endif %}
 {% endblock %}
 

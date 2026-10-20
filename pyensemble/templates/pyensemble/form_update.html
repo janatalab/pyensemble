@@ -14,6 +14,9 @@
         <li class="nav-item">
             <a id="copyLink" class="nav-link" role="button" href="#">Copy</a>
         </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'definition_delete' 'form' form.instance.pk %}">Delete</a>
+        </li>
     {% endif %}
     <li class="nav-item">
         <a class="nav-link" href="#formQuestions">Questions</a>
