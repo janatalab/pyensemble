@@ -143,8 +143,11 @@ function submitNewItemForm(item_type){
         type: 'POST',
         data: $("#copyItemForm").serialize(),
         success: function(response){
-            $("#content-right").html(response);
-            $("#copyItemModal").modal('hide');
+            var $modal = $("#copyItemModal");
+            $modal.one('hidden.bs.modal', function(){
+                $("#content-right").html(response);
+            });
+            $modal.modal('hide');
         },
         error: function(response,errorText){
             $("#copyItemModal .modal-body").html(response.responseText);
