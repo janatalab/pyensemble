@@ -15,7 +15,7 @@ from django.views.generic.base import TemplateView
 from django.views.decorators.http import require_http_methods
 
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Q, Count
 
 from django.utils.crypto import get_random_string
 
@@ -27,9 +27,9 @@ from django.urls import reverse, reverse_lazy
 from django.conf import settings
 from django.views.generic.edit import CreateView, UpdateView
 
-from pyensemble.models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, EmailVerification
+from pyensemble.models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, EmailVerification, Study, StudyXExperiment
 
-from pyensemble.forms import RegisterSubjectForm, RegisterSubjectUsingEmailForm, LoginSubjectUsingEmailForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm
+from pyensemble.forms import RegisterSubjectForm, RegisterSubjectUsingEmailForm, LoginSubjectUsingEmailForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm, StudyForm, StudyExperimentFormSetFactory
 
 from pyensemble.tasks import fetch_subject_id, create_tickets, send_email
 
@@ -278,6 +278,77 @@ class ExperimentUpdateView(LoginRequiredMixin,UpdateView):
 
     def get_success_url(self):
         return reverse_lazy('experiment_update', kwargs={'pk': self.object.pk})
+
+
+class StudyListView(LoginRequiredMixin, ListView):
+    model = Study
+    context_object_name = 'study_list'
+    template_name = 'pyensemble/study_list.html'
+
+    def get_queryset(self):
+        return Study.objects.annotate(
+            experiment_count=Count('studyxexperiment'),
+        ).order_by('title')
+
+
+class StudyEditorMixin:
+    template_name = 'pyensemble/study_update.html'
+    form_class = StudyForm
+
+    def get_formset(self):
+        instance = self.object if self.object is not None else Study()
+        queryset = StudyXExperiment.objects.none()
+        if instance.pk:
+            queryset = StudyXExperiment.objects.filter(study=instance).select_related(
+                'experiment',
+            ).order_by('experiment_order')
+        return StudyExperimentFormSetFactory(
+            self.request.POST if self.request.method == 'POST' else None,
+            instance=instance,
+            queryset=queryset,
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['formset'] = kwargs.get('formset') or self.get_formset()
+        return context
+
+    def save_study(self, form):
+        formset = self.get_formset()
+        if not formset.is_valid():
+            return self.render_to_response(
+                self.get_context_data(form=form, formset=formset),
+                status=400,
+            )
+
+        with transaction.atomic():
+            self.object = form.save()
+            formset.instance = self.object
+            for row in formset.deleted_forms:
+                if row.instance.pk:
+                    row.instance.delete()
+            for order, row in enumerate(formset.ordered_forms, start=1):
+                instance = row.save(commit=False)
+                instance.study = self.object
+                instance.experiment_order = order
+                instance.save()
+
+        return HttpResponseRedirect(self.get_success_url())
+
+    def form_valid(self, form):
+        return self.save_study(form)
+
+    def get_success_url(self):
+        return reverse_lazy('study_update', kwargs={'pk': self.object.pk})
+
+
+class StudyCreateView(StudyEditorMixin, LoginRequiredMixin, CreateView):
+    model = Study
+
+
+class StudyUpdateView(StudyEditorMixin, LoginRequiredMixin, UpdateView):
+    model = Study
+
 
 def add_experiment_form(request, experiment_id):
     if request.method == 'POST':

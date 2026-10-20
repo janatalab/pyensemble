@@ -14,7 +14,7 @@ from crispy_forms.bootstrap import InlineRadios, InlineCheckboxes, UneditableFie
 
 from django_recaptcha.fields import ReCaptchaField
 
-from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket, Study, Response, SessionFile
+from pyensemble.models import FormXQuestion, Question, Subject, Form, Experiment, ExperimentXForm, DataFormat, Ticket, Study, StudyXExperiment, Response, SessionFile
 
 from pyensemble.widgets import RangeInput
 
@@ -248,6 +248,84 @@ class ExperimentForm(forms.ModelForm):
         self.helper.formset_tag = True
         self.helper.formset_method = 'POST'
         self.fields['params'].widget = forms.Textarea(attrs={'rows': 1})
+
+
+class StudyForm(forms.ModelForm):
+    class Meta:
+        model = Study
+        fields = ('title', 'params')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['params'].required = False
+        if self.instance.params is None:
+            self.initial['params'] = ''
+
+
+class StudyExperimentForm(forms.ModelForm):
+    class Meta:
+        model = StudyXExperiment
+        fields = ('experiment',)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['experiment'].queryset = Experiment.objects.order_by('title')
+
+
+class StudyExperimentFormSet(forms.BaseInlineFormSet):
+    def add_fields(self, form, index):
+        super().add_fields(form, index)
+        if (
+            index is not None
+            and self.can_order
+            and index >= self.initial_form_count()
+        ):
+            form.fields['ORDER'].initial = index + 1
+
+    def clean(self):
+        super().clean()
+        if any(self.errors):
+            selected_experiments = [
+                form.cleaned_data.get('experiment')
+                for form in self.forms
+                if form.cleaned_data
+                and not form.cleaned_data.get('DELETE', False)
+                and form.cleaned_data.get('experiment')
+            ]
+            if len(selected_experiments) < 2:
+                raise ValidationError('A study must contain at least two experiments.')
+            return
+
+        active_forms = [
+            form for form in self.forms
+            if form.cleaned_data
+            and not form.cleaned_data.get('DELETE', False)
+            and form.cleaned_data.get('experiment')
+        ]
+        if any(form.cleaned_data.get('ORDER') is None for form in active_forms):
+            raise ValidationError('Assign an order to each selected experiment.')
+
+        experiments = [
+            form.cleaned_data['experiment']
+            for form in active_forms
+        ]
+        if len(experiments) != len(set(experiments)):
+            raise ValidationError('An experiment can appear only once in a study.')
+
+
+StudyExperimentFormSetFactory = forms.inlineformset_factory(
+    Study,
+    StudyXExperiment,
+    form=StudyExperimentForm,
+    formset=StudyExperimentFormSet,
+    fields=('experiment',),
+    can_order=True,
+    can_delete=True,
+    extra=0,
+    min_num=2,
+    validate_min=True,
+    max_num=100,
+)
 
 ExperimentFormFormset = forms.inlineformset_factory(Experiment, ExperimentXForm, 
     form=ExperimentFormForm, 

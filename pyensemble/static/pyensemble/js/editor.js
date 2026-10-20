@@ -10,6 +10,7 @@ function bindFunctions(){
         ev.preventDefault();
 
         var itemType = ev.target.innerText;
+        var objectType = "";
 
         $.ajax({
             url: ev.target.href,
@@ -19,7 +20,12 @@ function bindFunctions(){
                 $("#content-right").addClass('d-none');
 
                 $("#contentListHeader").text(itemType);
-                $("#addButton").text('Add '+itemType.slice(0,itemType.length-1));
+                if (itemType == "Studies"){
+                    objectType = "Study";
+                } else {
+                    objectType = itemType.slice(0,itemType.length-1);
+                }
+                $("#addButton").text('Add '+ objectType);
                 $("#addButton").on('click',function(ev){
                     ev.preventDefault();
 

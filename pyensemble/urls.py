@@ -63,6 +63,9 @@ app_patterns = [
 
 editor_patterns = [
     path('', views.EditorView.as_view(template_name='pyensemble/editor_base.html'), name='editor'),
+    path('studies/', views.StudyListView.as_view(), name='study_list'),
+    path('studies/create/', views.StudyCreateView.as_view(), name='study_create'),
+    path('studies/<int:pk>/', views.StudyUpdateView.as_view(), name='study_update'),
     path('experiments/', views.ExperimentListView.as_view(), name='experiment_list'),
     path('experiments/create/', views.ExperimentCreateView.as_view(), name='experiment_create'),
     path('experiments/copy/<int:experiment_id>/', views.copy_experiment, name='experiment_copy'),
