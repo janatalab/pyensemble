@@ -251,8 +251,15 @@ class ExperimentUpdateView(LoginRequiredMixin,UpdateView):
     template_name = 'pyensemble/experiment_update.html'
     form_class = ExperimentForm
 
+    def get_template_names(self):
+        if self.request.GET.get('standalone') == '1':
+            return ['pyensemble/editor_detail_page.html']
+        return super().get_template_names()
+
     def get_context_data(self, **kwargs):
         context = super(ExperimentUpdateView, self).get_context_data(**kwargs)
+        if self.request.GET.get('standalone') == '1':
+            context['detail_template'] = self.template_name
         if self.request.POST:
             context['formset'] = ExperimentFormFormset(self.request.POST, instance=self.object)
         else:
@@ -307,6 +314,11 @@ class StudyEditorMixin:
     template_name = 'pyensemble/study_update.html'
     form_class = StudyForm
 
+    def get_template_names(self):
+        if self.request.GET.get('standalone') == '1':
+            return ['pyensemble/editor_detail_page.html']
+        return [self.template_name]
+
     def get_formset(self):
         instance = self.object if self.object is not None else Study()
         queryset = StudyXExperiment.objects.none()
@@ -322,6 +334,8 @@ class StudyEditorMixin:
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        if self.request.GET.get('standalone') == '1':
+            context['detail_template'] = self.template_name
         context['formset'] = kwargs.get('formset') or self.get_formset()
         return context
 
@@ -381,13 +395,13 @@ def delete_definition_view(request, model_name, pk):
         'experiment': 'experiment_update',
         'form': 'form_update',
         'question': 'question_present',
-        'enum': 'editor',
+        'enum': 'enum_list',
     }[model_name]
-    return_url = (
-        reverse(return_url_name, kwargs={'pk': instance.pk})
-        if model_name != 'enum'
-        else reverse(return_url_name)
-    )
+    if model_name == 'enum':
+        return_url = reverse(return_url_name) + '?standalone=1'
+    else:
+        return_url = reverse(return_url_name, kwargs={'pk': instance.pk})
+        return_url += '?standalone=1'
 
     blockers = get_deletion_blockers(instance)
     form = DefinitionDeletionForm(request.POST or None)
@@ -525,8 +539,15 @@ class FormUpdateView(LoginRequiredMixin,UpdateView):
     template_name = 'pyensemble/form_update.html'
     form_class = FormForm
 
+    def get_template_names(self):
+        if self.request.GET.get('standalone') == '1':
+            return ['pyensemble/editor_detail_page.html']
+        return super().get_template_names()
+
     def get_context_data(self, **kwargs):
         context = super(FormUpdateView, self).get_context_data(**kwargs)
+        if self.request.GET.get('standalone') == '1':
+            context['detail_template'] = self.template_name
 
         if self.request.POST:
             context['formset'] = FormQuestionFormset(self.request.POST, instance=self.object)
@@ -671,8 +692,15 @@ class QuestionPresentView(LoginRequiredMixin,UpdateView):
     form_class = QuestionPresentForm
     template_name = 'pyensemble/question_present.html'
 
+    def get_template_names(self):
+        if self.request.GET.get('standalone') == '1':
+            return ['pyensemble/editor_detail_page.html']
+        return super().get_template_names()
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        if self.request.GET.get('standalone') == '1':
+            context['detail_template'] = self.template_name
         context['object_type'] = context['object'].__class__.__name__.lower()
 
         return context
@@ -685,6 +713,11 @@ class EnumListView(LoginRequiredMixin,ListView):
     context_object_name = 'enum_list'
     template_name = 'pyensemble/enum_list.html'
     ordering = ['pk']
+
+    def get_template_names(self):
+        if self.request.GET.get('standalone') == '1':
+            return ['pyensemble/enum_list_page.html']
+        return super().get_template_names()
 
 class EnumCreateView(LoginRequiredMixin,CreateView):
     model = DataFormat

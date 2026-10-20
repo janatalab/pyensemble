@@ -180,6 +180,60 @@ class DefinitionDeletionTests(TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    def test_delete_cancel_returns_to_full_editor_for_each_definition_type(self):
+        study = Study.objects.create(title='Cancel test study')
+        cases = (
+            (
+                'study',
+                study,
+                reverse('study_update', kwargs={'pk': study.pk}) + '?standalone=1',
+                'Cancel test study',
+            ),
+            (
+                'experiment',
+                self.experiment,
+                reverse('experiment_update', kwargs={'pk': self.experiment.pk})
+                + '?standalone=1',
+                self.experiment.title,
+            ),
+            (
+                'form',
+                self.form,
+                reverse('form_update', kwargs={'pk': self.form.pk})
+                + '?standalone=1',
+                self.form.name,
+            ),
+            (
+                'question',
+                self.question,
+                reverse('question_present', kwargs={'pk': self.question.pk})
+                + '?standalone=1',
+                self.question.text,
+            ),
+            (
+                'enum',
+                self.data_format,
+                reverse('enum_list') + '?standalone=1',
+                '&quot;Yes&quot;,&quot;No&quot;',
+            ),
+        )
+
+        for model_name, instance, cancel_url, expected_content in cases:
+            with self.subTest(model_name=model_name):
+                response = self.client.get(
+                    self.delete_url(model_name, instance),
+                )
+                self.assertContains(response, f'href="{cancel_url}"')
+
+                response = self.client.get(cancel_url)
+
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, 'PyEnsemble - Editors')
+                self.assertContains(response, 'Questions')
+                self.assertContains(response, expected_content)
+                self.assertContains(response, 'jquery-3.4.1.min.js')
+                self.assertContains(response, 'bootstrap.min.js')
+
     def test_locked_definitions_cannot_be_deleted_from_confirmation_or_post(self):
         release_manager = get_user_model().objects.create_user(
             'delete-release-manager',
