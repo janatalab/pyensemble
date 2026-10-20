@@ -23,6 +23,25 @@ import pdb
 
 class ImportForm(forms.Form):
     file = forms.FileField(label='Select a .csv or .json file to import')
+    mode = forms.ChoiceField(
+        label='Import mode',
+        choices=(
+            ('create', 'Create a new draft'),
+            ('update', 'Update an existing unlocked draft'),
+            ('validate', 'Validate only (dry run)'),
+        ),
+        initial='create',
+    )
+    target_id = forms.IntegerField(
+        label='Draft ID to update',
+        required=False,
+        help_text='Required only when updating an existing draft.',
+    )
+    new_name = forms.CharField(
+        label='New Experiment title or Form name',
+        required=False,
+        help_text='Required when creating an Experiment or Form draft.',
+    )
 
     def __init__(self, *args, **kwargs):
         self.helper = FormHelper()
@@ -31,6 +50,14 @@ class ImportForm(forms.Form):
 
         self.helper.add_input(Submit('submit', 'Submit'))
         super(ImportForm, self).__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get('mode') == 'update' and not cleaned_data.get(
+            'target_id',
+        ):
+            self.add_error('target_id', 'Enter the ID of the unlocked draft.')
+        return cleaned_data
 
 
 class ImportStimuliForm(forms.Form):
