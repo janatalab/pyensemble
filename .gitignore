@@ -146,3 +146,6 @@ settings/*dev*.py
 settings/local/
 
 docs/dev
+!docs/dev/
+docs/dev/*
+!docs/dev/first-time-local-development.md
