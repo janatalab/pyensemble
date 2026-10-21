@@ -48,7 +48,12 @@ PyEnsemble is a Python-backed version of the PHP/MATLAB web-based experiment sys
 
 <a name="requirements"/></a>
 # Requirements
-PyEnsemble requires Python 3.6+ and a database of choice. Our lab uses MySQL which we host on a separate server. Specific Python packages are listed in the requirements.txt file and can be installed per the instructions provided below.
+PyEnsemble's `requirements.txt` contains the core application dependencies and
+supports the self-contained local SQLite profile. MySQL and AWS S3 dependencies
+are optional and are listed separately in `requirements-mysql.txt` and
+`requirements-aws.txt`. The application currently retains `django-recaptcha`
+as a core dependency; no separate Google SDK or production reCAPTCHA keys are
+needed for local development.
 
 <a name="installation"/></a>
 # Installation
@@ -73,13 +78,15 @@ The installation steps below are based on an installation on an Amazon Linux AMI
 
 - Install your database software of choice
 
-- Install mysql dependencies (if applicable)
+- Install MySQL development dependencies only if using MySQL
 ```
 > sudo yum install python36-devel
 ```
 
-- Set environment variables to make the mysqlclient build happy
+- Install the optional Python MySQL driver from the repository root when using
+  MySQL (SQLite local development does not require this package):
 ```
+> pip install -r requirements-mysql.txt
 > export MYSQLCLIENT_CFLAGS="$(mysql_config --cflags)"
 > export MYSQLCLIENT_LDFLAGS="$(mysql_config --libs)"
 ```
@@ -135,6 +142,16 @@ The instructions below apply both to installing a production server user, e.g. p
 ```
 > pip install -r requirements.txt
 ```
+
+For an instance configured to use AWS S3 storage, install the additional AWS
+dependencies:
+
+```
+> pip install -r requirements-aws.txt
+```
+
+Install `requirements-mysql.txt` only when the configured database is MySQL.
+Local SQLite development needs neither optional requirements file.
 
 ### Run a self-contained local development instance
 

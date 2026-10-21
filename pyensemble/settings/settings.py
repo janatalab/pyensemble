@@ -73,7 +73,6 @@ INSTALLED_APPS = [
     'django_recaptcha',
     'crispy_forms',
     'crispy_bootstrap4',
-    'storages',
     'rest_framework',
     'pyensemble',
     'pyensemble.group',
@@ -335,6 +334,7 @@ if 'aws' in config.sections():
     aws_params = config['aws']
 
     USE_AWS_STORAGE = True
+    INSTALLED_APPS.append('storages')
 
     AWS_ACCESS_KEY_ID = aws_params['s3_client_id']
     AWS_SECRET_ACCESS_KEY = aws_params['s3_client_secret']
