@@ -1043,16 +1043,9 @@ def serve_form(request, experiment_id=None):
             formset = SubjectEmailForm(request.POST)
 
         elif handler_name == 'form_consent':
-            captcha_form = CaptchaForm(request.POST)
-            try:
+            if getattr(settings, 'PYENSEMBLE_CAPTCHA_ENABLED', True):
+                captcha_form = CaptchaForm(request.POST)
                 passes_captcha = captcha_form.is_valid()
-            except:
-                if settings.DEBUG:
-                    print('Captcha validation failed, but proceeding anyway')
-                    passes_captcha = True
-                else:
-                    logging.warning('Captcha validation failed!')
-                    passes_captcha = False
 
             formset = QuestionModelFormSet(request.POST)
 
@@ -1468,7 +1461,10 @@ def serve_form(request, experiment_id=None):
         context.update({'formset': formset})
 
 
-    if handler_name == 'form_consent':
+    if (
+        handler_name == 'form_consent'
+        and getattr(settings, 'PYENSEMBLE_CAPTCHA_ENABLED', True)
+    ):
         context.update({'captcha': {
             'form': CaptchaForm(),
             'site_key': settings.RECAPTCHA_PUBLIC_KEY

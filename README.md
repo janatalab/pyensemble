@@ -48,7 +48,12 @@ PyEnsemble is a Python-backed version of the PHP/MATLAB web-based experiment sys
 
 <a name="requirements"/></a>
 # Requirements
-PyEnsemble requires Python 3.6+ and a database of choice. Our lab uses MySQL which we host on a separate server. Specific Python packages are listed in the requirements.txt file and can be installed per the instructions provided below.
+PyEnsemble's `requirements.txt` contains the core application dependencies and
+supports the self-contained local SQLite profile. MySQL and AWS S3 dependencies
+are optional and are listed separately in `requirements-mysql.txt` and
+`requirements-aws.txt`. The application currently retains `django-recaptcha`
+as a core dependency; no separate Google SDK or production reCAPTCHA keys are
+needed for local development.
 
 <a name="installation"/></a>
 # Installation
@@ -73,13 +78,15 @@ The installation steps below are based on an installation on an Amazon Linux AMI
 
 - Install your database software of choice
 
-- Install mysql dependencies (if applicable)
+- Install MySQL development dependencies only if using MySQL
 ```
 > sudo yum install python36-devel
 ```
 
-- Set environment variables to make the mysqlclient build happy
+- Install the optional Python MySQL driver from the repository root when using
+  MySQL (SQLite local development does not require this package):
 ```
+> pip install -r requirements-mysql.txt
 > export MYSQLCLIENT_CFLAGS="$(mysql_config --cflags)"
 > export MYSQLCLIENT_LDFLAGS="$(mysql_config --libs)"
 ```
@@ -136,6 +143,36 @@ The instructions below apply both to installing a production server user, e.g. p
 > pip install -r requirements.txt
 ```
 
+For an instance configured to use AWS S3 storage, install the additional AWS
+dependencies:
+
+```
+> pip install -r requirements-aws.txt
+```
+
+Install `requirements-mysql.txt` only when the configured database is MySQL.
+Local SQLite development needs neither optional requirements file.
+
+### Run a self-contained local development instance
+
+For core PyEnsemble development, use the local settings profile instead of
+configuring a hosted database or copying a site-specific INI file. From the
+repository root:
+
+```
+> python manage.py migrate --settings=pyensemble.settings.local_dev
+> python manage.py createsuperuser --settings=pyensemble.settings.local_dev
+> python manage.py runserver 127.0.0.1:8000 --settings=pyensemble.settings.local_dev
+```
+
+Open `http://127.0.0.1:8000/`. This profile uses SQLite and local file
+storage under the ignored `.local/` directory, emits email to the server
+terminal, and disables CAPTCHA only for local consent testing. The generated
+Django key and field-encryption key are local to this checkout. Do not use
+this development profile for production or expose its server to an untrusted
+network. For details and limitations, see the
+[first-time local development guide](docs/dev/first-time-local-development.md).
+
 <a name="jspsych_git"/></a>
 ### Setup the jsPsych git repo
 jsPsych is specified with the PyEnsemble repository as a git submodule. The location within the PyEnsemble package is pyensemble/thirdparty/jsPsych
@@ -159,7 +196,12 @@ Within your database manager, e.g. MySQLWorkbench,
 
 <a name="settings"/></a>
 ### Settings file
-In order to communicate with your database instance, you will need to edit the [settings.py](pyensemble/settings/settings.py) file, with values that are specific to your instance. Some of this information should remain private and you are thus advised to situate in files that exist in a protected directory for which there is no universal access. The location of this directory is arbitrary. We use `/var/www/private/`.
+The following configuration steps describe a site-specific or production-style
+instance. They are not required for local development using
+`pyensemble.settings.local_dev`. For a site-specific installation, configure
+the settings and private credentials for your instance. Do not commit those
+credentials; the default private configuration directory is
+`pyensemble/settings/local/`.
 
 <a name="field_encryption_key"/></a>
 ### Encryption key for model fields

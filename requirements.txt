@@ -1,7 +1,5 @@
 asgiref==3.8.1
 asttokens==3.0.0
-boto3==1.38.1
-botocore==1.38.1
 certifi==2025.1.31
 cffi==2.1.1
 charset-normalizer==3.4.1
@@ -13,16 +11,13 @@ django-crispy-forms==2.4
 django-encrypted-model-fields==0.6.5
 django-recaptcha==4.1.0
 django-sslserver @ git+https://github.com/shalltell/django-sslserver.git@e74e7f8d4441afddd8d87e89490c25f155c9c9cc
-django-storages==1.14.6
 djangorestframework==3.17.2
 executing==2.2.0
 idna==3.15
 ipython==9.1.0
 ipython_pygments_lexers==1.1.1
 jedi==0.19.2
-jmespath==1.0.1
 matplotlib-inline==0.1.7
-mysqlclient==2.3.0
 numpy==2.2.5
 pandas==2.2.3
 parso==0.8.4
@@ -37,7 +32,6 @@ python-dateutil==2.9.0.post0
 pytz==2025.2
 redis==5.2.1
 requests==2.33.0
-s3transfer==0.12.0
 six==1.17.0
 spotipy==2.25.2
 sqlparse==0.6.0
