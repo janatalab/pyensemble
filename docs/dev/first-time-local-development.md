@@ -2,92 +2,81 @@
 
 ## Goal
 
-A first-time developer should be able to clone PyEnsemble, install its
-dependencies, create a private local configuration, initialize a local
-database, and run the example experiment without needing credentials for a
-hosted database, AWS/S3 assets, production SMTP, or production Google
-reCAPTCHA.
+The goal is for a first-time developer to clone PyEnsemble, install its
+dependencies, initialize a local database, and run an example experiment
+without credentials for a hosted database, AWS/S3, production SMTP, or
+production Google reCAPTCHA.
 
-This document recommends a development experience; it does not describe
-features that are already implemented. No production service credentials or
-participant data should be required or copied into a local setup.
+The repository now includes an independent `pyensemble.settings.local_dev`
+profile for core application development. It does not read the private site
+configuration. The profile provides local SQLite and file storage, local
+development keys, disabled CAPTCHA, and console email. The additional
+recommendations below describe remaining onboarding work. The profile does not
+yet seed the example definitions or supply missing stimulus assets.
 
-## Current setup friction
+## Remaining onboarding work
 
-The current shared settings module reads
+The production settings module reads
 `pyensemble/settings/local/pyensemble_params.ini` at import time. It expects
 database, encryption, media, and logging configuration, defaults to a MySQL
 connection, and uses an optional `aws` section to switch storage to S3. The
-development settings module imports these shared settings before overriding
-some values. As a result, a local developer may still need a local INI file
-with a `django-db` section and usable paths, even when they do not intend to
-use hosted services.
+older `pyensemble.settings.dev` module imports these production settings before
+overriding some values, so it still requires a usable site INI file. Use
+`pyensemble.settings.local_dev` for a clean local setup instead.
 
-Other onboarding friction:
-
-- The shared settings enable `django_recaptcha`, and the consent path refers to
-  `RECAPTCHA_PUBLIC_KEY`. A developer without Google keys may be unable to
-  render or test that path consistently.
-- `dev.py` already uses the console email backend by default, which is useful
-  for local testing, but the local workflow and invitation-email expectations
-  should be explained.
-- Local file storage is available when `USE_AWS_STORAGE` is false, but local
-  media paths and the need for sample stimulus files are not presented as a
-  complete setup.
-- Third-party checkouts and experiment repositories are separate from the
-  PyEnsemble source. New developers need clear instructions for setting up
-  `thirdparty/jsPsych` and for the distinct experiment repository convention.
-- The README's deployment-oriented setup currently mixes development and
-  production needs, making it difficult to tell which services are optional
-  for local work.
+The standalone profile and README quickstart address core startup, migrations,
+and local account creation. Remaining gaps include example seed data and
+stimulus assets, setup instructions for third-party checkouts and separate
+experiment repositories, and a readiness/troubleshooting check that validates
+these resources.
 
 ## Recommended local developer experience
 
-### 1. Provide a self-contained local settings profile
+### 1. Self-contained local settings profile (implemented)
 
-Create a documented local profile that can start without reading production
-credentials or contacting a hosted service. Prefer an explicit settings
-module, for example `pyensemble.settings.local_dev`, with isolated,
-development-only defaults:
+Use the independent settings module `pyensemble.settings.local_dev`. It starts
+without reading production credentials or contacting a hosted service, and
+provides:
 
-- SQLite database stored in an ignored local state directory.
-- Local filesystem media and data storage in ignored directories.
-- Local static-file serving and `DEBUG=True`.
-- `localhost` and `127.0.0.1` as the only default development hosts.
-- Console or in-memory email backend; no SMTP credentials.
-- A generated, developer-specific Django `SECRET_KEY` and field-encryption
-  key, never a shared production key.
-- Optional integrations disabled unless a developer explicitly configures
-  them.
+- SQLite database at `.local/pyensemble.sqlite3`.
+- Local filesystem media/data storage under `.local/media/` and static output
+  under `.local/static/`.
+- `DEBUG=True`, with `localhost` and `127.0.0.1` allowed.
+- Console email; outgoing messages appear in the server terminal.
+- A persistent, per-checkout Django key stored in `.local/secret_key`; the
+  field-encryption key is derived from it. Keep `.local/` private and ignored.
+- Optional API integrations left without credentials; AWS storage is disabled.
+- CAPTCHA disabled only in this explicitly selected local profile. Production
+  settings continue to require CAPTCHA validation.
 
-Do not make `settings.py` silently fall back to a production database or to
-credentials found in another developer's local file. Local, test, and
-production settings should be visibly distinct, and local credentials or
-private configuration should remain ignored by Git.
+The local profile points `SITE_CONFIG_FILE` to a harmless local INI containing
+only `domain = localhost`, because an existing historical migration reads that
+setting. It never reads the private production INI.
 
-SQLite is a practical onboarding default because the existing isolated Django
-test settings already use it. Before declaring the full application
-SQLite-compatible, exercise migrations and the local workflows against it;
-if MySQL-only behavior prevents this, offer a documented local MySQL option
-without requiring access to the shared hosted database.
+The full migration set has been exercised using SQLite. Local cache uses
+process-local memory, so `createcachetable` is not required. This profile is
+for local development only; it is not a production deployment configuration.
+The generated key is persisted to preserve access to encrypted local data.
+Deleting `.local/` resets the database, media, and key; encrypted values from
+the deleted database cannot be recovered with a newly generated key. Set
+`PYENSEMBLE_LOCAL_STATE_DIR` to use a different local state location.
 
 ### 2. Make the first run an explicit, small sequence
 
-The first-time guide should offer one copyable sequence that:
+From the repository root, the local profile can be started with:
 
-1. Creates and activates a virtual environment using a currently supported
-   Python version.
-2. Installs the repository's declared dependencies.
-3. Initializes ignored local state/configuration from a safe example or a
-   management command.
-4. Applies migrations and creates any required database cache table.
-5. Creates a local administrative account and assigns an application role.
-6. Starts the local development server bound to loopback.
-7. Opens the editor and the tracked `debug` example.
+```sh
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python manage.py migrate --settings=pyensemble.settings.local_dev
+python manage.py createsuperuser --settings=pyensemble.settings.local_dev
+python manage.py runserver 127.0.0.1:8000 --settings=pyensemble.settings.local_dev
+```
 
-Clearly separate required steps from optional integrations. Do not require
-Apache, a production-style TLS setup, external database provisioning, AWS
-accounts, SMTP access, or production credentials for this workflow.
+Open `http://127.0.0.1:8000/`. Use the superuser for local administrative
+access. No Apache, production TLS setup, hosted database, AWS account, SMTP
+access, cache-table creation, or production credential is needed.
 
 ### 3. Ship a useful local example dataset
 
@@ -103,14 +92,15 @@ participant data, import production records, or include private stimulus files.
 Document separately which debug features require assets that are deliberately
 not distributed.
 
-### 4. Make CAPTCHA behavior safe and predictable locally
+### 4. CAPTCHA behavior (local bypass implemented)
 
-Local development should not depend on production Google reCAPTCHA keys. Add
-an explicit local-only behavior for consent-form testing, such as a setting
-that uses provider-documented test credentials or a development bypass that
-does not render a CAPTCHA and accepts the local test path.
+Local development uses `PYENSEMBLE_CAPTCHA_ENABLED = False`: the consent view
+does not render a CAPTCHA widget or require a CAPTCHA response. Other settings
+default CAPTCHA enforcement to enabled, and production continues to validate
+consent submissions. The local settings silence the package's test-key system
+check because CAPTCHA is intentionally disabled there.
 
-The bypass must:
+Future hardening and tests should ensure this bypass remains restricted:
 
 - Be off by default outside the dedicated local/test settings.
 - Fail closed in production if CAPTCHA is configured as required but
@@ -123,28 +113,28 @@ Make missing configuration errors actionable. In particular, local consent
 rendering should not fail just because a production public key is absent when
 the local profile explicitly disables CAPTCHA.
 
-### 5. Provide local media and data storage
+### 5. Local media and data storage (implemented)
 
-The local profile should store uploaded media and data under ignored,
-project-local directories (or a documented user data directory), without
-loading AWS credentials or selecting an S3 backend. Document how to configure
-the local media URL and where developers should place or upload debug
-stimulus assets.
+The local profile stores media/data under `.local/media/` and serves media
+through Django's development URL route at `/media/`. Static output is under
+`.local/static/`; AWS storage is disabled, and no AWS credentials are loaded.
+Developers can upload local assets through the application or place files in
+the relevant media subdirectory.
 
-Provide a small sample asset pack or an asset-download step only where the
-assets can be distributed and their source/license is clear. Missing optional
-assets should produce clear instructions rather than an unexplained participant
-page error. Keep production S3 settings separate from local media paths.
+The profile does not include sample stimulus assets. A redistributable sample
+asset pack or a documented download step remains future work; any assets must
+have clear licensing. Missing optional assets should produce clear
+instructions rather than an unexplained participant-page error.
 
-### 6. Document email and optional integrations
+### 6. Local email and optional integrations (email backend implemented)
 
-Explain that local email uses the console backend: invitation or verification
-messages appear in the development server output and are not delivered. No
-SMTP host, account, or password should be necessary for ordinary local
-development.
+Local email uses Django's console backend: invitation or verification messages
+appear in the development server output and are not delivered. No SMTP host,
+account, or password is needed for ordinary local development.
 
-Document Prolific, Spotify, AWS, SMTP, and other integrations as optional
-capabilities. Each should state:
+The local settings provide empty values for external integration credentials
+and disable AWS storage. More complete feature-specific documentation for
+Prolific, Spotify, and other integrations remains useful. It should state:
 
 - Which feature requires it.
 - Which configuration keys are needed.
@@ -170,7 +160,9 @@ distributed assets.
 
 ### 8. Add a local readiness check and troubleshooting guide
 
-Provide a single local readiness command or checklist that verifies:
+`manage.py check --settings=pyensemble.settings.local_dev` runs Django's
+standard system checks. A dedicated readiness command or checklist could
+additionally verify:
 
 - The chosen settings profile is the local one.
 - The database is local and migrations are current.
@@ -187,22 +179,18 @@ Diagnostics must not print secrets.
 
 ## Suggested rollout
 
-1. **Separate settings profiles.** Introduce and document local settings that
-   do not require hosted credentials; prove startup and migrations work with a
-   clean local checkout.
-2. **Local-first integrations.** Make CAPTCHA, SMTP, S3, and external APIs
-   explicit opt-ins locally. Add tests for local defaults and production
-   enforcement.
-3. **First-run data and assets.** Add synthetic seed data and clearly licensed
+1. **Verify a fresh checkout.** Follow the quickstart without any local
+   production INI file or hosted credentials.
+2. **First-run data and assets.** Add synthetic seed data and clearly licensed
    debug assets or document their separate acquisition.
-4. **Onboarding and diagnostics.** Replace the development path in the README
-   with a concise quickstart, preserve production deployment instructions in
-   a separate section, and add readiness checks and troubleshooting.
-5. **Fresh-machine acceptance test.** Have a developer without shared database,
+3. **Onboarding and diagnostics.** Add readiness checks and troubleshooting
+   for local database, static/media storage, debug experiment, and jsPsych
+   assets.
+4. **Fresh-machine acceptance test.** Have a developer without shared database,
    AWS, CAPTCHA, SMTP, or experiment-repository credentials follow the guide
    from a clean clone and complete the editor-to-participant debug flow.
 
-## Acceptance criteria
+## Long-term acceptance criteria
 
 A first-time developer following the documented local workflow from a clean
 clone can, without any hosted-service credentials:

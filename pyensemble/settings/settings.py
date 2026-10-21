@@ -324,6 +324,7 @@ LOGGING = {
 #
 
 # Google
+PYENSEMBLE_CAPTCHA_ENABLED = True
 if 'google' in config.sections():
     NOCAPTCHA = True
     RECAPTCHA_PUBLIC_KEY = config['google']['recaptcha_key']

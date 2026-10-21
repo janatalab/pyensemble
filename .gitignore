@@ -145,6 +145,9 @@ pyensemble/experiments/*
 settings/*dev*.py
 settings/local/
 
+# Local development state
+.local/
+
 docs/dev
 !docs/dev/
 docs/dev/*

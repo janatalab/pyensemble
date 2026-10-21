@@ -136,6 +136,26 @@ The instructions below apply both to installing a production server user, e.g. p
 > pip install -r requirements.txt
 ```
 
+### Run a self-contained local development instance
+
+For core PyEnsemble development, use the local settings profile instead of
+configuring a hosted database or copying a site-specific INI file. From the
+repository root:
+
+```
+> python manage.py migrate --settings=pyensemble.settings.local_dev
+> python manage.py createsuperuser --settings=pyensemble.settings.local_dev
+> python manage.py runserver 127.0.0.1:8000 --settings=pyensemble.settings.local_dev
+```
+
+Open `http://127.0.0.1:8000/`. This profile uses SQLite and local file
+storage under the ignored `.local/` directory, emits email to the server
+terminal, and disables CAPTCHA only for local consent testing. The generated
+Django key and field-encryption key are local to this checkout. Do not use
+this development profile for production or expose its server to an untrusted
+network. For details and limitations, see the
+[first-time local development guide](docs/dev/first-time-local-development.md).
+
 <a name="jspsych_git"/></a>
 ### Setup the jsPsych git repo
 jsPsych is specified with the PyEnsemble repository as a git submodule. The location within the PyEnsemble package is pyensemble/thirdparty/jsPsych
@@ -159,7 +179,12 @@ Within your database manager, e.g. MySQLWorkbench,
 
 <a name="settings"/></a>
 ### Settings file
-In order to communicate with your database instance, you will need to edit the [settings.py](pyensemble/settings/settings.py) file, with values that are specific to your instance. Some of this information should remain private and you are thus advised to situate in files that exist in a protected directory for which there is no universal access. The location of this directory is arbitrary. We use `/var/www/private/`.
+The following configuration steps describe a site-specific or production-style
+instance. They are not required for local development using
+`pyensemble.settings.local_dev`. For a site-specific installation, configure
+the settings and private credentials for your instance. Do not commit those
+credentials; the default private configuration directory is
+`pyensemble/settings/local/`.
 
 <a name="field_encryption_key"/></a>
 ### Encryption key for model fields

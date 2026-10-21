@@ -59,6 +59,7 @@ FIELD_ENCRYPTION_KEY = urlsafe_b64encode(b'0' * 32).decode('ascii')
 USE_TZ = True
 TIME_ZONE = 'UTC'
 SESSION_DURATION = 60 * 60 * 24
+PYENSEMBLE_CAPTCHA_ENABLED = False
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
 USE_AWS_STORAGE = False
