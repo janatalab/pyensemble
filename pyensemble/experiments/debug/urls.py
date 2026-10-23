@@ -1,6 +1,6 @@
 # urls.py
 #
-# Endpoints for the default debug experiment
+# Endpoints for the tracked Examples package (stable `debug` namespace).
 
 from django.urls import path
 

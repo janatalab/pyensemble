@@ -1,16 +1,53 @@
-{% extends 'pyensemble/base.html' %}
+{% extends 'pyensemble/pyensemble_home.html' %}
 {% load crispy_forms_tags %}
 
-{% block header %}
-<div id="header" class="row justify-content-center mb-5">
-    <div class='col-4'><h1>Generic Table Importer</h1></div>
-</div>
-{% endblock %}
 
 {% block main %}
-<div class="row justify-content-center">
-    <div class="md-col-6 border p-3">
-        {% crispy form %}
+<main class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8 border p-3">
+            <h3>Import a Definition</h3>
+            <hr>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                {{ form.non_field_errors }}
+                {{ form.file|as_crispy_field }}
+                {{ form.mode|as_crispy_field }}
+                <div id="target-id-field" hidden>
+                    {{ form.target_id|as_crispy_field }}
+                </div>
+                {% if show_new_name %}
+                <div id="new-name-field" hidden>
+                    {{ form.new_name|as_crispy_field }}
+                    <p class="small text-muted">
+                        The uploaded definition conflicts with an existing
+                        Experiment title or Form name. Select the file again and
+                        enter a different title/name to create a separate draft.
+                        To update an existing draft instead, choose the update
+                        mode, enter its ID, and select the file again.
+                    </p>
+                </div>
+                {% endif %}
+                <button type="submit" class="btn btn-primary">Import</button>
+            </form>
+        </div>
     </div>
-</div>
+</main>
+<script>
+    (function () {
+        const modeField = document.getElementById('id_mode');
+        const targetField = document.getElementById('target-id-field');
+        const newNameField = document.getElementById('new-name-field');
+
+        function updateConditionalFields() {
+            targetField.hidden = modeField.value !== 'update';
+            if (newNameField) {
+                newNameField.hidden = modeField.value === 'update';
+            }
+        }
+
+        modeField.addEventListener('change', updateConditionalFields);
+        updateConditionalFields();
+    })();
+</script>
 {% endblock %}

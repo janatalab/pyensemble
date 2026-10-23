@@ -173,6 +173,22 @@ this development profile for production or expose its server to an untrusted
 network. For details and limitations, see the
 [first-time local development guide](docs/dev/first-time-local-development.md).
 
+### Try the Examples
+
+The local database starts without experiment definitions. The tracked
+`pyensemble/experiments/debug/` package is presented in PyEnsemble as
+**Examples** and includes importable Experiment, Form, and Question JSON
+definitions, Python setup examples, and two audio files. Start with the
+**Test Input Types** Experiment export: validate it through **Import → JSON
+definition**, then create it as a new draft. Experiment exports include nested
+Forms and Questions, so importing the Experiment alone is normally enough.
+
+The **Test Audio** example additionally needs the jsPsych submodule and audio
+Stimuli imported from the example manifest and MP3 files. Optional Prolific
+workflows need external credentials; they are not part of the basic local
+quickstart. See the [Examples guide](pyensemble/experiments/debug/README.md)
+for the full catalog, step-by-step import instructions, and asset notes.
+
 <a name="jspsych_git"/></a>
 ### Setup the jsPsych git repo
 jsPsych is specified with the PyEnsemble repository as a git submodule. The location within the PyEnsemble package is pyensemble/thirdparty/jsPsych

@@ -41,7 +41,9 @@ STRUCTURE_KEYS = {
 
 
 class ImportConflict(ValueError):
-    pass
+    def __init__(self, message, *, can_rename=False):
+        super().__init__(message)
+        self.can_rename = can_rename
 
 
 class _DryRunComplete(Exception):
@@ -144,7 +146,14 @@ def _resolve_data_format(payload):
     return DataFormat.objects.create(**values)
 
 
-def _match_or_create(model, payload, identity_fields, *, relations=None):
+def _match_or_create(
+    model,
+    payload,
+    identity_fields,
+    *,
+    relations=None,
+    can_rename_on_conflict=False,
+):
     values = _field_values(model, payload)
     relations = relations or {}
     if any(
@@ -165,7 +174,10 @@ def _match_or_create(model, payload, identity_fields, *, relations=None):
             )
             if _is_protected(instance):
                 message = f'The import conflicts with a locked {model.__name__}.'
-            raise ImportConflict(message)
+            raise ImportConflict(
+                message,
+                can_rename=can_rename_on_conflict,
+            )
         return instance, False
 
     return model.objects.create(**values, **relations), True
@@ -204,7 +216,7 @@ def _resolve_question(payload):
     )[0]
 
 
-def _resolve_form(payload):
+def _resolve_form(payload, *, can_rename_on_conflict=False):
     rows = payload.get('fxq_instances', [])
     if not isinstance(rows, list):
         raise ImportConflict('Form question memberships must be a list.')
@@ -226,7 +238,12 @@ def _resolve_form(payload):
         ),
     )
 
-    form, created = _match_or_create(Form, payload, ('name',))
+    form, created = _match_or_create(
+        Form,
+        payload,
+        ('name',),
+        can_rename_on_conflict=can_rename_on_conflict,
+    )
     if created:
         for question, values in question_rows:
             FormXQuestion.objects.create(
@@ -251,7 +268,10 @@ def _resolve_form(payload):
         message = 'The import conflicts with the existing Form questions.'
         if _is_protected(form):
             message = 'The import conflicts with a locked Form.'
-        raise ImportConflict(message)
+        raise ImportConflict(
+            message,
+            can_rename=can_rename_on_conflict,
+        )
     return form
 
 
@@ -275,6 +295,7 @@ def _resolve_experiment(payload):
         Experiment,
         payload,
         ('title',),
+        can_rename_on_conflict=True,
     )
     if created:
         for form, values in form_rows:
@@ -299,7 +320,7 @@ def _resolve_experiment(payload):
         message = 'The import conflicts with the existing Experiment forms.'
         if _is_protected(experiment):
             message = 'The import conflicts with a locked Experiment.'
-        raise ImportConflict(message)
+        raise ImportConflict(message, can_rename=True)
     return experiment
 
 
@@ -391,11 +412,6 @@ def import_definition(payload, *, mode, actor, target_id=None, new_name=''):
     ):
         payload = dict(payload)
         payload['title' if model is Experiment else 'name'] = new_name
-    elif model in {Experiment, Form} and mode == 'create':
-        raise ImportConflict(
-            f'Enter a new {("title" if model is Experiment else "name")} '
-            'for the imported draft.',
-        )
 
     def execute():
         update_mode = mode == 'update' or (
@@ -413,14 +429,28 @@ def import_definition(payload, *, mode, actor, target_id=None, new_name=''):
             result = _update_root(target, payload)
             action = 'updated'
         elif model is Experiment:
+            identity_field = 'title'
+            already_exists = model.objects.filter(
+                **{identity_field: payload.get(identity_field)},
+            ).exists()
             result = _resolve_experiment(payload)
-            action = 'created or reused'
+            action = 'already existed' if already_exists else 'created'
         elif model is Form:
-            result = _resolve_form(payload)
-            action = 'created or reused'
+            identity_field = 'name'
+            already_exists = model.objects.filter(
+                **{identity_field: payload.get(identity_field)},
+            ).exists()
+            result = _resolve_form(
+                payload,
+                can_rename_on_conflict=True,
+            )
+            action = 'already existed' if already_exists else 'created'
         else:
+            already_exists = model.objects.filter(
+                text=payload.get('text'),
+            ).exists()
             result = _resolve_question(payload)
-            action = 'created or reused'
+            action = 'already existed' if already_exists else 'created'
         return {
             'model': model.__name__,
             'id': result.pk,

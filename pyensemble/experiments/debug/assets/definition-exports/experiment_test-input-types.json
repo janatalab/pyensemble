@@ -1,0 +1,337 @@
+{
+  "exf_instances": [
+    {
+      "id": 74,
+      "form": {
+        "fxq_instances": [],
+        "name": "subject_id",
+        "category": "general background",
+        "header": "",
+        "footer": "",
+        "header_audio_path": "",
+        "footer_audio_path": "",
+        "version": 1.0,
+        "locked": false,
+        "visit_once": false,
+        "questions": [],
+        "model_class": "Form"
+      },
+      "form_order": 1,
+      "form_handler": "form_subject_register",
+      "goto": null,
+      "repeat": null,
+      "condition": "",
+      "condition_script": "",
+      "stimulus_script": "",
+      "record_response_script": "",
+      "break_loop_button": false,
+      "break_loop_button_text": "",
+      "continue_button_text": "Next",
+      "use_clientside_validation": false,
+      "experiment": 4,
+      "model_class": "ExperimentXForm"
+    },
+    {
+      "id": 75,
+      "form": {
+        "fxq_instances": [
+          {
+            "id": 189,
+            "question": {
+              "id": 210,
+              "data_format": {
+                "id": 30,
+                "df_type": "enum",
+                "enum_values": "\"Yes\",\"No\",\"Maybe\"",
+                "_range_hash": null,
+                "range_data": null,
+                "model_class": "DataFormat"
+              },
+              "_unique_hash": "0f40c44aeb71a495ab6f3acdcb5bd962",
+              "text": "Is this an awesome radiogroup question?",
+              "category": "",
+              "value_range": "",
+              "value_default": "",
+              "html_field_type": "radiogroup",
+              "audio_path": "",
+              "locked": false,
+              "forms": [
+                56
+              ],
+              "model_class": "Question"
+            },
+            "question_iteration": 1,
+            "form_question_num": 1,
+            "required": true,
+            "form": 56,
+            "model_class": "FormXQuestion"
+          },
+          {
+            "id": 190,
+            "question": {
+              "id": 211,
+              "data_format": {
+                "id": 38,
+                "df_type": "enum",
+                "enum_values": "\"Happy\",\"Sad\",\"Afraid\",\"Angry\",\"Disgusted\"",
+                "_range_hash": null,
+                "range_data": null,
+                "model_class": "DataFormat"
+              },
+              "_unique_hash": "41831c3cc6d749638f765156c4ffa610",
+              "text": "Check all the adjectives that apply to this checkbox question",
+              "category": "",
+              "value_range": "",
+              "value_default": "",
+              "html_field_type": "checkbox",
+              "audio_path": "",
+              "locked": false,
+              "forms": [
+                56
+              ],
+              "model_class": "Question"
+            },
+            "question_iteration": 1,
+            "form_question_num": 2,
+            "required": true,
+            "form": 56,
+            "model_class": "FormXQuestion"
+          },
+          {
+            "id": 191,
+            "question": {
+              "id": 213,
+              "data_format": {
+                "id": 11,
+                "df_type": "text",
+                "enum_values": "",
+                "_range_hash": null,
+                "range_data": null,
+                "model_class": "DataFormat"
+              },
+              "_unique_hash": "0cd00ba197b7bbfabef9c47aa1eef34a",
+              "text": "What's an adjective that describes this question?",
+              "category": "",
+              "value_range": "",
+              "value_default": "",
+              "html_field_type": "text",
+              "audio_path": "",
+              "locked": false,
+              "forms": [
+                56
+              ],
+              "model_class": "Question"
+            },
+            "question_iteration": 1,
+            "form_question_num": 3,
+            "required": true,
+            "form": 56,
+            "model_class": "FormXQuestion"
+          },
+          {
+            "id": 192,
+            "question": {
+              "id": 232,
+              "data_format": {
+                "id": 11,
+                "df_type": "text",
+                "enum_values": "",
+                "_range_hash": null,
+                "range_data": null,
+                "model_class": "DataFormat"
+              },
+              "_unique_hash": "581edc205b83090651f67788c3d4d834",
+              "text": "Write a sentence describing this question.",
+              "category": "",
+              "value_range": "",
+              "value_default": "",
+              "html_field_type": "textarea",
+              "audio_path": "",
+              "locked": false,
+              "forms": [
+                56
+              ],
+              "model_class": "Question"
+            },
+            "question_iteration": 1,
+            "form_question_num": 4,
+            "required": true,
+            "form": 56,
+            "model_class": "FormXQuestion"
+          },
+          {
+            "id": 193,
+            "question": {
+              "id": 233,
+              "data_format": {
+                "id": 29,
+                "df_type": "int16",
+                "enum_values": "",
+                "_range_hash": null,
+                "range_data": null,
+                "model_class": "DataFormat"
+              },
+              "_unique_hash": "d362a3b5cc59f4fcc657a1bab26639d4",
+              "text": "How good is this question on a scale from 1 to 10?",
+              "category": "",
+              "value_range": "",
+              "value_default": "",
+              "html_field_type": "numeric",
+              "audio_path": "",
+              "locked": false,
+              "forms": [
+                56
+              ],
+              "model_class": "Question"
+            },
+            "question_iteration": 1,
+            "form_question_num": 5,
+            "required": true,
+            "form": 56,
+            "model_class": "FormXQuestion"
+          },
+          {
+            "id": 194,
+            "question": {
+              "id": 238,
+              "data_format": {
+                "id": 30,
+                "df_type": "enum",
+                "enum_values": "\"Yes\",\"No\",\"Maybe\"",
+                "_range_hash": null,
+                "range_data": null,
+                "model_class": "DataFormat"
+              },
+              "_unique_hash": "cbe9dddc373963270fcc2db0c9356aa3",
+              "text": "Does this question look good as a menu dropdown?",
+              "category": "",
+              "value_range": "",
+              "value_default": "",
+              "html_field_type": "menu",
+              "audio_path": "",
+              "locked": false,
+              "forms": [
+                56
+              ],
+              "model_class": "Question"
+            },
+            "question_iteration": 1,
+            "form_question_num": 6,
+            "required": true,
+            "form": 56,
+            "model_class": "FormXQuestion"
+          }
+        ],
+        "name": "Input Type Test Form",
+        "category": "",
+        "header": "This form is only used to test the display of different input types including: radiogroup, checkbox, text, textarea, and numeric",
+        "footer": "Did this work?",
+        "header_audio_path": "",
+        "footer_audio_path": "",
+        "version": null,
+        "locked": false,
+        "visit_once": false,
+        "questions": [
+          210,
+          211,
+          213,
+          232,
+          233,
+          238
+        ],
+        "model_class": "Form"
+      },
+      "form_order": 2,
+      "form_handler": "form_generic",
+      "goto": 2,
+      "repeat": 5,
+      "condition": "",
+      "condition_script": "",
+      "stimulus_script": "",
+      "record_response_script": "",
+      "break_loop_button": true,
+      "break_loop_button_text": "Continue",
+      "continue_button_text": "Try Again",
+      "use_clientside_validation": false,
+      "experiment": 4,
+      "model_class": "ExperimentXForm"
+    },
+    {
+      "id": 669,
+      "form": {
+        "fxq_instances": [],
+        "name": "grabEmail4Day2",
+        "category": "",
+        "header": "Please enter your email address below. We will use this email address to send you a link to the next session. Note, if you are taking part of this study through Prolific we do not need your email address (please copy and paste prolific@mail.com as your response).",
+        "footer": "",
+        "header_audio_path": "",
+        "footer_audio_path": "",
+        "version": null,
+        "locked": false,
+        "visit_once": false,
+        "questions": [],
+        "model_class": "Form"
+      },
+      "form_order": 3,
+      "form_handler": "form_subject_email",
+      "goto": null,
+      "repeat": null,
+      "condition": "",
+      "condition_script": "",
+      "stimulus_script": "",
+      "record_response_script": "",
+      "break_loop_button": false,
+      "break_loop_button_text": "",
+      "continue_button_text": "Next",
+      "use_clientside_validation": false,
+      "experiment": 4,
+      "model_class": "ExperimentXForm"
+    },
+    {
+      "id": 76,
+      "form": {
+        "fxq_instances": [],
+        "name": "end_session",
+        "category": "general background",
+        "header": "<p style=\"text-align: center;\"><strong>This concludes the experiment.</strong></p>\r\n<p style=\"text-align: center;\"><strong>Thank you for your participation!</strong></p>\r\n<p style=\"text-align: center;\">If you have any questions or comments about this study, you are welcome to email us at study-team@example.org</p>",
+        "footer": "",
+        "header_audio_path": "",
+        "footer_audio_path": "",
+        "version": 1.0,
+        "locked": false,
+        "visit_once": false,
+        "questions": [],
+        "model_class": "Form"
+      },
+      "form_order": 4,
+      "form_handler": "form_end_session",
+      "goto": null,
+      "repeat": null,
+      "condition": "",
+      "condition_script": "",
+      "stimulus_script": "",
+      "record_response_script": "",
+      "break_loop_button": false,
+      "break_loop_button_text": "",
+      "continue_button_text": "Next",
+      "use_clientside_validation": false,
+      "experiment": 4,
+      "model_class": "ExperimentXForm"
+    }
+  ],
+  "title": "Test Input Types",
+  "description": "This is used to test the various types of input fields on a form.",
+  "irb_id": "",
+  "sona_url": "",
+  "start_date": null,
+  "end_date": null,
+  "language": "en",
+  "play_question_audio": false,
+  "params": "",
+  "locked": false,
+  "is_group": false,
+  "user_ticket_expected": false,
+  "session_reporting_script": "",
+  "post_session_callback": "",
+  "model_class": "Experiment"
+}

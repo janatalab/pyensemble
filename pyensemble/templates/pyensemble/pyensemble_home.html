@@ -13,6 +13,7 @@
             <li><a class="nav-link content-link" href="{% url 'reporting' %}">Reports</a></li>
             <li><a class="nav-link content-link" href="{% url 'stimulus' %}">Stimuli</a></li>        
             <li><a class="nav-link content-link" href="{% url 'importers:import-home' %}">Importers</a></li>
+            <li><a class="nav-link content-link" href="{% url 'experiments:debug:home' %}">Examples</a></li>
             {% if can_manage_accounts %}
                 <li><a class="nav-link" href="{% url 'account-invitations' %}">Account invitations</a></li>
             {% endif %}

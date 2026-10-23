@@ -1,25 +1,68 @@
 {% extends "pyensemble/pyensemble_home.html" %}
 
 {% block main %}
-    <main>
-        <div class="text-left">
-            <div class="h3 text-center">Experiment creation</div>
-            <ul>
-                <li>
-                    <a href="{% url 'experiments:debug:create-experiment-with-notification' %}">Create an experiment in which an email address is obtained and notification is created</a>
-                </li>
-                <li>
-                    <a href="{% url 'experiments:debug:create-experiment-with-email-login' %}">Create an experiment in which the login is effected with an email address</a>
-                </li>
-                <li>
-                    <a href="{% url 'experiments:debug:create-group-experiment' %}">Create a basic group experiment</a>
-                </li>
-                {% if have_prolific %}
-                    <li>
-                        <a href="{% url 'experiments:debug:prolific-home' %}">Prolific functions</a>
-                    </li>
-                {% endif %}
-            </ul>
+<main class="container">
+    <header class="my-4">
+        <h1 class="text-center">PyEnsemble Examples</h1>
+        <p class="lead">
+            Explore example definitions, participant flows, and experiment-specific
+            Python callbacks. Start with the importable examples below; the
+            advanced integrations are optional.
+        </p>
+    </header>
+
+    <section class="card mb-4">
+        <div class="card-body">
+            <h2 class="h4">Start here: import an example definition</h2>
+            <ol>
+                <li>Open <a href="{% url 'pyensemble-importers:import-json' %}">Import JSON</a>.</li>
+                <li>Select an Experiment export from <code>pyensemble/experiments/debug/assets/definition-exports/</code>.</li>
+                <li>Choose <strong>Validate only</strong> first. If validation succeeds, import it as a new draft. The JSON title/name is used automatically unless it conflicts with an existing definition.</li>
+                <li>Review the imported Experiment, Forms, and Questions in the editors before creating a ticket or running a participant session.</li>
+            </ol>
+            <p class="mb-0">
+                Experiment exports include their nested Forms and Questions. You
+                usually do not need to import the corresponding Form or Question
+                exports separately. Imports create unlocked drafts, not releases.
+            </p>
         </div>
-    </main>
+    </section>
+
+    <section class="mb-4">
+        <h2 class="h3">Quick-start examples</h2>
+        <div class="card mb-3">
+            <div class="card-body">
+                <h3 class="h5">Test Input Types</h3>
+                <p>Demonstrates common response controls and an Experiment containing its Forms and Questions.</p>
+                <p class="mb-0"><strong>Prerequisites:</strong> local database only; no stimuli or external services.</p>
+            </div>
+        </div>
+        <div class="card mb-3">
+            <div class="card-body">
+                <h3 class="h5">Test Audio</h3>
+                <p>Demonstrates jsPsych audio presentation followed by a PyEnsemble response form.</p>
+                <p class="mb-0"><strong>Prerequisites:</strong> jsPsych assets, the bundled audio files imported as Stimuli, and the stimulus name <code>Jazz7</code>.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="mb-4">
+        <h2 class="h3">More examples</h2>
+        <ul>
+            <li><strong>Further Participation</strong> and <strong>Email Login</strong> demonstrate participant registration/login and Python callbacks. Email uses the local console backend; messages appear in the server output.</li>
+            <li><strong>Prolific Redirect Test</strong> demonstrates completion redirection. Replace its placeholder completion code with a valid code before use.</li>
+            <li><strong>Form and Question exports</strong> show how smaller definition objects can be imported independently.</li>
+            <li><strong>Python setup examples</strong> demonstrate programmatic creation of PyEnsemble objects. They are administrative examples and may create or replace database relationships; use only in a disposable local database.</li>
+        </ul>
+        <p>See <code>pyensemble/experiments/debug/README.md</code> in the repository for import details, audio setup, asset notes, and the complete catalog.</p>
+    </section>
+
+    {% if have_prolific %}
+    <section class="mb-4">
+        <h2 class="h3">Optional integration examples</h2>
+        <p>Prolific workflows require Prolific credentials and configuration. They are not needed to explore the core examples.</p>
+        <a class="btn btn-secondary" href="{% url 'experiments:debug:prolific-home' %}">Open Prolific examples</a>
+    </section>
+    {% endif %}
+</main>
 {% endblock %}

@@ -3,7 +3,7 @@
 ## Goal
 
 The goal is for a first-time developer to clone PyEnsemble, install its
-dependencies, initialize a local database, and run an example experiment
+dependencies, initialize a local database, and import and run an example experiment
 without credentials for a hosted database, AWS/S3, production SMTP, or
 production Google reCAPTCHA.
 
@@ -25,10 +25,11 @@ overriding some values, so it still requires a usable site INI file. Use
 `pyensemble.settings.local_dev` for a clean local setup instead.
 
 The standalone profile and README quickstart address core startup, migrations,
-and local account creation. Remaining gaps include example seed data and
-stimulus assets, setup instructions for third-party checkouts and separate
-experiment repositories, and a readiness/troubleshooting check that validates
-these resources.
+and local account creation. The tracked `debug` package is presented as
+**Examples** and now includes a guided catalog of importable definitions and
+local audio setup. Remaining gaps include verifying and documenting asset and
+questionnaire redistribution rights, plus a readiness/troubleshooting check
+that validates third-party resources.
 
 ## Recommended local developer experience
 
@@ -78,19 +79,23 @@ Open `http://127.0.0.1:8000/`. Use the superuser for local administrative
 access. No Apache, production TLS setup, hosted database, AWS account, SMTP
 access, cache-table creation, or production credential is needed.
 
-### 3. Ship a useful local example dataset
+### 3. Local Examples catalog (implemented)
 
-Provide a repeatable way to populate a fresh local database with a minimal
-example Study/Experiment, Forms, Questions, response formats, and any
-relationships needed to demonstrate the main editor and participant flow.
-Prefer version-controlled fixtures or an idempotent development-only seed
-command. The `debug` experiment should be the primary example for
-experiment-specific callbacks and templates.
+The tracked package `pyensemble/experiments/debug/` is presented to users as
+**Examples** while retaining the `debug` package and callback namespace for
+compatibility with existing definitions. Its README and home page guide users
+through validating and importing an Experiment export, explain that nested
+Forms and Questions are included, and identify optional prerequisites.
 
-Use synthetic records and small, redistributable sample assets. Do not seed
-participant data, import production records, or include private stimulus files.
-Document separately which debug features require assets that are deliberately
-not distributed.
+The catalog includes examples for common input types, jsPsych audio, email and
+notification callbacks, Prolific redirection, and standalone Form/Question
+imports. There is no automatic seed command: users deliberately import
+unlocked drafts through the Import interface. The audio example includes a
+Stimulus manifest and instructions for packaging the supplied MP3 files.
+
+Verify audio sources/licenses and questionnaire redistribution/reuse
+permissions before promoting those assets as generally redistributable
+teaching materials. Do not add participant data or private stimulus files.
 
 ### 4. CAPTCHA behavior (local bypass implemented)
 
@@ -153,10 +158,10 @@ The onboarding instructions should distinguish:
 - Each experiment's own Git repository under `pyensemble/experiments/`.
 
 Experiment directories are git-ignored in the PyEnsemble repository except for
-the tracked `debug` example. A first-time user can develop the application and
-explore `debug` without access to a real experiment repository. To run another
-group's experiment, they need that group's repository and any separately
-distributed assets.
+the tracked `debug` package, presented as **Examples**. A first-time user can
+develop the application and explore its imports without access to a real
+experiment repository. To run another group's experiment, they need that
+group's repository and any separately distributed assets.
 
 ### 8. Add a local readiness check and troubleshooting guide
 
@@ -170,7 +175,7 @@ additionally verify:
 - No AWS or SMTP credentials are required.
 - CAPTCHA is in the explicitly selected local mode.
 - Required local directories exist and are writable.
-- The debug experiment and jsPsych assets are discoverable.
+- The Examples package and jsPsych assets are discoverable.
 
 Troubleshooting should map common configuration failures to remedies, including
 missing INI sections, database connection attempts to a hosted hostname,
@@ -184,11 +189,11 @@ Diagnostics must not print secrets.
 2. **First-run data and assets.** Add synthetic seed data and clearly licensed
    debug assets or document their separate acquisition.
 3. **Onboarding and diagnostics.** Add readiness checks and troubleshooting
-   for local database, static/media storage, debug experiment, and jsPsych
+   for local database, static/media storage, Examples package, and jsPsych
    assets.
 4. **Fresh-machine acceptance test.** Have a developer without shared database,
    AWS, CAPTCHA, SMTP, or experiment-repository credentials follow the guide
-   from a clean clone and complete the editor-to-participant debug flow.
+   from a clean clone and complete the editor-to-participant Examples flow.
 
 ## Long-term acceptance criteria
 
@@ -197,8 +202,8 @@ clone can, without any hosted-service credentials:
 
 - Start PyEnsemble on loopback with a local database and local file storage.
 - Sign in to the administrative interface with a local development account.
-- Load or create the documented synthetic example definitions.
-- Exercise the `debug` participant flow through experiment startup and form
+- Import the documented example definitions as local drafts.
+- Exercise an Examples participant flow through experiment startup and form
   serving.
 - Test invitation/verification behavior by reading locally emitted email.
 - Test a consent form without production reCAPTCHA credentials, while the
