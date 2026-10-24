@@ -46,7 +46,14 @@
                 </div>
             </li>
             {% if form.instance.pk %}
-                <li id="experimentForms" class="list-group-item text-left bg-light"><div class='nav'><div class='nav-item'>Forms</div><a id="addForm" class='nav-item ml-auto' data-toggle="modal" role="button" data-target="#addItemTable" href="#">Add Form</a></div></li>
+                <li id="experimentForms" class="list-group-item text-left bg-light">
+                    <div class='nav'>
+                        <div class='nav-item'>Forms</div>
+                        {% if not disable_editor_fields %}
+                            <a id="addForm" class='nav-item ml-auto' data-toggle="modal" role="button" data-target="#addItemTable" href="#">Add Form</a>
+                        {% endif %}
+                    </div>
+                </li>
 
                 <li class="list-group-item text-center">
                     <div>

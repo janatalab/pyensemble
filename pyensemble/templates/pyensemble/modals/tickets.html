@@ -21,18 +21,33 @@
 </div>
 
 <script>
-  $(function () {
-    let datetimepicker_options = {
-      format: 'd/m/Y H:00',
-      step: 5,
-    };
+  (function () {
+    function initializeTicketModal() {
+      if (!window.jQuery) {
+        throw new Error('Ticket controls require jQuery.');
+      }
 
-    $("#id_master_expiration").datetimepicker(datetimepicker_options);
-    $("#id_user_expiration").datetimepicker(datetimepicker_options);
-    $("#createTicketBtn").on('click', function(ev){
-      ev.preventDefault();
-      $("#ticketModal").modal('hide');
-      submitForm($("#ticketCreateForm"));
-    })
-  });
+      var $ = window.jQuery;
+      var datetimepickerOptions = {
+        format: 'd/m/Y H:00',
+        step: 5,
+      };
+
+      $("#id_master_expiration").datetimepicker(datetimepickerOptions);
+      $("#id_user_expiration").datetimepicker(datetimepickerOptions);
+      $("#createTicketBtn").on('click', function(ev) {
+        ev.preventDefault();
+        $("#ticketModal").modal('hide');
+        submitForm($("#ticketCreateForm"));
+      });
+    }
+
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initializeTicketModal, {
+        once: true,
+      });
+    } else {
+      initializeTicketModal();
+    }
+  })();
 </script>

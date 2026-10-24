@@ -18,9 +18,11 @@
         <li class="nav-item">
             <a id="copyLink" class="nav-link" role="button" href="#" data-toggle="modal" data-target="#copyItemModal">Copy</a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'definition_delete' 'experiment' form.instance.pk %}">Delete</a>
-        </li>
+        {% if not definition_is_protected %}
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'definition_delete' 'experiment' form.instance.pk %}">Delete</a>
+            </li>
+        {% endif %}
 
         {% if not form.instance.is_group %}
             <li class="nav-item">
@@ -36,7 +38,70 @@
     {% endif %}
 {% endblock %}
 
+{% block additionalDetailContentNavStatus %}
+    {% if form.instance.pk and definition_is_protected %}
+        <li class="nav-item ml-auto">
+            <a class="nav-link" href="#productionLockInfoModal"
+               role="button" data-toggle="modal"
+               data-target="#productionLockInfoModal"
+               aria-haspopup="dialog" aria-controls="productionLockInfoModal">
+                <span class="badge badge-warning">Locked</span>
+            </a>
+        </li>
+    {% endif %}
+{% endblock %}
+
 {% block detailContent %}
+    {% if definition_is_protected %}
+        <div class="modal fade" id="productionLockInfoModal" tabindex="-1"
+             role="dialog" aria-labelledby="productionLockInfoModalTitle"
+             aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="productionLockInfoModalTitle">
+                            Production lock information
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal"
+                                aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-warning mb-0" role="status">
+                            {% if not locked_through_study %}
+                                <strong>Locked for production.</strong>
+                                This Experiment and its database definition dependencies are immutable.
+                                To change the protocol, clone it and update the draft.
+                                <div>Release: {{ form.instance.release_identifier }}</div>
+                                <div>Locked at: {{ form.instance.locked_at }}</div>
+                                <div>Reason: {{ form.instance.lock_reason }}</div>
+                                {% if form.instance.locked_by %}
+                                    <div>Locked by: {{ form.instance.locked_by }}</div>
+                                {% endif %}
+                            {% else %}
+                                <strong>Protected by a locked Study.</strong>
+                                This Experiment and its database definition dependencies are immutable.
+                                Clone an unlocked Study to prepare a changed draft.
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary"
+                                data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% elif form.instance.pk and can_lock_definition %}
+        <div class="alert alert-info">
+            <a class="btn btn-warning"
+               href="{% url 'definition_lock' 'experiment' form.instance.pk %}">
+                Lock for production
+            </a>
+            Locking expires all existing tickets. Create new tickets after locking.
+        </div>
+    {% endif %}
     <input type="hidden" id="parent_id" value="{{form.instance.pk}}">
     {% crispy form %}
 

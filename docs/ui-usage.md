@@ -60,7 +60,12 @@ lock imported definitions.
 Locking marks production definitions as immutable. Clone a definition to
 prepare a changed draft rather than editing a locked definition. See
 [experiment locking](./dev/experiment-locking.md) for release and import
-behavior.
+behavior. Release Managers can lock a Study or Experiment. Locking expires all
+existing tickets for that Experiment, or for every Experiment in the Study;
+create replacement tickets after the lock. The lock covers stored database
+definitions and callback references, not experiment-repository code or
+stimulus records/files. Locked definitions and definitions protected through a
+locked Study have their editing controls disabled in the editor.
 
 Definitions cannot be deleted if they are locked or still referenced by a
 higher-level object. See the

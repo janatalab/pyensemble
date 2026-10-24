@@ -110,6 +110,181 @@ class DefinitionLockingTests(TestCase):
         unrelated_ticket.refresh_from_db()
         self.assertIsNone(unrelated_ticket.expiration_datetime)
 
+    def test_experiment_lock_action_records_metadata_and_shows_locked_state(self):
+        self.experiment.session_reporting_script = 'debug.reporting.summary'
+        self.experiment_form.condition_script = 'debug.conditions.should_continue'
+        self.experiment.save()
+        self.experiment_form.save()
+        lock_url = reverse(
+            'definition_lock',
+            args=('experiment', self.experiment.pk),
+        )
+
+        confirmation = self.client.get(lock_url)
+        self.assertEqual(confirmation.status_code, 200)
+        self.assertContains(confirmation, 'Confirm production lock')
+        self.assertContains(confirmation, 'existing tickets')
+        editor_page_before_lock = self.client.get(
+            reverse('experiment_update', args=[self.experiment.pk]),
+        )
+        self.assertContains(editor_page_before_lock, 'Lock for production')
+
+        response = self.client.post(lock_url, {
+            'reason': 'Production data collection begins',
+            'release_identifier': 'release-2026-01',
+        })
+
+        self.assertRedirects(
+            response,
+            reverse('experiment_update', args=[self.experiment.pk])
+            + '?standalone=1',
+        )
+        locked = Experiment.objects.get(pk=self.experiment.pk)
+        self.assertTrue(locked.locked)
+        self.assertEqual(locked.locked_by, self.actor)
+        self.assertEqual(locked.lock_reason, 'Production data collection begins')
+        self.assertEqual(locked.release_identifier, 'release-2026-01')
+        self.assertEqual(
+            locked.lock_snapshot['experiment']['session_reporting_script'],
+            'debug.reporting.summary',
+        )
+        self.assertEqual(
+            locked.lock_snapshot['forms'][0]['relationship'][
+                'condition_script'
+            ],
+            'debug.conditions.should_continue',
+        )
+
+        editor_page = self.client.get(response.url)
+        self.assertContains(editor_page, 'PyEnsemble - Editors')
+        self.assertContains(editor_page, 'class="col-12" id="content-right"')
+        self.assertContains(editor_page, 'detailHeader')
+        self.assertContains(editor_page, 'class="badge badge-warning">Locked</span>')
+        self.assertContains(editor_page, 'data-target="#productionLockInfoModal"')
+        self.assertContains(editor_page, 'id="productionLockInfoModal"')
+        self.assertContains(editor_page, 'Locked for production.')
+        self.assertContains(editor_page, 'release-2026-01')
+        self.assertNotContains(editor_page, 'Lock for production')
+
+    def test_locked_experiment_can_generate_new_master_tickets(self):
+        self.lock_experiment()
+
+        editor_page = self.client.get(
+            reverse('experiment_update', args=[self.experiment.pk])
+            + '?standalone=1',
+        )
+        self.assertEqual(editor_page.status_code, 200)
+        self.assertContains(
+            editor_page,
+            f'action="{reverse("create_ticket")}"',
+        )
+
+        response = self.client.post(reverse('create_ticket'), {
+            'experiment_id': self.experiment.pk,
+            'num_master': 1,
+            'master_expiration': '',
+            'num_user': 0,
+            'user_expiration': '',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            Ticket.objects.filter(
+                experiment=self.experiment,
+                type='master',
+            ).count(),
+            1,
+        )
+
+    def test_locked_definition_editors_disable_editing_controls(self):
+        self.lock_experiment()
+
+        for url_name, instance in (
+            ('experiment_update', self.experiment),
+            ('form_update', self.form),
+            ('question_update', self.question),
+        ):
+            with self.subTest(url_name=url_name):
+                response = self.client.get(reverse(url_name, args=[instance.pk]))
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(
+                    response,
+                    'data-disable-editor-fields="true"',
+                )
+                self.assertContains(
+                    response,
+                    '$(".editor-form :input").prop("disabled", true);',
+                )
+                self.assertTrue(
+                    response.context['form'].fields[
+                        'title' if url_name == 'experiment_update' else
+                        'name' if url_name == 'form_update' else
+                        'text'
+                    ].disabled,
+                )
+                self.assertContains(response, 'disabled')
+                self.assertNotContains(response, 'id="formTableEditButton"')
+
+        form_page = self.client.get(reverse('form_update', args=[self.form.pk]))
+        self.assertContains(form_page, 'This Form is protected by a production lock.')
+        question_page = self.client.get(
+            reverse('question_update', args=[self.question.pk]),
+        )
+        self.assertContains(
+            question_page,
+            'This Question is protected by a production lock.',
+        )
+
+    def test_locked_study_editor_disables_editing_controls(self):
+        second_experiment = Experiment.objects.create(title='Second study')
+        study = Study.objects.create(title='Production study')
+        StudyXExperiment.objects.create(
+            study=study,
+            experiment=self.experiment,
+            experiment_order=1,
+        )
+        StudyXExperiment.objects.create(
+            study=study,
+            experiment=second_experiment,
+            experiment_order=2,
+        )
+        lock_study(
+            study,
+            self.actor,
+            'Production data collection begins',
+            'release-2026-01',
+        )
+
+        response = self.client.get(reverse('study_update', args=[study.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-disable-editor-fields="true"')
+        self.assertContains(response, '$(".editor-form :input").prop("disabled", true);')
+        self.assertTrue(response.context['form'].fields['title'].disabled)
+        self.assertTrue(response.context['formset'].forms[0].fields['experiment'].disabled)
+        self.assertRegex(
+            response.content.decode(),
+            r'<button id="add-study-experiment"[^>]*\sdisabled>',
+        )
+        self.assertNotContains(response, 'id="formTableEditButton"')
+
+    def test_experiment_lock_action_requires_release_manager_role(self):
+        editor = get_user_model().objects.create_user('lock-action-editor')
+        editor.groups.add(Group.objects.get(name='Editor'))
+        self.client.force_login(editor)
+
+        response = self.client.get(reverse(
+            'definition_lock',
+            args=('experiment', self.experiment.pk),
+        ))
+
+        self.assertEqual(response.status_code, 403)
+        editor_page = self.client.get(
+            reverse('experiment_update', args=[self.experiment.pk]),
+        )
+        self.assertNotContains(editor_page, 'Lock for production')
+        self.assertFalse(Experiment.objects.get(pk=self.experiment.pk).locked)
+
     def test_experiment_lock_protects_reachable_definition_and_relationships(self):
         self.lock_experiment()
 
@@ -294,6 +469,67 @@ class DefinitionLockingTests(TestCase):
                 self.assertEqual(ticket.expiration_datetime, expected_expiration)
         unrelated_ticket.refresh_from_db()
         self.assertIsNone(unrelated_ticket.expiration_datetime)
+
+    def test_study_lock_action_locks_study_and_displays_immutable_state(self):
+        second_experiment = Experiment.objects.create(title='Second release experiment')
+        study = Study.objects.create(title='Production study')
+        StudyXExperiment.objects.create(
+            study=study,
+            experiment=self.experiment,
+            experiment_order=1,
+        )
+        StudyXExperiment.objects.create(
+            study=study,
+            experiment=second_experiment,
+            experiment_order=2,
+        )
+        lock_url = reverse('definition_lock', args=('study', study.pk))
+
+        response = self.client.post(lock_url, {
+            'reason': 'Production study release',
+            'release_identifier': 'study-release-1',
+        })
+
+        self.assertRedirects(
+            response,
+            reverse('study_update', args=[study.pk]) + '?standalone=1',
+        )
+        study.refresh_from_db()
+        self.assertTrue(study.locked)
+        self.assertEqual(study.locked_by, self.actor)
+        self.assertEqual(study.lock_reason, 'Production study release')
+        self.assertEqual(study.release_identifier, 'study-release-1')
+        self.assertContains(
+            self.client.get(reverse('study_update', args=[study.pk])),
+            'Locked for production.',
+        )
+        with self.assertRaises(LockedDefinitionError):
+            self.experiment.title = 'Cannot edit released experiment'
+            self.experiment.save()
+
+    def test_study_lock_action_rejects_invalid_study_without_locking(self):
+        study = Study.objects.create(title='Incomplete study')
+        StudyXExperiment.objects.create(
+            study=study,
+            experiment=self.experiment,
+            experiment_order=1,
+        )
+
+        response = self.client.post(
+            reverse('definition_lock', args=('study', study.pk)),
+            {
+                'reason': 'Production release',
+                'release_identifier': 'study-release-invalid',
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(
+            response,
+            'A Study must contain at least two distinct Experiments',
+            status_code=400,
+        )
+        self.assertFalse(Study.objects.get(pk=study.pk).locked)
 
     def test_direct_lock_metadata_changes_are_not_allowed(self):
         self.experiment.locked = True

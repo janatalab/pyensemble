@@ -9,6 +9,12 @@
 {% endblock %}
 
 {% block detailContent %}
+    {% if definition_is_protected %}
+        <div class="alert alert-warning" role="status">
+            This Question is protected by a production lock. Its definition
+            cannot be changed.
+        </div>
+    {% endif %}
     <input type="hidden" id="parent_id" value="{{form.instance.pk}}">
 
     {% crispy form %}

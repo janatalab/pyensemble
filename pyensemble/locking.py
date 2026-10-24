@@ -358,7 +358,7 @@ def _lock_definition(instance, actor, reason, release_identifier):
     with transaction.atomic():
         DefinitionWriteMutex.objects.select_for_update().get(pk=1)
         instance = instance.__class__.objects.select_for_update().get(pk=instance.pk)
-        if instance.locked:
+        if _is_protected(instance):
             raise LockedDefinitionError('This definition is already locked.')
         if instance.__class__.__name__ == 'Study':
             experiment_ids = list(

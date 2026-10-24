@@ -11,9 +11,11 @@
 
 {% block additionalDetailContentNavItems %}
     {% if form.instance.pk %}
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'definition_delete' 'question' form.instance.pk %}">Delete</a>
-        </li>
+        {% if not definition_is_protected %}
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'definition_delete' 'question' form.instance.pk %}">Delete</a>
+            </li>
+        {% endif %}
     {% endif %}
 {% endblock %}
 

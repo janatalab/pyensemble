@@ -14,9 +14,11 @@
         <li class="nav-item">
             <a id="copyLink" class="nav-link" role="button" href="#">Copy</a>
         </li>
-        <li class="nav-item">
-            <a class="nav-link" href="{% url 'definition_delete' 'form' form.instance.pk %}">Delete</a>
-        </li>
+        {% if not definition_is_protected %}
+            <li class="nav-item">
+                <a class="nav-link" href="{% url 'definition_delete' 'form' form.instance.pk %}">Delete</a>
+            </li>
+        {% endif %}
     {% endif %}
     <li class="nav-item">
         <a class="nav-link" href="#formQuestions">Questions</a>
@@ -27,6 +29,12 @@
 {% endblock %}
 
 {% block detailContent %}
+    {% if definition_is_protected %}
+        <div class="alert alert-warning" role="status">
+            This Form is protected by a production lock. Its definition and
+            contents cannot be changed.
+        </div>
+    {% endif %}
     <input type="hidden" id="parent_id" value="{{form.instance.pk}}">
     {% crispy form %}
 

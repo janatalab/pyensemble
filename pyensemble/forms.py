@@ -409,6 +409,18 @@ class DefinitionDeletionForm(forms.Form):
     )
 
 
+class DefinitionLockForm(forms.Form):
+    reason = forms.CharField(
+        label='Reason for production lock',
+        widget=forms.Textarea(attrs={'rows': 3}),
+    )
+    release_identifier = forms.CharField(
+        label='Release identifier',
+        max_length=100,
+        help_text='Record the application/definition release this lock represents.',
+    )
+
+
 # TODO: Refactor TicketCreationForm into a ModelForm and also make use of validfrom field
 class TicketCreationForm(forms.Form):
     input_format = '%d/%m/%Y %H:%M'

@@ -176,14 +176,14 @@ function setEditStatus(status){
     }
 
     if (status){
-        $(".editor input,textarea").attr({'readonly':false});
-        $(".editor input:checkbox, select").attr({'disabled':false});
+        $(".editor input, .editor textarea").attr({'readonly':false});
+        $(".editor input:checkbox, .editor select").attr({'disabled':false});
         $(".editor .dateinput").attr({'disabled':false});
         $(".editor.form-actions").removeClass('d-none');
         $("#formTableEditButton").addClass('btn btn-danger active');
     } else {
-        $(".editor input,textarea").attr({'readonly':true});
-        $(".editor input:checkbox, select").attr({'disabled':true});
+        $(".editor input, .editor textarea").attr({'readonly':true});
+        $(".editor input:checkbox, .editor select").attr({'disabled':true});
         $(".editor .dateinput").attr({'disabled':true});
         $(".editor.form-actions").addClass('d-none');
         $("#formTableEditButton").removeClass('btn-danger active');
