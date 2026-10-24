@@ -21,7 +21,7 @@ from django.utils.crypto import get_random_string
 
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseBadRequest, HttpResponseGone, JsonResponse
 
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, reverse_lazy
 
 from django.conf import settings
@@ -30,7 +30,7 @@ from django.utils.text import slugify
 
 from pyensemble.models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, EmailVerification, Study, StudyXExperiment
 
-from pyensemble.forms import RegisterSubjectForm, RegisterSubjectUsingEmailForm, LoginSubjectUsingEmailForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, CopyFormForm, CopyStudyForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm, StudyForm, StudyExperimentFormSetFactory, DefinitionDeletionForm
+from pyensemble.forms import RegisterSubjectForm, RegisterSubjectUsingEmailForm, LoginSubjectUsingEmailForm, TicketCreationForm, ExperimentFormFormset, ExperimentForm, CopyExperimentForm, CopyFormForm, CopyStudyForm, FormForm, FormQuestionFormset, QuestionCreateForm, QuestionUpdateForm, QuestionPresentForm, QuestionModelFormSet, QuestionModelFormSetHelper, EnumCreateForm, SubjectEmailForm, CaptchaForm, StudyForm, StudyExperimentFormSetFactory, DefinitionDeletionForm, DefinitionLockForm
 
 from pyensemble.tasks import fetch_subject_id, create_tickets, send_email
 
@@ -56,10 +56,28 @@ from pyensemble.deletion import (
     get_deletion_blockers,
     get_deletion_reference_counts,
 )
+from pyensemble.locking import (
+    LockedDefinitionError,
+    _is_protected,
+    lock_experiment,
+    lock_study,
+)
 
 import logging
 
 import pdb
+
+
+def _disable_definition_form(form):
+    for field in form.fields.values():
+        if not field.widget.is_hidden:
+            field.disabled = True
+
+
+def _disable_definition_formset(formset):
+    for form in formset.forms:
+        _disable_definition_form(form)
+
 
 @require_http_methods(['POST'])
 def logout_view(request):
@@ -270,9 +288,28 @@ class ExperimentUpdateView(LoginRequiredMixin,UpdateView):
             'user': context['experiment'].ticket_set.filter(Q(type='user', expiration_datetime=None, used=False) | Q(type='user',expiration_datetime__gte=timezone.now(), used=False))}
 
         # Get the form for our ticket creation modal
-        context['ticket_form'] = TicketCreationForm(initial={'experiment_id':context['experiment'].id})        
+        context['ticket_form'] = TicketCreationForm(
+            initial={'experiment_id': context['experiment'].id},
+        )
+        context['ticket_form'].helper.form_action = reverse('create_ticket')
 
         context['object_type'] = context['object'].__class__.__name__.lower()
+        context['can_lock_definition'] = has_role(
+            self.request.user,
+            Role.RELEASE_MANAGER,
+        )
+        context['definition_is_protected'] = _is_protected(self.object)
+        context['editor_is_locked'] = context['definition_is_protected']
+        context['disable_editor_fields'] = context['definition_is_protected']
+        context['locked_through_study'] = (
+            not self.object.locked
+            and self.object.studyxexperiment_set.filter(
+                study__locked=True,
+            ).exists()
+        )
+        if context['definition_is_protected']:
+            _disable_definition_form(context['form'])
+            _disable_definition_formset(context['formset'])
 
         return context
 
@@ -338,6 +375,18 @@ class StudyEditorMixin:
         if self.request.GET.get('standalone') == '1':
             context['detail_template'] = self.template_name
         context['formset'] = kwargs.get('formset') or self.get_formset()
+        context['can_lock_definition'] = has_role(
+            self.request.user,
+            Role.RELEASE_MANAGER,
+        )
+        context['definition_is_protected'] = bool(
+            self.object and self.object.locked
+        )
+        context['editor_is_locked'] = context['definition_is_protected']
+        context['disable_editor_fields'] = context['definition_is_protected']
+        if context['definition_is_protected']:
+            _disable_definition_form(context['form'])
+            _disable_definition_formset(context['formset'])
         return context
 
     def save_study(self, form):
@@ -375,6 +424,67 @@ class StudyCreateView(StudyEditorMixin, LoginRequiredMixin, CreateView):
 
 class StudyUpdateView(StudyEditorMixin, LoginRequiredMixin, UpdateView):
     model = Study
+
+
+@role_required(Role.RELEASE_MANAGER)
+@require_http_methods(['GET', 'POST'])
+def lock_definition_view(request, model_name, pk):
+    model = {
+        'experiment': Experiment,
+        'study': Study,
+    }.get(model_name)
+    if model is None:
+        return HttpResponseBadRequest('Unsupported definition type.')
+
+    instance = get_object_or_404(model, pk=pk)
+    definition_is_protected = _is_protected(instance)
+    update_url = (
+        reverse(f'{model_name}_update', kwargs={'pk': instance.pk})
+        + '?standalone=1'
+    )
+    if request.method == 'POST' and not definition_is_protected:
+        form = DefinitionLockForm(request.POST)
+        if form.is_valid():
+            lock_operation = (
+                lock_experiment if model is Experiment else lock_study
+            )
+            try:
+                lock_operation(
+                    instance,
+                    request.user,
+                    form.cleaned_data['reason'],
+                    form.cleaned_data['release_identifier'],
+                )
+            except (LockedDefinitionError, ValueError) as error:
+                form.add_error(None, str(error))
+            else:
+                return HttpResponseRedirect(update_url)
+    else:
+        form = DefinitionLockForm()
+
+    return render(
+        request,
+        'pyensemble/definition_lock.html',
+        {
+            'definition': instance,
+            'definition_type': model_name,
+            'form': form,
+            'update_url': update_url,
+            'already_locked': definition_is_protected,
+            'locked_through_study': (
+                model is Experiment
+                and not instance.locked
+                and instance.studyxexperiment_set.filter(
+                    study__locked=True,
+                ).exists()
+            ),
+        },
+        status=(
+            409 if definition_is_protected
+            else 400 if request.method == 'POST'
+            else 200
+        ),
+    )
 
 
 @role_required(Role.EDITOR)
@@ -556,6 +666,12 @@ class FormUpdateView(LoginRequiredMixin,UpdateView):
             context['formset'] = FormQuestionFormset(instance=self.object, queryset=self.object.formxquestion_set.order_by('form_question_num'))
         
         context['object_type'] = context['object'].__class__.__name__.lower()
+        context['definition_is_protected'] = _is_protected(self.object)
+        context['editor_is_locked'] = context['definition_is_protected']
+        context['disable_editor_fields'] = context['definition_is_protected']
+        if context['definition_is_protected']:
+            _disable_definition_form(context['form'])
+            _disable_definition_formset(context['formset'])
 
         return context
 
@@ -675,6 +791,11 @@ class QuestionUpdateView(LoginRequiredMixin,UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['form'].helper.form_action = reverse('question_update', kwargs={'pk': self.object.pk})
+        context['definition_is_protected'] = _is_protected(self.object)
+        context['editor_is_locked'] = context['definition_is_protected']
+        context['disable_editor_fields'] = context['definition_is_protected']
+        if context['definition_is_protected']:
+            _disable_definition_form(context['form'])
 
         return context
 
@@ -703,6 +824,8 @@ class QuestionPresentView(LoginRequiredMixin,UpdateView):
         if self.request.GET.get('standalone') == '1':
             context['detail_template'] = self.template_name
         context['object_type'] = context['object'].__class__.__name__.lower()
+        context['definition_is_protected'] = _is_protected(self.object)
+        context['editor_is_locked'] = context['definition_is_protected']
 
         return context
 

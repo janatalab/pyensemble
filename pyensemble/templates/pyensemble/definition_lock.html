@@ -1,0 +1,58 @@
+{% extends "pyensemble/base.html" %}
+
+{% block main %}
+<main class="container mt-5 pt-4">
+    <h1>Lock {{ definition_type|title }} for production</h1>
+    <p><strong>{{ definition }}</strong></p>
+
+    {% if already_locked %}
+        <div class="alert alert-warning" role="status">
+            This definition is already locked for production. Locking is
+            irreversible through the application.
+        </div>
+        {% if definition.locked %}
+        <p>Release: {{ definition.release_identifier }}</p>
+        <p>Locked at: {{ definition.locked_at }}</p>
+        <p>Reason: {{ definition.lock_reason }}</p>
+        {% elif locked_through_study %}
+        <p>This Experiment is protected by a locked Study.</p>
+        {% endif %}
+        <a class="btn btn-secondary" href="{{ update_url }}">Return to definition</a>
+    {% else %}
+        <p>
+            Locking is irreversible through the application. The definition and
+            its protected Study/Experiment/Form/Question/DataFormat dependency
+            graph, including registered callback references, will become
+            immutable.
+        </p>
+        <p>
+            All existing tickets for this Experiment, or for every Experiment
+            included in this Study, will expire at the lock time. Create new
+            tickets after locking.
+        </p>
+        <p>
+            This action does not freeze experiment-repository code, runtime
+            dependencies, stimulus records, or stimulus files. Maintain those
+            separately.
+        </p>
+
+        <form method="post">
+            {% csrf_token %}
+            {{ form.non_field_errors }}
+            <div class="form-group">
+                {{ form.reason.label_tag }}
+                {{ form.reason }}
+                {{ form.reason.errors }}
+            </div>
+            <div class="form-group">
+                {{ form.release_identifier.label_tag }}
+                {{ form.release_identifier }}
+                {{ form.release_identifier.help_text }}
+                {{ form.release_identifier.errors }}
+            </div>
+            <button type="submit" class="btn btn-danger">Confirm production lock</button>
+            <a class="btn btn-secondary" href="{{ update_url }}">Cancel</a>
+        </form>
+    {% endif %}
+</main>
+{% endblock %}

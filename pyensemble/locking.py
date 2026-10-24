@@ -342,7 +342,7 @@ def _definition_snapshot(instance):
 
 
 def _lock_definition(instance, actor, reason, release_identifier):
-    from pyensemble.models import DefinitionWriteMutex
+    from pyensemble.models import DefinitionWriteMutex, Ticket
 
     if not getattr(actor, 'is_authenticated', False):
         raise ValueError('An authenticated lock actor is required.')
@@ -358,7 +358,7 @@ def _lock_definition(instance, actor, reason, release_identifier):
     with transaction.atomic():
         DefinitionWriteMutex.objects.select_for_update().get(pk=1)
         instance = instance.__class__.objects.select_for_update().get(pk=instance.pk)
-        if instance.locked:
+        if _is_protected(instance):
             raise LockedDefinitionError('This definition is already locked.')
         if instance.__class__.__name__ == 'Study':
             experiment_ids = list(
@@ -371,6 +371,8 @@ def _lock_definition(instance, actor, reason, release_identifier):
                 raise ValueError(
                     'A Study must contain at least two distinct Experiments before locking.',
                 )
+        else:
+            experiment_ids = [instance.pk]
 
         snapshot = _definition_snapshot(instance)
         serialized = json.dumps(
@@ -379,8 +381,9 @@ def _lock_definition(instance, actor, reason, release_identifier):
             sort_keys=True,
             separators=(',', ':'),
         )
+        locked_at = timezone.now()
         instance.locked = True
-        instance.locked_at = timezone.now()
+        instance.locked_at = locked_at
         instance.locked_by = actor
         instance.lock_reason = reason.strip()
         instance.lock_snapshot = snapshot
@@ -399,6 +402,11 @@ def _lock_definition(instance, actor, reason, release_identifier):
                 'lock_snapshot_digest',
                 'release_identifier',
             ))
+        Ticket.objects.filter(
+            experiment_id__in=experiment_ids,
+        ).update(
+            expiration_datetime=timezone.localtime(locked_at),
+        )
     return instance
 
 

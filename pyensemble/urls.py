@@ -68,6 +68,7 @@ editor_patterns = [
     path('studies/create/', views.StudyCreateView.as_view(), name='study_create'),
     path('studies/<int:pk>/', views.StudyUpdateView.as_view(), name='study_update'),
     path('studies/copy/<int:study_id>/', views.copy_study, name='study_copy'),
+    path('lock/<str:model_name>/<int:pk>/', views.lock_definition_view, name='definition_lock'),
     path('delete/<str:model_name>/<int:pk>/', views.delete_definition_view, name='definition_delete'),
     path('experiments/', views.ExperimentListView.as_view(), name='experiment_list'),
     path('experiments/create/', views.ExperimentCreateView.as_view(), name='experiment_create'),

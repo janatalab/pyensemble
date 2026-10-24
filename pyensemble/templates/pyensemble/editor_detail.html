@@ -6,9 +6,11 @@
     </div>
     <div class="collapse navbar-collapse" id="detailEditorNav">
         <ul class="navbar-nav">
+            {% if not editor_is_locked %}
             <li class="nav-item">
                 <a class="nav-link" id="formTableEditButton" href="#">Edit</a>
             </li>
+            {% endif %}
             {% block additionalDetailContentNavItems %}
             {% endblock %}
             <li class="nav-item">
@@ -18,21 +20,36 @@
                     {% endwith %}
                 {% endif %}
             </li>
+            {% block additionalDetailContentNavStatus %}
+            {% endblock %}
         </ul>
     </div>
 </nav>
-<div id="detailContent">
+<div id="detailContent"
+     data-disable-editor-fields="{{ disable_editor_fields|yesno:'true,false' }}">
     {% block detailContent %}
     {% endblock %}
 </div>
 
 <script type="text/javascript">
     $(function(){
-        setEditStatus('true');
-
-        $("#formTableEditButton").on('click', function(){
-            toggleEditStatus();
-        });
+        var editorLocked =
+            $("#detailContent").attr("data-disable-editor-fields") === "true";
+        if (editorLocked) {
+            setEditStatus(false);
+            $(".editor-form :input").prop("disabled", true);
+            $(".editor-form #addForm, .editor-form #addQuestion")
+                .addClass("disabled")
+                .attr("aria-disabled", "true")
+                .on("click", function(ev) {
+                    ev.preventDefault();
+                });
+        } else {
+            setEditStatus('true');
+            $("#formTableEditButton").on('click', function(){
+                toggleEditStatus();
+            });
+        }
 
         $('.has-popover').popover({'trigger':'hover'});
     })
