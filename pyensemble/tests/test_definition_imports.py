@@ -9,6 +9,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
+from pyensemble.forms import FormForm
 from pyensemble.importers.definitions import ImportConflict, import_definition
 from pyensemble.locking import lock_experiment
 from pyensemble.models import (
@@ -64,6 +65,8 @@ def experiment_payload(*, title='Imported study', question_text='Consent?'):
                     'model_class': 'Form',
                     'name': 'Consent form',
                     'category': '',
+                    'license': '',
+                    'citation': '',
                     'header': '',
                     'footer': '',
                     'header_audio_path': '',
@@ -194,6 +197,49 @@ class DefinitionImportTests(TestCase):
             new_name='Separate form draft',
         )
         self.assertEqual(renamed['label'], 'Separate form draft')
+
+    def test_form_license_and_citation_are_imported_and_legacy_payloads_default_empty(
+        self,
+    ):
+        payload = copy.deepcopy(
+            experiment_payload()['exf_instances'][0]['form'],
+        )
+        payload.update({
+            'name': 'Licensed source form',
+            'license': 'CC BY 4.0',
+            'citation': 'Example citation',
+        })
+
+        imported = self.import_payload(payload, mode='create')
+        form = Form.objects.get(pk=imported['id'])
+        self.assertEqual(form.license, 'CC BY 4.0')
+        self.assertEqual(form.citation, 'Example citation')
+
+        legacy_payload = copy.deepcopy(payload)
+        legacy_payload.pop('license')
+        legacy_payload.pop('citation')
+        legacy_payload['name'] = 'Legacy form'
+        legacy = self.import_payload(legacy_payload, mode='create')
+        legacy_form = Form.objects.get(pk=legacy['id'])
+        self.assertEqual(legacy_form.license, '')
+        self.assertEqual(legacy_form.citation, '')
+
+    def test_form_editor_exposes_and_saves_license_and_citation(self):
+        form_data = {
+            'name': 'Form with attribution',
+            'license': 'CC BY 4.0',
+            'citation': 'Example source citation',
+            'header': '',
+            'footer': '',
+            'visit_once': False,
+        }
+        editor_form = FormForm(data=form_data)
+
+        self.assertTrue(editor_form.is_valid(), editor_form.errors)
+        form = editor_form.save()
+
+        self.assertEqual(form.license, 'CC BY 4.0')
+        self.assertEqual(form.citation, 'Example source citation')
 
     def test_nested_form_conflict_does_not_offer_root_rename(self):
         self.import_payload(
@@ -331,6 +377,8 @@ class DefinitionImportTests(TestCase):
             Experiment.objects.filter(pk=imported_experiment['id']).exists(),
         )
         self.assertTrue(Form.objects.filter(pk=imported_form['id']).exists())
+        self.assertIn('license', FormSerializer(form).data)
+        self.assertIn('citation', FormSerializer(form).data)
         self.assertEqual(imported_question['id'], question.pk)
 
     def test_tracked_example_exports_pass_validate_only_import(self):
@@ -366,6 +414,15 @@ class DefinitionImportTests(TestCase):
             reverse('importers:import-json'),
             html=False,
         )
+
+    def test_form_editor_displays_license_and_citation_fields(self):
+        form = Form.objects.create(name='Attribution fields')
+
+        response = self.client.get(reverse('form_update', args=[form.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'License / use terms')
+        self.assertContains(response, 'Citation / attribution')
 
     def test_audio_example_manifest_matches_callback_and_bundled_files(self):
         assets_dir = (
@@ -404,7 +461,11 @@ class DefinitionImportTests(TestCase):
 
     def test_definition_exports_are_pretty_and_use_safe_descriptive_filenames(self):
         experiment = Experiment.objects.create(title='Test Audio / Example')
-        form = Form.objects.create(name='Audio feedback')
+        form = Form.objects.create(
+            name='Audio feedback',
+            license='CC BY 4.0',
+            citation='Example citation',
+        )
         question = Question.objects.create(
             text='Did you hear the audio play?',
             data_format=DataFormat.objects.create(
@@ -439,7 +500,11 @@ class DefinitionImportTests(TestCase):
                     f'attachment; filename="{filename}"',
                 )
                 self.assertIn(b'\n  ', response.content)
-                self.assertIsInstance(json.loads(response.content), dict)
+                payload = json.loads(response.content)
+                self.assertIsInstance(payload, dict)
+                if route_name == 'export_form_json':
+                    self.assertEqual(payload['license'], 'CC BY 4.0')
+                    self.assertEqual(payload['citation'], 'Example citation')
 
     def test_update_changes_only_an_unlocked_selected_draft(self):
         draft = Experiment.objects.create(title='Existing draft')

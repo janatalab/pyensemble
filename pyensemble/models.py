@@ -173,6 +173,16 @@ class Form(DefinitionWriteMixin, models.Model):
 
     name = models.CharField(unique=True, max_length=50)
     category = models.CharField(max_length=19, blank=True)
+    license = models.TextField(
+        'License / use terms',
+        blank=True,
+        help_text='Optional license or usage terms for this Form and its content.',
+    )
+    citation = models.TextField(
+        'Citation / attribution',
+        blank=True,
+        help_text='Optional source citation or attribution for this Form and its content.',
+    )
     header = models.TextField(blank=True)
     footer = models.TextField(blank=True)
     header_audio_path = models.CharField(max_length=50, blank=True)

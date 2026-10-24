@@ -24,6 +24,7 @@ LOCK_FIELDS = {
     'release_identifier',
 }
 DERIVED_FIELDS = {'_unique_hash', '_range_hash'}
+OPTIONAL_IMPORT_FIELDS = {'license', 'citation'}
 ENTITY_CHILDREN = {
     Experiment: {'exf_instances'},
     Form: {'fxq_instances'},
@@ -94,6 +95,7 @@ def _field_values(model, payload):
         if not field.is_relation
         and name not in LOCK_FIELDS
         and name not in DERIVED_FIELDS
+        and name not in OPTIONAL_IMPORT_FIELDS
         and name not in payload
     }
     if missing_fields:
@@ -104,7 +106,11 @@ def _field_values(model, payload):
 
     values = {}
     for name, field in fields.items():
-        if name not in payload or name in LOCK_FIELDS or name in DERIVED_FIELDS:
+        if name in LOCK_FIELDS or name in DERIVED_FIELDS:
+            continue
+        if name not in payload:
+            if name in OPTIONAL_IMPORT_FIELDS:
+                values[field.attname] = field.get_default()
             continue
         if field.is_relation:
             continue

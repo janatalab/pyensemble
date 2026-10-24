@@ -291,6 +291,8 @@ class DefinitionLockingTests(TestCase):
 
     def test_clone_locked_form_copies_question_relationships_only(self):
         self.form.header = 'Instructions'
+        self.form.license = 'CC BY 4.0'
+        self.form.citation = 'Example attribution'
         self.form.visit_once = True
         self.form.save()
         self.form_question.question_iteration = 3
@@ -313,6 +315,8 @@ class DefinitionLockingTests(TestCase):
         self.assertNotEqual(clone.pk, self.form.pk)
         self.assertFalse(clone.locked)
         self.assertEqual(clone.header, 'Instructions')
+        self.assertEqual(clone.license, 'CC BY 4.0')
+        self.assertEqual(clone.citation, 'Example attribution')
         self.assertTrue(clone.visit_once)
         self.assertNotEqual(clone_row.pk, source_row_id)
         self.assertEqual(clone_row.question_id, self.question.pk)

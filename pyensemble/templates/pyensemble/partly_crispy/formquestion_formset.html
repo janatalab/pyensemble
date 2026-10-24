@@ -23,6 +23,8 @@
         <ul class="list-group">
             <li class="list-group-item text-left bg-light">Form Information</li>
             <li class="list-group-item">{{form.name.label}}{% crispy_field form.name 'class' 'form-control' %}</li>
+            <li class="list-group-item">{{form.license.label}}{% crispy_field form.license 'class' 'form-control' %}</li>
+            <li class="list-group-item">{{form.citation.label}}{% crispy_field form.citation 'class' 'form-control' %}</li>
             <li class="list-group-item">{{form.header.label}}{% crispy_field form.header 'class' 'form-control' %}</li>
             <li class="list-group-item">{{form.footer.label}}{% crispy_field form.footer 'class' 'form-control' %}</li>
             <li class="list-group-item">

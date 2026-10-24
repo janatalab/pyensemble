@@ -454,6 +454,8 @@
   ],
   "name": "STOMP Survey",
   "category": "",
+  "license": "Public domain for academic, research, and non-commercial educational use.",
+  "citation": "",
   "header": "Please indicate your preference for each music genre.",
   "footer": "",
   "header_audio_path": "",

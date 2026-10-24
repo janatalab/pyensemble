@@ -40,7 +40,8 @@ can preview either operation.
 | `experiment_example-further-participation.json` | Conditional follow-up, email collection, and notification callbacks | Local console email |
 | `experiment_example-email-login.json` | Email-based participant login and follow-up callbacks | Local console email |
 | `experiment_prolific-redirect-test.json` | Completion redirect parameter example | Replace the placeholder Prolific completion code |
-| `form_bmrq-survey.json`, `form_stomp-survey.json` | Standalone Form imports | Confirm redistribution and reuse permissions before using these instrument items |
+| `form_bmrq-survey.json` | BMRQ Form with license and citation metadata | CC BY 4.0; attribution is included in the Form metadata |
+| `form_stomp-survey.json` | STOMP Form with usage terms | Public domain for academic, research, and non-commercial educational use |
 | `question_color-vision-screening.json`, `question_hearing-screening.json` | Standalone Question imports | Demonstration only; consider the sensitivity of screening questions in real studies |
 
 The export filenames are generated from the object type and a normalized
@@ -62,8 +63,8 @@ zip -j /tmp/pyensemble-example-audio.zip audio-stimuli.csv audio/*.mp3
 ```
 
 In PyEnsemble, open **Stimuli → Import** and upload that ZIP. Then import
-`experiment_test-audio.json`. Ensure the `thirdparty/jsPsych` submodule is
-initialized; see the root README's jsPsych setup instructions.
+`experiment_test-audio.json`. Ensure the separate `thirdparty/jsPsych`
+checkout is installed; see [jsPsych integration](../../../docs/jspsych-integration.md).
 
 ## Python setup examples
 
@@ -76,11 +77,13 @@ configured Prolific credentials.
 
 ## Asset and content notes
 
-The bundled audio assets and the questionnaire exports need a verified source
-and redistribution/reuse status before they are presented as generally
-redistributable teaching materials. The questionnaire exports are included as
-legacy examples; they are not required for the local quickstart. Do not copy
-participant data into this package.
+The two bundled audio examples are copyrighted by the Janata Lab at the
+University of California, Davis. The STOMP Form is public domain for academic,
+research, and non-commercial educational use. The BMRQ Form is licensed under
+CC BY 4.0; its citation and license are recorded in the Form metadata and
+included in its JSON export. Retain the attribution when reusing the BMRQ
+content. These Forms are optional examples and are not required for the local
+quickstart. Do not copy participant data into this package.
 
 The Prolific redirect example uses a placeholder completion code. Replace it
 with a code issued for the intended Prolific study before use. Email addresses

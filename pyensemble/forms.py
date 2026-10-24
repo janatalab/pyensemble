@@ -198,7 +198,14 @@ class FormForm(forms.ModelForm):
         self.helper.formset_tag = True
         self.helper.formset_method = 'POST'
 
-    field_order = ('name','header','footer','visit_once')
+    field_order = (
+        'name',
+        'license',
+        'citation',
+        'header',
+        'footer',
+        'visit_once',
+    )
 
 FormQuestionFormset = forms.inlineformset_factory(Form, FormXQuestion, 
     form=FormQuestionForm, 
