@@ -1,8 +1,11 @@
+from datetime import timedelta
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.exceptions import PermissionDenied
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from pyensemble.locking import LockedDefinitionError, lock_experiment, lock_study
 from pyensemble.models import (
@@ -14,6 +17,7 @@ from pyensemble.models import (
     Question,
     Study,
     StudyXExperiment,
+    Ticket,
 )
 
 
@@ -73,6 +77,38 @@ class DefinitionLockingTests(TestCase):
         self.assertTrue(
             Experiment.objects.get(pk=self.experiment.pk).locked,
         )
+
+    def test_experiment_lock_expires_all_existing_tickets_at_local_lock_time(self):
+        Ticket.objects.create(
+            ticket_code='MASTER-OPEN',
+            experiment=self.experiment,
+        )
+        Ticket.objects.create(
+            ticket_code='USER-FUTURE',
+            experiment=self.experiment,
+            type='user',
+            expiration_datetime=timezone.now() + timedelta(days=2),
+        )
+        Ticket.objects.create(
+            ticket_code='USER-PAST',
+            experiment=self.experiment,
+            type='user',
+            expiration_datetime=timezone.now() - timedelta(days=2),
+        )
+        other_experiment = Experiment.objects.create(title='Unrelated study')
+        unrelated_ticket = Ticket.objects.create(
+            ticket_code='OTHER-OPEN',
+            experiment=other_experiment,
+        )
+
+        locked = self.lock_experiment()
+
+        expected_expiration = timezone.localtime(locked.locked_at)
+        for ticket in Ticket.objects.filter(experiment=self.experiment):
+            with self.subTest(ticket=ticket.ticket_code):
+                self.assertEqual(ticket.expiration_datetime, expected_expiration)
+        unrelated_ticket.refresh_from_db()
+        self.assertIsNone(unrelated_ticket.expiration_datetime)
 
     def test_experiment_lock_protects_reachable_definition_and_relationships(self):
         self.lock_experiment()
@@ -210,6 +246,54 @@ class DefinitionLockingTests(TestCase):
         included_form.name = 'Changed through study'
         with self.assertRaises(LockedDefinitionError):
             included_form.save()
+
+    def test_study_lock_expires_tickets_for_all_included_experiments(self):
+        second_experiment = Experiment.objects.create(title='Second study protocol')
+        study = Study.objects.create(title='Collection study')
+        StudyXExperiment.objects.create(
+            study=study,
+            experiment=self.experiment,
+            experiment_order=1,
+        )
+        StudyXExperiment.objects.create(
+            study=study,
+            experiment=second_experiment,
+            experiment_order=2,
+        )
+        Ticket.objects.create(
+            ticket_code='STUDY-FIRST',
+            experiment=self.experiment,
+        )
+        Ticket.objects.create(
+            ticket_code='STUDY-SECOND',
+            experiment=second_experiment,
+            expiration_datetime=timezone.now() + timedelta(days=1),
+        )
+        unrelated_experiment = Experiment.objects.create(
+            title='Outside study protocol',
+        )
+        unrelated_ticket = Ticket.objects.create(
+            ticket_code='OUTSIDE-STUDY',
+            experiment=unrelated_experiment,
+        )
+
+        locked_study = lock_study(
+            study,
+            self.actor,
+            'Study release',
+            'study-release-tickets',
+        )
+
+        expected_expiration = timezone.localtime(locked_study.locked_at)
+        study_tickets = Ticket.objects.filter(
+            experiment__in=(self.experiment, second_experiment),
+        )
+        self.assertEqual(study_tickets.count(), 2)
+        for ticket in study_tickets:
+            with self.subTest(ticket=ticket.ticket_code):
+                self.assertEqual(ticket.expiration_datetime, expected_expiration)
+        unrelated_ticket.refresh_from_db()
+        self.assertIsNone(unrelated_ticket.expiration_datetime)
 
     def test_direct_lock_metadata_changes_are_not_allowed(self):
         self.experiment.locked = True
