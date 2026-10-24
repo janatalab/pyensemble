@@ -36,12 +36,16 @@ MIDDLEWARE = [
 ]
 TEMPLATES = [{
     'BACKEND': 'django.template.backends.django.DjangoTemplates',
-    'APP_DIRS': True,
+    'APP_DIRS': False,
     'OPTIONS': {
         'context_processors': [
             'django.template.context_processors.request',
             'django.contrib.auth.context_processors.auth',
             'django.contrib.messages.context_processors.messages',
+        ],
+        'loaders': [
+            'django.template.loaders.app_directories.Loader',
+            'pyensemble.experiments.loaders.Loader',
         ],
     },
 }]

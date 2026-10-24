@@ -22,13 +22,13 @@
             <a class="nav-link" href="{% url 'definition_delete' 'experiment' form.instance.pk %}">Delete</a>
         </li>
 
-        {% if not form.is_group %}
+        {% if not form.instance.is_group %}
             <li class="nav-item">
                 <a class="nav-link" href="#experimentTickets">Tickets</a>
             </li>
         {% endif %}
 
-        {% if form.is_group %}
+        {% if form.instance.is_group %}
             <li class="nav-item">
                 <a class="nav-link" role="button" href="{% url 'pyensemble-group:start_groupsession' %}">Start</a>
             </li>        

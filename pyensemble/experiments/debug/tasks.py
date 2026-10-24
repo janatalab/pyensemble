@@ -17,7 +17,7 @@ def create_experiment_with_notification(request):
 
     # Create the experiment object
     eo, created = Experiment.objects.get_or_create(
-        title = 'Debug Further Participation',
+        title = 'Example: Further Participation',
         post_session_callback = 'debug.tasks.post_session()'
         )
 
@@ -112,7 +112,7 @@ def schedule_notifications(session, *args, **kwargs):
 def create_experiment_with_email_login(request):
     # Create the experiment object
     eo, created = Experiment.objects.get_or_create(
-        title = 'Debug Login With Email',
+        title = 'Example: Email Login',
         post_session_callback = 'debug.tasks.post_session()'
         )
 

@@ -389,6 +389,8 @@ def import_json_form(json_data):
     form, created = Form.objects.get_or_create(
         name=json_data['name'],
         category=json_data['category'],
+        license=json_data.get('license', ''),
+        citation=json_data.get('citation', ''),
         header=json_data['header'],
         footer=json_data['footer'],
         header_audio_path=json_data['header_audio_path'],

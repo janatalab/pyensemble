@@ -26,6 +26,7 @@ from django.urls import reverse, reverse_lazy
 
 from django.conf import settings
 from django.views.generic.edit import CreateView, UpdateView
+from django.utils.text import slugify
 
 from pyensemble.models import Ticket, Session, Experiment, Form, Question, ExperimentXForm, FormXQuestion, Stimulus, Subject, Response, DataFormat, EmailVerification, Study, StudyXExperiment
 
@@ -1620,39 +1621,51 @@ def record_timezone(request):
 
         return HttpResponse("ok")
 
+def _definition_export_response(instance, serializer_class, model_name, label):
+    filename_slug = slugify(str(label))[:80].strip('-') or str(instance.pk)
+    serializer = serializer_class(instance)
+    response = JsonResponse(
+        serializer.data,
+        safe=False,
+        json_dumps_params={'indent': 2, 'ensure_ascii': False},
+    )
+    response['Content-Disposition'] = (
+        f'attachment; filename="{model_name}_{filename_slug}.json"'
+    )
+    return response
+
+
 def export_experiment_json(request, id):
     if request.method == 'GET':
         experiment = Experiment.objects.get(pk=id)
-        serializer = ExperimentSerializer(experiment)
-        response = JsonResponse(serializer.data, safe=False)
-        response['Content-Disposition'] = f'attachment; filename=experiment_{experiment.title}.json'
-
-    else:
-        response = HttpResponseBadRequest('Invalid request method')
-
-    return response
+        return _definition_export_response(
+            experiment,
+            ExperimentSerializer,
+            'experiment',
+            experiment.title,
+        )
+    return HttpResponseBadRequest('Invalid request method')
 
 
 def export_form_json(request, id):
     if request.method == 'GET':
         form = Form.objects.get(pk=id)
-        serializer = FormSerializer(form)
-        response = JsonResponse(serializer.data, safe=False)
-        response['Content-Disposition'] = f'attachment; filename=form_{form.name}.json'
-
-    else:
-        response = HttpResponseBadRequest('Invalid request method')
-
-    return response
+        return _definition_export_response(
+            form,
+            FormSerializer,
+            'form',
+            form.name,
+        )
+    return HttpResponseBadRequest('Invalid request method')
 
 
 def export_question_json(request, id):
     if request.method == 'GET':
         question = Question.objects.get(pk=id)
-        serializer = QuestionSerializer(question)
-        response = JsonResponse(serializer.data, safe=False)
-        response['Content-Disposition'] = f'attachment; filename=question_{id}.json'
-    else:
-        response = HttpResponseBadRequest('Invalid request method')
-
-    return response
+        return _definition_export_response(
+            question,
+            QuestionSerializer,
+            'question',
+            question.text,
+        )
+    return HttpResponseBadRequest('Invalid request method')

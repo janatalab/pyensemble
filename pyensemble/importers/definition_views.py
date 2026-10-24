@@ -19,7 +19,11 @@ from pyensemble.importers.forms import ImportForm
 def _submit_import(request, *, legacy=False):
     template = 'pyensemble/importers/import_generic.html'
     if request.method == 'GET':
-        return render(request, template, {'form': ImportForm()})
+        return render(
+            request,
+            template,
+            {'form': ImportForm(), 'show_new_name': False},
+        )
 
     form = ImportForm(request.POST, request.FILES)
     if form.is_valid():
@@ -78,7 +82,18 @@ def _submit_import(request, *, legacy=False):
             )
         except (ImportConflict, json.JSONDecodeError, UnicodeDecodeError) as error:
             form.add_error(None, str(error))
-            return render(request, template, {'form': form}, status=400)
+            return render(
+                request,
+                template,
+                {
+                    'form': form,
+                    'show_new_name': (
+                        isinstance(error, ImportConflict)
+                        and error.can_rename
+                    ),
+                },
+                status=400,
+            )
         except PermissionDenied:
             raise
 
@@ -87,14 +102,24 @@ def _submit_import(request, *, legacy=False):
                 f"Validation succeeded for {result['model']} "
                 f"'{result['label']}'. No changes were saved."
             )
+        elif result['action'] == 'already existed':
+            message = (
+                f"{result['model']} '{result['label']}' already existed. "
+                'The existing definition was reused.'
+            )
         else:
             message = (
-                f"{result['model']} '{result['label']}' "
-                f"was {result['action']}."
+                f"{result['model']} '{result['label']}' was "
+                f"{result['action']}."
             )
-        return render(request, 'pyensemble/message.html', {'msg': message})
+        return render(request, 'pyensemble/message.html', {'msg': message, 'add_home_url': True})
 
-    return render(request, template, {'form': form}, status=400)
+    return render(
+        request,
+        template,
+        {'form': form, 'show_new_name': False},
+        status=400,
+    )
 
 
 @role_required(Role.EDITOR)

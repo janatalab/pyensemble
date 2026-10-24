@@ -291,6 +291,8 @@ class DefinitionLockingTests(TestCase):
 
     def test_clone_locked_form_copies_question_relationships_only(self):
         self.form.header = 'Instructions'
+        self.form.license = 'CC BY 4.0'
+        self.form.citation = 'Example attribution'
         self.form.visit_once = True
         self.form.save()
         self.form_question.question_iteration = 3
@@ -313,6 +315,8 @@ class DefinitionLockingTests(TestCase):
         self.assertNotEqual(clone.pk, self.form.pk)
         self.assertFalse(clone.locked)
         self.assertEqual(clone.header, 'Instructions')
+        self.assertEqual(clone.license, 'CC BY 4.0')
+        self.assertEqual(clone.citation, 'Example attribution')
         self.assertTrue(clone.visit_once)
         self.assertNotEqual(clone_row.pk, source_row_id)
         self.assertEqual(clone_row.question_id, self.question.pk)
@@ -425,6 +429,30 @@ class DefinitionLockingTests(TestCase):
                 response = self.client.get(reverse(view_name, args=[object_id]))
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, expected_script)
+
+    def test_start_navigation_is_only_shown_for_group_experiments(self):
+        response = self.client.get(
+            reverse('experiment_update', args=[self.experiment.pk]),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(
+            response,
+            reverse('pyensemble-group:start_groupsession'),
+        )
+        self.assertContains(response, 'Tickets')
+
+        self.experiment.is_group = True
+        self.experiment.save()
+
+        response = self.client.get(
+            reverse('experiment_update', args=[self.experiment.pk]),
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            reverse('pyensemble-group:start_groupsession'),
+        )
+        self.assertNotContains(response, 'Tickets')
 
     def test_editor_formsets_are_validated_before_parent_updates(self):
         response = self.client.post(

@@ -47,13 +47,14 @@ experiment's own Git repository. Clone or check out that repository into its
 own directory under `pyensemble/experiments/`.
 
 The experiment-specific directories under `pyensemble/experiments/` are
-git-ignored by the PyEnsemble repository. The `debug/` experiment is the
-exception: it is tracked in PyEnsemble as a quickstart and example of
-PyEnsemble functionality for new adopters.
+git-ignored by the PyEnsemble repository. The `debug/` package is the
+exception: it is tracked as **Examples**, a quickstart and catalog of PyEnsemble
+functionality for new adopters. Its internal `debug` package and callback
+namespace remain stable for compatibility.
 
 **Experiment-specific code MUST NOT be added to the PyEnsemble repository.**
 The only exception is example code intentionally maintained in the `debug`
-experiment. Do not add a new experiment package, protocol script, template, or
+package. Do not add a new experiment package, protocol script, template, or
 other experiment-specific resource elsewhere in the PyEnsemble repository.
 
 ## jsPsych Plugin Boundary

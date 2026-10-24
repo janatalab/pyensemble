@@ -33,14 +33,17 @@ class ImportForm(forms.Form):
         initial='create',
     )
     target_id = forms.IntegerField(
-        label='Draft ID to update',
+        label='Draft ID',
         required=False,
-        help_text='Required only when updating an existing draft.',
+        help_text='Enter the ID of the unlocked draft to update.',
     )
     new_name = forms.CharField(
-        label='New Experiment title or Form name',
+        label='Import using a different title or name',
         required=False,
-        help_text='Required when creating an Experiment or Form draft.',
+        help_text=(
+            'Optional. Enter a different title/name only if the import '
+            'reports a conflict with an existing definition.'
+        ),
     )
 
     def __init__(self, *args, **kwargs):
@@ -53,8 +56,9 @@ class ImportForm(forms.Form):
 
     def clean(self):
         cleaned_data = super().clean()
-        if cleaned_data.get('mode') == 'update' and not cleaned_data.get(
-            'target_id',
+        if (
+            cleaned_data.get('mode') == 'update'
+            and not cleaned_data.get('target_id')
         ):
             self.add_error('target_id', 'Enter the ID of the unlocked draft.')
         return cleaned_data
