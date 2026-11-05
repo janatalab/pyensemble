@@ -37,8 +37,12 @@
       $("#id_user_expiration").datetimepicker(datetimepickerOptions);
       $("#createTicketBtn").on('click', function(ev) {
         ev.preventDefault();
-        $("#ticketModal").modal('hide');
-        submitForm($("#ticketCreateForm"));
+        var $modal = $("#ticketModal");
+        var $form = $("#ticketCreateForm");
+        $modal.one('hidden.bs.modal', function() {
+          submitForm($form);
+        });
+        $modal.modal('hide');
       });
     }
 
