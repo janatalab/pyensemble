@@ -170,6 +170,11 @@ STATIC_ROOT = LOCAL_STATE_DIR / 'static'
 STATIC_URL = '/static/'
 THIRDPARTY_DIR = BASE_DIR / 'thirdparty'
 STATICFILES_DIRS = [THIRDPARTY_DIR] if THIRDPARTY_DIR.is_dir() else []
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    'pyensemble.experiments.finders.ExperimentFinder',
+]
 STORAGES = {
     'default': {
         'BACKEND': 'django.core.files.storage.FileSystemStorage',

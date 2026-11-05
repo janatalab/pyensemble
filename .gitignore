@@ -141,6 +141,8 @@ thirdparty/*
 # experiment directories
 pyensemble/experiments/*
 !pyensemble/experiments/debug/
+!pyensemble/experiments/finders.py
+!pyensemble/experiments/plugins.py
 
 # Dev settings
 settings/*dev*.py

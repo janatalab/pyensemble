@@ -43,6 +43,11 @@ An experiment package can also include `urls.py` for experiment-specific
 routes and templates under `templates/`. PyEnsemble discovers packages,
 routes, and templates under the configured `EXPERIMENT_DIR`.
 
+Experiment `static/` directories are also discovered automatically and exposed
+under `experiments/<package>/`. Only immediate Python packages with an
+`__init__.py` are included; hidden and underscore-prefixed directories are
+excluded. Treat everything in these static directories as public.
+
 ## Try the tracked Examples
 
 The **Examples** page links to the local JSON importer. Its catalog includes
@@ -62,7 +67,9 @@ in [jsPsych integration](./jspsych-integration.md).
 
 Experiment-specific implementation must not enter the PyEnsemble repository,
 except for the tracked `debug` Examples package. Custom client-side behavior
-should be implemented as `.js` plugins under `thirdparty/jsPsych/plugins/`;
+should be implemented as `.js` plugins in the experiment repository under
+`static/jspsych/plugins/`, using qualified types such as
+`my_experiment/custom-response` in both timelines and plugin registrations;
 do not modify jsPsych core to add experiment features. See the
 [PyEnsemble experiment development skill](../.agents/skills/pyensemble-experiment-development/SKILL.md)
 for the full change policy.

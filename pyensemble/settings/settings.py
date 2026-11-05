@@ -221,6 +221,12 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "thirdparty/"),
 ]
 
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    'pyensemble.experiments.finders.ExperimentFinder',
+]
+
 # SITE stuff
 SITE_ID = 1
 PORT = ''  # use '' for default http(s) ports
