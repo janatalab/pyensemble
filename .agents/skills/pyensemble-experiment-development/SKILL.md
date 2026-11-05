@@ -29,6 +29,18 @@ own repository, not in the PyEnsemble repository.
   participant's experiment session; `serve_form` advances that session through
   its configured forms, presents participant-facing content, and handles
   submitted responses.
+- When a form's handler is `form_stimulus_s`, `serve_form` obtains the
+  experiment's jsPsych timeline and renders
+  `pyensemble/templates/pyensemble/handlers/form_stimulus_s.html`. That
+  template loads jsPsych and
+  `pyensemble/static/pyensemble/js/trialrunner.js`, along with the plugins
+  required by the timeline, then starts the timeline with `start_trial`.
+  `trialrunner.js` initializes jsPsych, captures completed trial data in the
+  form, and reveals the form questions when the timeline finishes.
+- This `form_stimulus_s.html` plus `trialrunner.js` integration is the required
+  path for client-side participant interactions in an experiment. Keep
+  experiment-specific interaction logic in the experiment's timeline and
+  plugins; do not bypass or replace this PyEnsemble-to-jsPsych flow.
 - Experiment-specific Python modules, templates, URLs, and related resources
   are discovered under `pyensemble/experiments/`. The configured
   `EXPERIMENT_DIR` points there.
@@ -60,11 +72,27 @@ other experiment-specific resource elsewhere in the PyEnsemble repository.
 ## jsPsych Plugin Boundary
 
 When an experiment needs custom client-side behavior that jsPsych does not
-provide, create or modify only `.js` plugin files under:
+provide, create or modify `.js` plugin files in that experiment's own repository:
 
 ```text
-thirdparty/jsPsych/plugins/
+pyensemble/experiments/<package>/static/jspsych/plugins/jspsych-<plugin>.js
 ```
+
+Use `<package>/<plugin>` as both the timeline's `type` and the plugin's
+`jsPsych.plugins` registration key. PyEnsemble discovers each experiment
+package's public `static/` directory under the `experiments/<package>/`
+static prefix. Packages must have `__init__.py`; hidden and underscore-prefixed
+directories are excluded. Never store private information in `static/`.
+Unqualified types retain their shared `thirdparty/jsPsych/plugins/` location;
+there is no experiment-local override or fallback.
+
+`serve_form` resolves an ordered, deduplicated plugin list, including nested
+timelines and inherited types, and passes static paths to `form_stimulus_s.html`.
+Use string-valued types and self-contained plugins; dynamic plugin type
+selection and automatic dependency loading are not supported. Missing or
+invalid references produce a logged configuration error. Restart workers
+after installing repositories and collect static assets for production.
+See [jsPsych integration](../../../docs/jspsych-integration.md).
 
 Do not add experiment-specific code to jsPsych core files such as
 `thirdparty/jsPsych/jspsych.js`, or to jsPsych examples, extensions, tests, or
@@ -79,8 +107,8 @@ For a typical administrative-user task setting up an experiment:
 1. Identify the experiment's own repository and its corresponding checkout
    under `pyensemble/experiments/`.
 2. Make experiment-specific changes in that repository.
-3. If custom client-side behavior is required, make the narrowly scoped plugin
-   change only under `thirdparty/jsPsych/plugins/`, limited to `.js` files.
+3. If custom client-side behavior is required, make the narrowly scoped `.js`
+   plugin change under the experiment repository's `static/jspsych/plugins/`.
 4. Do not change the PyEnsemble application or jsPsych core to add experiment
    features, improve presentation, or make cosmetic changes.
 

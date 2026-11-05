@@ -65,6 +65,11 @@ TIME_ZONE = 'UTC'
 SESSION_DURATION = 60 * 60 * 24
 PYENSEMBLE_CAPTCHA_ENABLED = False
 STATIC_URL = '/static/'
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+    'pyensemble.experiments.finders.ExperimentFinder',
+]
 MEDIA_URL = '/media/'
 USE_AWS_STORAGE = False
 AWS_MEDIA_STORAGE_BUCKET_NAME = 'unused-test-media'

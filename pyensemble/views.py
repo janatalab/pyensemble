@@ -40,6 +40,7 @@ import pyensemble.integrations.prolific.errors as prolific_errors
 from pyensemble import errors
 
 from pyensemble.utils.parsers import parse_function_spec, fetch_experiment_method
+from pyensemble.experiments.plugins import PluginConfigurationError, resolve_plugins
 
 from pyensemble.group.models import GroupSession, GroupSessionSubjectSession
 from pyensemble.group.views import attach_subject_to_group, get_group_session, set_groupuser_state, get_groupuser_state, init_group_trial
@@ -1095,6 +1096,7 @@ def serve_form(request, experiment_id=None):
         'captcha': {},
         'timeline': {},
         'timeline_json':'',
+        'jspsych_plugins': [],
         'stimulus': None,
         'skip_trial': False,
         'feedback': '',
@@ -1531,6 +1533,17 @@ def serve_form(request, experiment_id=None):
                 result = method(request, *funcdict['args'],**funcdict['kwargs'])
 
         if timeline:
+            if handler_name == 'form_stimulus_s':
+                try:
+                    context['jspsych_plugins'] = resolve_plugins(timeline)
+                except PluginConfigurationError:
+                    logging.exception(
+                        "Invalid jsPsych plugins for experiment %s, form %s",
+                        experiment_id, form.id,
+                    )
+                    return render(request, 'pyensemble/error.html', {
+                        'msg': 'This experiment could not load its trial plugins. Please contact the experiment administrator.',
+                    }, status=500)
             context.update({
                 'timeline': timeline,
                 'timeline_json': json.dumps(timeline)

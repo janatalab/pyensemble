@@ -19,8 +19,8 @@
     <script src="{% static 'pyensemble/js/trialrunner.js' %}"></script>
 
     <!-- Insert necessary plugins -->
-    {% for trial in timeline %}
-        <script src="{% static 'jsPsych/plugins/jspsych-'|add:trial.type|add:'.js' %}"></script>
+    {% for plugin_path in jspsych_plugins %}
+        <script src="{% static plugin_path %}"></script>
     {% endfor %}
 
     <script>

@@ -63,6 +63,18 @@ python manage.py migrate --settings=pyensemble.settings.settings
 python manage.py collectstatic --noinput --settings=pyensemble.settings.settings
 ```
 
+Install experiment repositories before collecting static files. Their public
+`static/` directories are discovered automatically and collected under
+`experiments/<package>/`, including experiment-specific jsPsych plugins.
+Do not put private code, configuration, or participant data in these directories.
+After installing a new repository, restart application workers to refresh
+discovery; rerun `collectstatic` whenever static assets are added or changed.
+To check discovery, for example:
+
+```sh
+python manage.py findstatic experiments/my_experiment/jspsych/plugins/jspsych-custom-response.js --settings=pyensemble.settings.settings
+```
+
 Do not run `makemigrations` as a routine deployment step. Review and commit
 schema migrations as code changes before deployment. The current shared
 settings use a database-backed cache; create the configured cache table if it

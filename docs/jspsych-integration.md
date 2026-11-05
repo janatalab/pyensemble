@@ -26,8 +26,10 @@ PyEnsemble repository.
 
 ## How PyEnsemble uses jsPsych
 
-An Experiment's `stimulus_script` callback can return a jsPsych timeline. The
-participant page loads the needed plugin scripts and executes the timeline.
+With the `form_stimulus_s` handler, a `stimulus_script` callback returns a
+jsPsych timeline and stimulus ID. `serve_form` resolves the required plugins;
+`form_stimulus_s.html` loads jsPsych, `trialrunner.js`, and those plugins before
+starting the timeline. This remains the required client-side interaction flow.
 When the timeline completes, PyEnsemble can continue to its configured Forms.
 Alternatively, jsPsych-collected trial data can be submitted with the form and
 stored in the response's jsPsych data field.
@@ -41,11 +43,67 @@ of California, Davis; consult that guide before reusing or distributing them.
 
 ## Custom plugins and repository boundaries
 
-Prefer standard jsPsych plugins where possible. When experiment-specific
-client-side behavior needs a custom plugin, create or modify only `.js` plugin
-files under `thirdparty/jsPsych/plugins/`. Keep experiment callbacks,
-templates, definitions, and asset handling in that experiment's own repository
-under `pyensemble/experiments/`.
+Prefer standard jsPsych plugins where possible. Store experiment-specific
+plugins in the experiment's own repository:
+
+```text
+pyensemble/experiments/my_experiment/
+    __init__.py
+    static/
+        jspsych/
+            plugins/
+                jspsych-custom-response.js
+```
+
+Use the qualified type in both the timeline and the plugin's registration:
+
+```python
+timeline = [
+    {"type": "html-keyboard-response", "stimulus": "Instructions"},
+    {"type": "my_experiment/custom-response", "stimulus": "Respond"},
+]
+```
+
+```javascript
+jsPsych.plugins["my_experiment/custom-response"] = (function() {
+    // Return the plugin implementation using this fork's plugin API.
+})();
+```
+
+The package namespace is the repository's Python package directory, not the
+database Experiment title. Package names for qualified types must start with
+an ASCII letter and contain only ASCII letters, digits, or underscores.
+Plugin names contain ASCII letters, digits, underscores, or hyphens.
+
+`ExperimentFinder` discovers immediate Python packages under `EXPERIMENT_DIR`
+without importing them. Each package's `static/` directory is exposed under
+`experiments/<package>/`. Hidden directories, underscore-prefixed directories,
+and directories without `__init__.py` are excluded. Never put private
+configuration, participant data, or other sensitive files in `static/`.
+
+The example custom plugin resolves to the static path
+`experiments/my_experiment/jspsych/plugins/jspsych-custom-response.js`.
+Unqualified types still resolve to
+`jsPsych/plugins/jspsych-<type>.js` in the shared jsPsych checkout. There is no
+local override or fallback: qualifying both the static path and registration
+key prevents collisions between repositories.
+
+The resolver walks nested timelines, respects inherited types, and loads each
+plugin once in first-use order. Types must be strings; dynamically computed
+types and automatic JavaScript dependency discovery are not supported. Make
+custom plugins self-contained. Missing or invalid plugin references produce
+a logged configuration error and an error page rather than starting a broken
+trial. Returning to questions after invalid form submission does not rerun
+the trial or resolve its plugins.
+
+To migrate an existing custom plugin, move it into the experiment's static
+directory, qualify its registration key, and update all corresponding
+timeline types. Existing shared plugins remain supported unchanged.
+
+Restart the application after installing a repository, and run `collectstatic`
+after adding or changing assets in production. Django's static storage
+generates the URLs, including any deployment prefix or CDN configuration.
+See [deployment](./production-deployment.md#migrate-and-collect-static-files).
 
 Do not make cosmetic changes or experiment-specific modifications to jsPsych
 core. The project's
@@ -55,6 +113,7 @@ documents these repository boundaries.
 ## Missing checkout
 
 Some editor and participant features work without jsPsych. If a definition
-uses a jsPsych timeline and its assets or plugins are missing, initialize the
-separate checkout above and confirm the requested plugin exists under its
-`plugins/` directory.
+uses a jsPsych timeline and shared assets or plugins are missing, initialize
+the separate checkout above. For qualified plugins, confirm the experiment
+repository and its static assets are installed. Use `findstatic` with the
+resolved static path to diagnose discovery before collecting production assets.
