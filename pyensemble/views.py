@@ -228,6 +228,9 @@ class StimulusListView(LoginRequiredMixin, ListView):
 
         query_params = {}
         for key in params.keys():
+            if key == 'page':
+                continue
+
             if key.endswith("[]"):
                 query_params.update({f"{key[:-2]}__in":params.getlist(key)})
             else:
@@ -246,8 +249,27 @@ class StimulusListView(LoginRequiredMixin, ListView):
 
         context.update(get_stimulus_search_options(self.queryset))
 
+        page_obj = context['page_obj']
+        pagination_urls = {}
+        if page_obj.has_previous():
+            pagination_urls['first'] = self._page_url(1)
+            pagination_urls['previous'] = self._page_url(
+                page_obj.previous_page_number()
+            )
+        if page_obj.has_next():
+            pagination_urls['next'] = self._page_url(page_obj.next_page_number())
+            pagination_urls['last'] = self._page_url(
+                page_obj.paginator.num_pages
+            )
+        context['pagination_urls'] = pagination_urls
+
         # pdb.set_trace()
         return context
+
+    def _page_url(self, page_number):
+        query_params = self.request.GET.copy()
+        query_params['page'] = page_number
+        return f"{reverse('stimulus-list')}?{query_params.urlencode()}"
 
 #
 # Experiment editing views
