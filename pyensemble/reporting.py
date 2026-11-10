@@ -304,7 +304,7 @@ def exclude_session(request):
         session.exclude = True
         session.save()
 
-        return HttpResponse(f"Marked {session_id} for exclusion")
+        return HttpResponse(f"Marked {escape(session_id)} for exclusion")
 
     else:
         return HttpResponseBadRequest()
