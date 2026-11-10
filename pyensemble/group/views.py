@@ -413,7 +413,7 @@ def exclude_groupsession(request):
     session.exclude = True
     session.save()
 
-    return HttpResponse(f"Marked {session_id} for exclusion")
+    return HttpResponse("Marked session for exclusion")
 
   
 def groupuser_exitloop(request):
