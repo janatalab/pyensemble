@@ -6,6 +6,18 @@ window.PyEnsemble.reporting = (function(){
 
     core.urls = JSON.parse(document.getElementById('reporting-urls').textContent);
 
+    function sanitizeActionUrl(urlCandidate) {
+        try {
+            var parsed = new URL(urlCandidate, window.location.origin);
+            var isHttp = parsed.protocol === "http:" || parsed.protocol === "https:";
+            var isSameOrigin = parsed.origin === window.location.origin;
+            if (isHttp && isSameOrigin) {
+                return parsed.pathname + parsed.search + parsed.hash;
+            }
+        } catch (e) {}
+        return null;
+    }
+
     core.callbacks = {
         'attach-file-modal-post-submit': onAttachedFile,
     };
@@ -474,7 +486,11 @@ window.PyEnsemble.reporting = (function(){
     }
 
     core.fetchAttachFileForm = function(ev){
-        var url = core.urls['attach-file'];
+        var url = sanitizeActionUrl(core.urls['attach-file']);
+        if (!url) {
+            alert('Invalid attachment URL configuration.');
+            return;
+        }
 
         // Get our session ID
         core.currentSelections.session = ev.dataset.session;
