@@ -34,10 +34,10 @@ window.PyEnsemble.reporting = (function(){
 
         $("#secondary-navbar").addClass("d-none");
 
-        $("#summary_section").html("");
+        $("#summary_section").empty();
         $("#summary_section").addClass("d-none");
 
-        $("#session_list_table").html("");
+        $("#session_list_table").empty();
     };
 
     core.resetCurrentSelections();
@@ -233,7 +233,7 @@ window.PyEnsemble.reporting = (function(){
         // If we have no data to display, state as much and exit
         if (!table_entry_data){
             let ss = $("#summary_section");
-            ss.html("No session data available");
+            ss.text("No session data available");
             ss.removeClass("d-none");
             return
         }
@@ -338,16 +338,19 @@ window.PyEnsemble.reporting = (function(){
                         }
                     }
                 })
-                .html(function(d, i){
+                .each(function(d, i){
+                    let header = d3.select(this);
+
                     if (d.key=="index-label"){
-                        return d.value;
+                        header.text(d.value);
                     } else {
                         let type = d3.select(this.parentNode).datum().key;
                         if (type == "experiment"){
-                            return d.key;
+                            header.text(d.key);
                         } else {
-                            let str = "";
-                            str += "<div class='variable-label'>"+d+"</div>";
+                            header.append("div")
+                                .attr("class", "variable-label")
+                                .text(d);
 
                             if (i > 0){
                                 let experiment_str = column_info.num_levels > 1 ? column_info.level_items[i][0]+"-" : "";
@@ -355,22 +358,20 @@ window.PyEnsemble.reporting = (function(){
                                 let min_label = experiment_str+d+"-min";
                                 let max_label = experiment_str+d+"-max";
 
-                                str += "<div class='stats'>";
+                                let stats = header.append("div").attr("class", "stats");
 
-                                str += "<label for='"+min_label+"'>";
-                                str += "Min";
-                                str += "</label>";
-                                str += "<input type='number' class='form-control variable-input min' id='" + min_label+ "'>";
+                                stats.append("label").attr("for", min_label).text("Min");
+                                stats.append("input")
+                                    .attr("type", "number")
+                                    .attr("class", "form-control variable-input min")
+                                    .attr("id", min_label);
 
-                                str += "<label for='"+max_label+"'>";
-                                str += "Max";
-                                str += "</label>";
-                                str += "<input type='number' class='form-control variable-input max' id='"+max_label+"'>";
-                                
-                                str += "</div";
+                                stats.append("label").attr("for", max_label).text("Max");
+                                stats.append("input")
+                                    .attr("type", "number")
+                                    .attr("class", "form-control variable-input max")
+                                    .attr("id", max_label);
                             }
-
-                            return str;
                         }
                     }
                 })
@@ -414,30 +415,43 @@ window.PyEnsemble.reporting = (function(){
                     return [{"key":"index-label","value":d.key}].concat(d3.entries(d.value).filter(function(d){return d.key != "meta"}));
                 }).enter()
                     .append("td")
-                        .html(function(d,i) {
-                            let val = d.value;
+                        .each(function(d,i) {
+                            let cell = d3.select(this);
 
                             if (d.key == "index-label"){
-                                val += "<div class='text-danger'><button type='button' class='session exclude-session-btn btn btn-danger btn-sm' id='exclude-"+d.value+"'>Exclude</button></div>";
+                                cell.text(d.value);
+                                cell.append("div")
+                                    .attr("class", "text-danger")
+                                    .append("button")
+                                        .attr("type", "button")
+                                        .attr("class", "session exclude-session-btn btn btn-danger btn-sm")
+                                        .attr("id", "exclude-"+d.value)
+                                        .text("Exclude");
 
                             } else if (d.key == 'subject_session_data'){
-                                return "<table class='subject-info'></table>"
+                                cell.append("table").attr("class", "subject-info");
 
                             } else if (d.key == 'files'){
                                 let session_id = d3.select(this.parentElement).datum().key;
                                 
-                                val = "<button type='button' class='btn btn-outline-info attach-file-btn' id='attach-file-"+session_id+"' data-toggle='modal' data-target='#attachFileModal' data-session='"+session_id+"'>Attach File</button>";;
-
-                                val += "<div>"+d.value+"</div>";
+                                cell.append("button")
+                                    .attr("type", "button")
+                                    .attr("class", "btn btn-outline-info attach-file-btn")
+                                    .attr("id", "attach-file-"+session_id)
+                                    .attr("data-toggle", "modal")
+                                    .attr("data-target", "#attachFileModal")
+                                    .attr("data-session", session_id)
+                                    .text("Attach File");
+                                cell.append("div").text(d.value);
                             } else if (d.key == "last_response"){
                                 if (d.value){
-                                    return Object.values(d.value).join(', ')
+                                    cell.text(Object.values(d.value).join(', '));
                                 } else {
-                                    return "No responses"
+                                    cell.text("No responses");
                                 }
+                            } else {
+                                cell.text(d.value);
                             }
-
-                            return val;
                         })
                         .attr("class", function(d,i){
                             let class_str = "align-middle";
@@ -464,7 +478,7 @@ window.PyEnsemble.reporting = (function(){
                 })
                 .enter()
                 .append("td")
-                    .html(function(s){
+                    .text(function(s){
                         if (s.key == "last_response"){
                             if (s.value){
                                 return Object.values(s.value).join(', ')
