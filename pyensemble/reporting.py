@@ -14,6 +14,7 @@ from django.db.models import Max
 from django.urls import reverse
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse, HttpResponseBadRequest, HttpResponseRedirect
+from django.utils.html import escape
 
 from pyensemble.models import Study, Session, Experiment, Response, StudyXExperiment
 from pyensemble.group.models import GroupSession
@@ -330,8 +331,9 @@ def exclude_subject(request):
                 subject_sessions = Session.objects.get(subject=subject_id, experiment=experiment)
 
         num_sessions = subject_sessions.update(exclude=True)
+        safe_subject_id = escape(subject_id)
 
-        return HttpResponse(f"Marked {num_sessions} of {subject_id} for exclusion")
+        return HttpResponse(f"Marked {num_sessions} of {safe_subject_id} for exclusion")
 
     else:
         return HttpResponseBadRequest()
