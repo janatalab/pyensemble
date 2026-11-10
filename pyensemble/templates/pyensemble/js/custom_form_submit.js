@@ -4,6 +4,6 @@
             ev.stopImmediatePropagation();
             ev.preventDefault();
             submitForm($(".editor-form"));
-        });
-    });
+        })
+    })
 </script>
