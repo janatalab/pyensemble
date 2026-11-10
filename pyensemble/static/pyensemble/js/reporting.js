@@ -61,8 +61,10 @@ window.PyEnsemble.reporting = (function(){
         });
 
         // Set our summary and session urls
-        $("#summary-nav-link").attr({href: core.urls[level+'-summary']})
-        $("#sessions-nav-link").attr({href: core.urls[level+'-sessions']})
+        var summaryHref = sanitizeActionUrl(core.urls[level+'-summary']);
+        var sessionsHref = sanitizeActionUrl(core.urls[level+'-sessions']);
+        $("#summary-nav-link").attr({href: summaryHref || "#"});
+        $("#sessions-nav-link").attr({href: sessionsHref || "#"});
 
         $("#secondary-navbar").removeClass("d-none");
 
